@@ -5,72 +5,34 @@ from components.appbar_class import create_appbar
 
 
 def setup_routes(page: ft.Page, supabase):
-    page.title = "SupaFit"
-
     def route_change(route):
         page.views.clear()
-        page.views.append(
-            ft.View(
-                route="/",
-                appbar=create_appbar("SupaFit"),
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                controls=[Homepage(page, supabase)],
-            )
-        )
-        if page.route.startswith("/treino/"):
-            day = page.route.split("/")[-1].capitalize()
+        if page.route == "/":
             page.views.append(
                 ft.View(
-                    route=page.route,
-                    appbar=create_appbar(f"Treino de {day}"),
+                    route="/",
+                    appbar=create_appbar("Supafit"),
+                    controls=[Homepage(page, supabase)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
+                    padding=20,
+                )
+            )
+        elif page.route.startswith("/treino/"):
+            day = page.route.split("/")[-1]
+            page.views.append(
+                ft.View(
+                    appbar=create_appbar(f"Treino - {day.capitalize()}"),
+                    route=f"/treino/{day}",
                     controls=[Treinopage(page, supabase, day)],
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
                 )
             )
-        elif page.route == "/perfil":
-            page.views.append(
-                ft.View(
-                    route="/perfil",
-                    appbar=create_appbar("Perfil"),
-                    controls=[
-                        ft.Text("Perfil"),
-                        ft.ElevatedButton(
-                            text="Voltar", on_click=lambda _: page.go("/")
-                        ),
-                    ],
-                )
-            )
-        elif page.route == "/historico":
-            page.views.append(
-                ft.View(
-                    route="/historico",
-                    appbar=create_appbar("Histórico"),
-                    controls=[
-                        ft.Text("Histórico"),
-                        ft.ElevatedButton(
-                            text="Voltar", on_click=lambda _: page.go("/")
-                        ),
-                    ],
-                )
-            )
-        elif page.route == "/configuracoes":
-            page.views.append(
-                ft.View(
-                    route="/configuracoes",
-                    appbar=create_appbar("Configurações"),
-                    controls=[
-                        ft.Text("Configurações"),
-                        ft.ElevatedButton(
-                            text="Voltar", on_click=lambda _: page.go("/")
-                        ),
-                    ],
-                )
-            )
-
-        print(f"Rota alterada para: {page.route}")
         page.update()
+        print(f"Rota alterada para: {page.route}")
 
     def view_pop(view):
         page.views.pop()

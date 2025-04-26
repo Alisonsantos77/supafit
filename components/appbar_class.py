@@ -23,7 +23,7 @@ def create_appbar(title: str) -> ft.AppBar:
                             content=ft.Container(
                                 content=ft.CircleAvatar(
                                     bgcolor=ft.Colors.GREEN,
-                                    radius=5,
+                                    radius=50,
                                     foreground_image_src="https://avatars.githubusercontent.com/u/5041459?s=88&v=4",
                                 ),
                                 alignment=ft.alignment.bottom_left,

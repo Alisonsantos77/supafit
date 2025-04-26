@@ -1,113 +1,188 @@
 import flet as ft
-from components.days_time import DaysTime
-from components.avatar_component import AvatarComponent
+from components.custom_list_tile import CustomListTile
+from datetime import datetime
 
 
 def Homepage(page: ft.Page, supabase):
-    def go_to_workout(e, day):
-        page.go(f"/treino/{day.lower()}")
-
     def load_workouts():
         try:
             response = supabase.table("workouts").select("*").execute()
-            return {w["day"].capitalize(): w["name"] for w in response.data} or {
-                "Segunda": "Peito e Tríceps",
-                "Terça": "Costas e Bíceps",
-                "Quarta": "Pernas",
-                "Quinta": "Ombros",
-                "Sexta": "Peito e Tríceps",
-                "Sábado": "Descanso",
-                "Domingo": "Descanso",
-            }
+            if not response.data:
+                print("Nenhum treino encontrado")
+            return [
+                {
+                    **workout,
+                    "image_url": workout.get("image_url", "https://picsum.photos/200"),
+                }
+                for workout in (
+                    response.data
+                    or [
+                        {
+                            "day": "segunda",
+                            "name": "Peito e Tríceps",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "terça",
+                            "name": "Costas e Bíceps",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "quarta",
+                            "name": "Pernas",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "quinta",
+                            "name": "Ombros",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "sexta",
+                            "name": "Peito e Tríceps",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "sábado",
+                            "name": "Descanso",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "day": "domingo",
+                            "name": "Descanso",
+                            "image_url": "https://picsum.photos/200",
+                        },
+                    ]
+                )
+            ]
         except Exception as e:
             print(f"Erro ao carregar treinos: {str(e)}")
-            return {
-                "Segunda": "Peito e Tríceps",
-                "Terça": "Costas e Bíceps",
-                "Quarta": "Pernas",
-                "Quinta": "Ombros",
-                "Sexta": "Peito e Tríceps",
-                "Sábado": "Descanso",
-                "Domingo": "Descanso",
-            }
+            return [
+                {
+                    "day": "segunda",
+                    "name": "Peito e Tríceps",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "terça",
+                    "name": "Costas e Bíceps",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "quarta",
+                    "name": "Pernas",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "quinta",
+                    "name": "Ombros",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "sexta",
+                    "name": "Peito e Tríceps",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "sábado",
+                    "name": "Descanso",
+                    "image_url": "https://picsum.photos/200",
+                },
+                {
+                    "day": "domingo",
+                    "name": "Descanso",
+                    "image_url": "https://picsum.photos/200",
+                },
+            ]
 
     workouts = load_workouts()
+    current_day = datetime.now().strftime("%A").lower()
+    day_map = {
+        "monday": "segunda",
+        "tuesday": "terça",
+        "wednesday": "quarta",
+        "thursday": "quinta",
+        "friday": "sexta",
+        "saturday": "sábado",
+        "sunday": "domingo",
+    }
+    current_day = day_map.get(current_day, "segunda")
 
-    days_grid = ft.ResponsiveRow(
+    workout_grid = ft.ResponsiveRow(
         controls=[
-            ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text(
-                            day,
-                            weight=ft.FontWeight.BOLD,
-                            size=16,
-                            color=ft.Colors.WHITE,
-                        ),
-                        ft.Text(
-                            workouts.get(day, "Sem treino"),
-                            size=14,
-                            color=ft.Colors.WHITE70,
-                        ),
-                        ft.ElevatedButton(
-                            "Ver Treino",
-                            on_click=lambda e, d=day: go_to_workout(e, d),
-                            disabled=workouts.get(day) == "Descanso",
-                        ),
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER,
+            ft.Card(
+                col={"xs": 12, "sm": 6, "md": 4},
+                content=ft.Container(
+                    content=ft.Column(
+                        [
+                            CustomListTile(
+                                leading=ft.Image(
+                                    src=workout["image_url"],
+                                    width=64,
+                                    height=64,
+                                    fit=ft.ImageFit.COVER,
+                                    border_radius=ft.border_radius.all(10),
+                                    error_content=ft.Icon(ft.Icons.ERROR),
+                                ),
+                                title=ft.Text(
+                                    workout["name"], weight=ft.FontWeight.BOLD
+                                ),
+                                subtitle=ft.Text(workout["day"].capitalize()),
+                                trailing=ft.Stack(
+                                    [
+                                        ft.Checkbox(
+                                            value=workout["day"] == current_day
+                                        ),
+                                        ft.Container(
+                                            content=ft.Icon(ft.Icons.STAR, size=12),
+                                            visible=workout["day"] == current_day,
+                                            alignment=ft.alignment.top_right,
+                                        ),
+                                    ]
+                                ),
+                            ),
+                            ft.Text(
+                                "Hoje é dia de descanso",
+                                theme_style=ft.TextThemeStyle.LABEL_MEDIUM,
+                                color=ft.Colors.GREY,
+                                italic=True,
+                                visible=workout["name"] == "Descanso",
+                                overflow=ft.TextOverflow.VISIBLE,
+                            ),
+                            ft.ElevatedButton(
+                                "Ver Treino",
+                                on_click=lambda e, day=workout["day"]: page.go(
+                                    f"/treino/{day}"
+                                ),
+                                disabled=workout["name"] == "Descanso",
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        expand=False,
+                    ),
+                    padding=5,
+                    width=350,
                 ),
-                padding=15,
-                border_radius=8,
-                col={"xs": 6, "sm": 4, "md": 3},
+                elevation=3,
             )
-            for day in [
-                "Segunda",
-                "Terça",
-                "Quarta",
-                "Quinta",
-                "Sexta",
-                "Sábado",
-                "Domingo",
-            ]
+            for workout in workouts
         ],
         columns=12,
         spacing=10,
         run_spacing=10,
     )
 
-    texto = ft.Text(
-        "Bem vindo ao SupaFit",
-        size=24,
-        weight=ft.FontWeight.BOLD,
-        color=ft.Colors.BLUE_900,
-    )
-    avatar = AvatarComponent(image_url="profile_teste.png", radius=100)
-    days_time = DaysTime(page)
-
     return ft.Container(
         content=ft.Column(
             [
-                texto,
-                avatar,
-                ft.Text(
-                    "Frequência de Treino",
-                    size=20,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.BLUE_900,
-                ),
-                days_time,
-                ft.Text(
-                    "Treinos da Semana",
-                    size=20,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.BLUE_900,
-                ),
-                days_grid,
+                ft.Text("Frequência de Treino", size=24, weight=ft.FontWeight.BOLD),
+                workout_grid,
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=20,
+            scroll=ft.ScrollMode.AUTO,
         ),
-        padding=20,
+        padding=10,
     )
