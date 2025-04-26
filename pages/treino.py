@@ -1,9 +1,14 @@
 import flet as ft
 from components.timer_dialog import TimerDialog
 from components.custom_list_tile import CustomListTile
-from components.exercise_card import ExerciseCard  # Importa o novo componente
+from components.exercise_card import ExerciseCard
 import time
 import threading
+from services.images_splash import get_unsplash_image
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 class LoadEditor(ft.Row):
@@ -165,7 +170,7 @@ def Treinopage(page: ft.Page, supabase, day):
             return [
                 {
                     **exercise,
-                    "image_url": exercise.get("image_url", "https://picsum.photos/200"),
+                    "image_url": get_unsplash_image(exercise["name"]),
                 }
                 for exercise in (
                     response.data
@@ -318,7 +323,6 @@ def Treinopage(page: ft.Page, supabase, day):
         border_radius=ft.border_radius.only(top_left=10, top_right=10),
     )
 
-    # Layout principal
     return ft.Container(
         content=ft.Column(
             [
