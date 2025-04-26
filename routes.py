@@ -8,6 +8,8 @@ def setup_routes(page: ft.Page, supabase):
     def route_change(route):
         page.views.clear()
         if page.route == "/":
+            page.window.height = 1920
+            page.window.width = 1080
             page.views.append(
                 ft.View(
                     route="/",

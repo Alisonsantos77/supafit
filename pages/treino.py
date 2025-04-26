@@ -1,6 +1,7 @@
 import flet as ft
 from components.timer_dialog import TimerDialog
 from components.custom_list_tile import CustomListTile
+from components.exercise_card import ExerciseCard  # Importa o novo componente
 import time
 import threading
 
@@ -113,19 +114,18 @@ def Treinopage(page: ft.Page, supabase, day):
         nonlocal training_started, training_time
         training_started = True
         training_running.set()
-        # Habilitar botões de intervalo e carga
-        for card in exercise_grid.controls:
-            for control in card.content.content.controls:
-                if isinstance(control, CustomListTile):
-                    control.trailing.enable()
+        for card in exercise_list.controls:
+            for control in card.content.controls:
+                if isinstance(control, LoadEditor):
+                    control.enable()
                 elif (
                     isinstance(control, ft.ElevatedButton)
                     and "Iniciar Intervalo" in control.text
                 ):
                     control.disabled = False
-        # Iniciar cronômetro global
         threading.Thread(target=run_training_timer, daemon=True).start()
         start_button.disabled = True
+        pause_button.visible = True
         page.update()
 
     def run_training_timer():
@@ -133,9 +133,7 @@ def Treinopage(page: ft.Page, supabase, day):
         while training_running.is_set():
             training_time += 1
             minutes, seconds = divmod(training_time, 60)
-            training_timer_ref.current.value = (
-                f"Tempo de Treino: {minutes:02d}:{seconds:02d}"
-            )
+            training_timer_ref.current.value = f"Tempo: {minutes:02d}:{seconds:02d}"
             training_timer_ref.current.update()
             time.sleep(1)
 
@@ -143,11 +141,25 @@ def Treinopage(page: ft.Page, supabase, day):
         training_running.clear()
         page.go("/")
 
+    def pause_training(e):
+        training_running.clear()
+        pause_button.visible = False
+        resume_button.visible = True
+        page.update()
+
+    def resume_training(e):
+        training_running.set()
+        threading.Thread(target=run_training_timer, daemon=True).start()
+        pause_button.visible = True
+        resume_button.visible = False
+        page.update()
+
     def load_exercises(day):
         try:
             response = (
                 supabase.table("exercises").select("*").eq("day", day.lower()).execute()
             )
+            print("Dados do Supabase (exercises):", response.data)
             if not response.data:
                 print(f"Nenhum exercício encontrado para {day}")
             return [
@@ -201,83 +213,141 @@ def Treinopage(page: ft.Page, supabase, day):
     def update_load(load):
         pass
 
-    # Carregar exercícios para o dia
+    def play_exercise(e):
+        page.snack_bar = ft.SnackBar(content=ft.Text("Iniciando vídeo do exercício..."))
+        page.snack_bar.open = True
+        page.update()
+
+    def favorite_exercise(e):
+        #TODO adicionar lógica para salvar o estado de favorito no Supabase
+        pass
+
+    # Carregar exercícios
     exercises = load_exercises(day)
 
     # TimerDialog
     timer_dialog = TimerDialog(duration=60)
 
-    start_button = ft.ElevatedButton("Iniciar", on_click=start_training)
+    # Botões de controle
+    start_button = ft.ElevatedButton("Iniciar Treino", on_click=start_training)
+    pause_button = ft.IconButton(ft.Icons.PAUSE, on_click=pause_training, visible=False)
+    resume_button = ft.IconButton(
+        ft.Icons.PLAY_ARROW, on_click=resume_training, visible=False
+    )
 
-    # Cronômetro global
-    training_timer = ft.Text(ref=training_timer_ref, value="Tempo de Treino: 00:00")
+    # Cronômetro
+    training_timer = ft.Card(
+        content=ft.Container(
+            content=ft.Row(
+                [
+                    ft.Text(
+                        ref=training_timer_ref,
+                        value="Tempo: 00:00",
+                        size=18,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.WHITE,
+                    ),
+                    pause_button,
+                    resume_button,
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+            padding=10,
+            bgcolor=ft.Colors.GREY_800,
+        ),
+        elevation=5,
+    )
 
-    exercise_grid = ft.ResponsiveRow(
+    # Lista de exercícios usando ExerciseCard
+    exercise_list = ft.ListView(
+        expand=True,
+        spacing=10,
+        padding=10,
         controls=[
-            ft.Card(
-                col={"xs": 12, "sm": 6, "md": 4},
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            CustomListTile(
-                                leading=ft.Image(
-                                    src=exercise["image_url"],
-                                    width=64,
-                                    height=64,
-                                    fit=ft.ImageFit.COVER,
-                                    border_radius=ft.border_radius.all(10),
-                                    error_content=ft.Icon(ft.Icons.ERROR),
-                                ),
-                                title=ft.Text(
-                                    exercise["name"], weight=ft.FontWeight.BOLD
-                                ),
-                                subtitle=ft.Text(
-                                    f"{exercise['sets']} séries x {exercise['reps']} repetições"
-                                ),
-                                trailing=LoadEditor(
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ExerciseCard(
+                            image_url=exercise["image_url"],
+                            exercise_name=exercise["name"],
+                            duration=f"{exercise['reps'] * 2} min",  # Estimativa fictícia
+                            sets=exercise["sets"],
+                            on_play_click=play_exercise,
+                            on_favorite_click=favorite_exercise,
+                            width=400,
+                            height=400,
+                        ),
+                        ft.Row(
+                            [
+                                ft.Text("Carga:"),
+                                LoadEditor(
                                     initial_load=exercise["load"],
                                     exercise_id=exercise["id"],
                                     on_save=update_load,
                                     supabase=supabase,
                                     enabled=False,
                                 ),
-                            ),
-                            ft.ElevatedButton(
-                                "Iniciar Intervalo (60s)",
-                                on_click=lambda e: timer_dialog.start_timer(page),
-                                disabled=True,
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        expand=False,
-                    ),
-                    padding=5,
-                    width=350,
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        ft.ElevatedButton(
+                            "Iniciar Intervalo (60s)",
+                            on_click=lambda e: timer_dialog.start_timer(page),
+                            disabled=True,
+                        ),
+                    ],
+                    spacing=10,
                 ),
-                elevation=3,
+                padding=10,
             )
             for exercise in exercises
         ],
-        columns=12,
-        spacing=10,
-        run_spacing=10,
     )
 
+    # Controles fixos na parte inferior
+    bottom_controls = ft.Container(
+        content=ft.Row(
+            [
+                start_button,
+                ft.ElevatedButton("Finalizar Treino", on_click=stop_training),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_EVENLY,
+        ),
+        padding=10,
+        bgcolor=ft.Colors.GREY_800,
+        border_radius=ft.border_radius.only(top_left=10, top_right=10),
+    )
+
+    # Layout principal
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text(
-                    f"Treino de {day.capitalize()}", size=24, weight=ft.FontWeight.BOLD
+                ft.Container(
+                    content=ft.Row(
+                        [
+                            ft.IconButton(
+                                ft.Icons.ARROW_BACK,
+                                on_click=lambda e: page.go("/"),
+                                icon_color=ft.Colors.WHITE,
+                            ),
+                            ft.Text(
+                                f"Treino de {day.capitalize()}",
+                                size=24,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.WHITE,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.START,
+                    ),
+                    padding=ft.padding.only(left=10, top=10),
                 ),
-                start_button,
                 training_timer,
-                exercise_grid,
-                ft.ElevatedButton("Finalizar", on_click=stop_training),
+                exercise_list,
+                bottom_controls,
             ],
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=20,
-            scroll=ft.ScrollMode.AUTO,
+            spacing=10,
+            expand=True,
         ),
         padding=10,
+        bgcolor=ft.Colors.BLACK,
     )

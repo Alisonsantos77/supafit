@@ -111,7 +111,7 @@ def Homepage(page: ft.Page, supabase):
     workout_grid = ft.ResponsiveRow(
         controls=[
             ft.Card(
-                col={"xs": 12, "sm": 6, "md": 4},
+                col=10,
                 content=ft.Container(
                     content=ft.Column(
                         [
@@ -119,7 +119,7 @@ def Homepage(page: ft.Page, supabase):
                                 leading=ft.Image(
                                     src=workout["image_url"],
                                     width=64,
-                                    height=64,
+                                    height=150,
                                     fit=ft.ImageFit.COVER,
                                     border_radius=ft.border_radius.all(10),
                                     error_content=ft.Icon(ft.Icons.ERROR),
@@ -133,11 +133,6 @@ def Homepage(page: ft.Page, supabase):
                                         ft.Checkbox(
                                             value=workout["day"] == current_day
                                         ),
-                                        ft.Container(
-                                            content=ft.Icon(ft.Icons.STAR, size=12),
-                                            visible=workout["day"] == current_day,
-                                            alignment=ft.alignment.top_right,
-                                        ),
                                     ]
                                 ),
                             ),
@@ -147,14 +142,13 @@ def Homepage(page: ft.Page, supabase):
                                 color=ft.Colors.GREY,
                                 italic=True,
                                 visible=workout["name"] == "Descanso",
-                                overflow=ft.TextOverflow.VISIBLE,
+                                overflow=ft.TextOverflow.ELLIPSIS,
                             ),
                             ft.ElevatedButton(
                                 "Ver Treino",
                                 on_click=lambda e, day=workout["day"]: page.go(
                                     f"/treino/{day}"
                                 ),
-                                disabled=workout["name"] == "Descanso",
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.CENTER,
@@ -162,7 +156,6 @@ def Homepage(page: ft.Page, supabase):
                         expand=False,
                     ),
                     padding=5,
-                    width=350,
                 ),
                 elevation=3,
             )
