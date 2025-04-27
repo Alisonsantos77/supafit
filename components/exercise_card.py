@@ -27,7 +27,6 @@ class ExerciseCard(ft.Stack):
         self.height = height
         self.is_favorited = initially_favorited
 
-        # Configuração inicial do ícone de favorito
         self.favorite_icon = ft.IconButton(
             icon=ft.icons.STAR if self.is_favorited else ft.icons.STAR_BORDER,
             icon_color=ft.Colors.YELLOW_500 if self.is_favorited else ft.Colors.WHITE,
@@ -36,7 +35,6 @@ class ExerciseCard(ft.Stack):
             on_click=self.on_favorite_click,
         )
 
-        # Construção do card
         self.controls = [
             ft.Container(
                 height=self.height,

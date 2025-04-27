@@ -1,8 +1,28 @@
 import flet as ft
 import asyncio
+import requests
+import logging
 from components.exercise_tile import ExerciseTile
 from components.timer_dialog import TimerDialog
-from services.images_splash import get_unsplash_image
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+RAPID_API_KEY = os.getenv("RAPIDAPI_KEY")
+logger = logging.getLogger("supafit.treino")
+
+# Mapeamento de nomes de exercícios (português para inglês)
+EXERCISE_NAME_MAPPING = {
+    "Supino Reto": "bench press",
+    "Crucifixo Inclinado": "incline dumbbell fly",  
+    "Agachamento Livre": "squat",
+    "Leg Press": "leg press",
+    "Remada Curvada": "bent-over row",  
+    "Rosca Direta": "bicep curl",  
+    "Desenvolvimento de Ombros": "shoulder press",  
+    "Supino Inclinado": "incline bench press",  
+}
 
 
 def Treinopage(page: ft.Page, supabase, day):
@@ -70,24 +90,139 @@ def Treinopage(page: ft.Page, supabase, day):
         resume_button.visible = False
         page.update()
 
-    def handle_reorder(e):
-        print(f"Exercício movido de {e.old_index} para {e.new_index}")
-        # Atualizar a ordem no Supabase
-        # exercises[e.old_index], exercises[e.new_index] = exercises[e.new_index], exercises[e.old_index]
-        # supabase.table("exercises").update({"order": e.new_index}).eq("id", exercises[e.new_index]["id"]).execute()
+    def fetch_exercise_data(exercise_name):
+        """Função para visualizar os dados brutos retornados pela ExerciseDB API."""
+        api_name = EXERCISE_NAME_MAPPING.get(exercise_name, exercise_name).lower()
+        logger.debug(f"Mapeando {exercise_name} para {api_name} para a ExerciseDB API")
+
+        url = f"https://exercisedb.p.rapidapi.com/exercises/name/{api_name}"
+        headers = {
+            "X-RapidAPI-Key": RAPID_API_KEY,
+            "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
+        }
+        try:
+            logger.debug(f"Buscando dados para {api_name} na ExerciseDB API")
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"Dados brutos da API para {api_name}: {data}")
+            return data
+        except Exception as e:
+            logger.error(f"Erro ao buscar dados para {api_name}: {str(e)}")
+            return None
+
+    def fetch_exercise_animation(exercise_name):
+        data = fetch_exercise_data(exercise_name)
+        if data and isinstance(data, list) and data:
+            # Selecionar o exercício mais relevante
+            api_name = EXERCISE_NAME_MAPPING.get(exercise_name, exercise_name).lower()
+            for exercise in data:
+                exercise_name_lower = exercise["name"].lower()
+                if (
+                    api_name == "bench press"
+                    and "barbell bench press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "incline bench press"
+                    and "barbell incline bench press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if api_name == "squat" and "barbell full squat" in exercise_name_lower:
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "leg press"
+                    and "sled 45° leg press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "bent-over row"
+                    and "barbell bent-over row" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if api_name == "bicep curl" and "barbell curl" in exercise_name_lower:
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "shoulder press"
+                    and "barbell shoulder press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if exercise.get("gifUrl"):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+            logger.warning(f"Nenhum gifUrl encontrado nos dados para {exercise_name}")
+        return {
+            "animation_url": None,
+            "body_part": None,
+            "target": None,
+            "secondary_muscles": None,
+            "instructions": None,
+        }
 
     def load_exercises(day):
         try:
             response = (
                 supabase.table("exercises").select("*").eq("day", day.lower()).execute()
             )
-            print("Dados do Supabase (exercises):", response.data)
+            logger.info("Dados do Supabase (exercises): %s", response.data)
             if not response.data:
-                print(f"Nenhum exercício encontrado para {day}")
+                logger.warning(f"Nenhum exercício encontrado para {day}")
             return [
                 {
-                    **exercise,
-                    "image_url": get_unsplash_image(exercise["name"]),
+                    "id": exercise["id"],
+                    "name": exercise["name"],
+                    "series": exercise["sets"],
+                    "repetitions": exercise["reps"],
+                    "load": exercise["load"],
+                    "image_url": exercise.get("image_url"),
+                    **fetch_exercise_animation(exercise["name"]),
                 }
                 for exercise in (
                     response.data
@@ -95,16 +230,16 @@ def Treinopage(page: ft.Page, supabase, day):
                         {
                             "id": "1",
                             "name": "Supino Reto",
-                            "series": 4,
-                            "repetitions": 12,
+                            "sets": 4,
+                            "reps": 12,
                             "load": 0,
                             "image_url": "https://picsum.photos/200",
                         },
                         {
                             "id": "2",
                             "name": "Agachamento Livre",
-                            "series": 4,
-                            "repetitions": 10,
+                            "sets": 4,
+                            "reps": 10,
                             "load": 0,
                             "image_url": "https://picsum.photos/200",
                         },
@@ -112,7 +247,7 @@ def Treinopage(page: ft.Page, supabase, day):
                 )
             ]
         except Exception as e:
-            print(f"Erro ao carregar exercícios para {day}: {str(e)}")
+            logger.error(f"Erro ao carregar exercícios para {day}: {str(e)}")
             return [
                 {
                     "id": "1",
@@ -121,6 +256,7 @@ def Treinopage(page: ft.Page, supabase, day):
                     "repetitions": 12,
                     "load": 0,
                     "image_url": "https://picsum.photos/200",
+                    **fetch_exercise_animation("Supino Reto"),
                 },
                 {
                     "id": "2",
@@ -129,21 +265,15 @@ def Treinopage(page: ft.Page, supabase, day):
                     "repetitions": 10,
                     "load": 0,
                     "image_url": "https://picsum.photos/200",
+                    **fetch_exercise_animation("Agachamento Livre"),
                 },
             ]
 
     def update_load(load):
-        pass  # Pode ser implementado para atualizar a carga localmente
-
-    def play_exercise(e):
-        page.snack_bar = ft.SnackBar(content=ft.Text("Iniciando vídeo do exercício..."))
-        page.snack_bar.open = True
-        page.update()
+        pass
 
     def favorite_exercise(exercise_tile):
         try:
-            # Exemplo: Atualizar o status de favorito no Supabase
-            # supabase.table("exercises").update({"is_favorited": exercise_tile.is_favorited}).eq("id", exercise_tile.exercise_id).execute()
             page.snack_bar = ft.SnackBar(
                 content=ft.Text(
                     "Exercício favoritado!"
@@ -155,6 +285,7 @@ def Treinopage(page: ft.Page, supabase, day):
             page.snack_bar.open = True
             page.update()
         except Exception as e:
+            logger.error(f"Erro ao favoritar exercício: {str(e)}")
             page.snack_bar = ft.SnackBar(
                 content=ft.Text(f"Erro ao favoritar: {str(e)}"), action="OK"
             )
@@ -163,16 +294,20 @@ def Treinopage(page: ft.Page, supabase, day):
     # Carregar exercícios
     exercises = load_exercises(day)
 
-    # Lista de exercícios com reordenamento
-    exercise_list = ft.ReorderableListView(
+    # Lista de exercícios
+    exercise_list = ft.ListView(
         controls=[
             ExerciseTile(
                 exercise_name=exercise["name"],
                 series=exercise["series"],
                 repetitions=exercise["repetitions"],
                 load=exercise["load"],
+                animation_url=exercise["animation_url"],
                 image_url=exercise["image_url"],
-                on_play_click=play_exercise,
+                body_part=exercise["body_part"],
+                target=exercise["target"],
+                secondary_muscles=exercise["secondary_muscles"],
+                instructions=exercise["instructions"],
                 on_favorite_click=favorite_exercise,
                 on_load_save=update_load,
                 supabase=supabase,
@@ -182,11 +317,11 @@ def Treinopage(page: ft.Page, supabase, day):
             for exercise in exercises
         ],
         expand=True,
+        spacing=10,
         padding=10,
-        on_reorder=handle_reorder,
     )
 
-    # Controles no topo (substituindo AppBar)
+    # Controles no topo
     start_button = ft.ElevatedButton(
         "Iniciar Treino",
         on_click=start_training,
@@ -214,22 +349,35 @@ def Treinopage(page: ft.Page, supabase, day):
     )
 
     control_bar = ft.Container(
-        content=ft.Row(
+        content=ft.ResponsiveRow(
             [
-                ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/")),
-                ft.Text(ref=training_timer_ref, value="Tempo: 00:00", size=16),
-                pause_button,
-                resume_button,
-                finish_button,
+                ft.Container(
+                    ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/")),
+                    col={"sm": 2, "md": 1},
+                ),
+                ft.Container(
+                    ft.Text(ref=training_timer_ref, value="Tempo: 00:00", size=16),
+                    col={"sm": 5, "md": 6},
+                    alignment=ft.alignment.center,
+                ),
+                ft.Container(
+                    content=ft.Row(
+                        [pause_button, resume_button, finish_button],
+                        spacing=5,
+                        wrap=True,
+                    ),
+                    col={"sm": 5, "md": 5},
+                    alignment=ft.alignment.center,
+                ),
             ],
-            alignment=ft.MainAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             spacing=10,
+            run_spacing=5,
         ),
         padding=ft.padding.symmetric(horizontal=10, vertical=5),
-        border=ft.border.only(bottom=ft.BorderSide(1, ft.Colors.GREY_100)),
+        border=ft.border.only(bottom=ft.BorderSide(1, ft.Colors.GREY_300)),
     )
 
-    # Layout principal
     return ft.Column(
         [
             control_bar,

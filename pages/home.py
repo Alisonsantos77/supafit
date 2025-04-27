@@ -120,7 +120,7 @@ def Homepage(page: ft.Page, supabase):
                         f"/treino/{day}"
                     ),
                 ),
-                col={"xs": 12, "sm": 6, "md": 4, "lg": 3},  # Responsivo
+                col={"xs": 12, "sm": 6, "md": 4, "lg": 3},
                 padding=10,
             )
             for workout in workouts

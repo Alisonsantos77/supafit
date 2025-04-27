@@ -25,7 +25,6 @@ class WorkoutTile(ft.ExpansionTile):
         self.is_current_day = is_current_day
         self.on_view_click = on_view_click
 
-        # Configuração do leading (imagem)
         self.leading = ft.Image(
             src=image_url,
             width=64,

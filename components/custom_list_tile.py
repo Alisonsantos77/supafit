@@ -25,7 +25,6 @@ class CustomListTile(ft.ListTile):
             min_leading_width=min_leading_width,
             min_height=min_height,
         )
-        # Garantir que o texto quebre e seja visível
         if title and isinstance(title, ft.Text):
             title.no_wrap = False
             title.overflow = ft.TextOverflow.VISIBLE

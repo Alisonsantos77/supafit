@@ -1,6 +1,9 @@
 import flet as ft
+import logging
 from components.load_editor import LoadEditor
 from components.timer_dialog import TimerDialog
+
+logger = logging.getLogger("supafit.exercise_tile")
 
 
 class ExerciseTile(ft.Container):
@@ -10,22 +13,40 @@ class ExerciseTile(ft.Container):
         series: int,
         repetitions: int,
         load: float,
-        image_url: str,
-        on_play_click=None,
+        animation_url: str,
+        image_url: str = None,
+        body_part: str = None,
+        target: str = None,
+        secondary_muscles: list = None,
+        instructions: list = None,
         on_favorite_click=None,
         on_load_save=None,
         supabase=None,
         exercise_id=None,
         page=None,
     ):
-        # Imagem maior
+        logger.debug(
+            f"Carregando ExerciseTile para {exercise_name} com animation_url: {animation_url}, image_url: {image_url}"
+        )
+
+        # Imagem clicável com animação
+        self.animation_url = animation_url or image_url or "https://picsum.photos/200"
+        self.body_part = body_part
+        self.target = target
+        self.secondary_muscles = secondary_muscles or []
+        self.instructions = instructions or []
+
         image = ft.Image(
-            src=image_url,
+            src=self.animation_url,
             width=150,
             height=150,
             fit=ft.ImageFit.COVER,
             border_radius=ft.border_radius.all(10),
             error_content=ft.Icon(ft.Icons.ERROR),
+        )
+        image_container = ft.GestureDetector(
+            content=image,
+            on_tap=lambda e: self.show_animation(exercise_name),
         )
 
         # Detalhes do exercício
@@ -37,7 +58,7 @@ class ExerciseTile(ft.Container):
             spacing=5,
         )
 
-        # Editor de carga (desabilitado por padrão)
+        # Editor de carga
         load_editor = LoadEditor(
             initial_load=load,
             exercise_id=exercise_id,
@@ -63,12 +84,9 @@ class ExerciseTile(ft.Container):
             reverse_duration=200,
         )
 
-        # Botões de ação
+        # Botões de ação (apenas favoritar)
         action_buttons = ft.Row(
             [
-                ft.IconButton(
-                    ft.Icons.PLAY_ARROW, tooltip="Assistir", on_click=on_play_click
-                ),
                 ft.IconButton(
                     content=self.favorite_container,
                     tooltip="Favoritar",
@@ -82,7 +100,7 @@ class ExerciseTile(ft.Container):
         super().__init__(
             content=ft.Row(
                 [
-                    image,
+                    image_container,
                     ft.Column(
                         [
                             details,
@@ -92,7 +110,6 @@ class ExerciseTile(ft.Container):
                         ],
                         expand=True,
                         spacing=10,
-                        run_spacing=10,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.START,
@@ -108,7 +125,57 @@ class ExerciseTile(ft.Container):
         self.interval_button = interval_button
         self.is_favorited = False
         self.exercise_id = exercise_id
+        self.exercise_name = exercise_name
         self.supabase = supabase
+        self.page = page
+
+    def show_animation(self, exercise_name):
+        logger.debug(f"Exibindo animação para {exercise_name}: {self.animation_url}")
+        # Criar conteúdo do diálogo com mais informações
+        muscles_info = ft.Column(
+            [
+                ft.Text(f"Músculo Principal: {self.body_part}", size=14),
+                ft.Text(f"Alvo: {self.target}", size=14),
+                ft.Text(
+                    f"Músculos Secundários: {', '.join(self.secondary_muscles)}",
+                    size=14,
+                ),
+            ],
+            spacing=5,
+        )
+        instructions_info = ft.Column(
+            [
+                ft.Text(f"{i+1}. {step}", size=12)
+                for i, step in enumerate(self.instructions)
+            ],
+            spacing=3,
+            scroll=ft.ScrollMode.AUTO,
+            height=150,
+        )
+        dialog_content = ft.Column(
+            [
+                ft.Image(
+                    src=self.animation_url,
+                    width=300,
+                    height=300,
+                    fit=ft.ImageFit.CONTAIN,
+                ),
+                muscles_info,
+                ft.Text("Instruções:", size=16, weight=ft.FontWeight.BOLD),
+                instructions_info,
+            ],
+            spacing=10,
+            scroll=ft.ScrollMode.AUTO,
+        )
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"Animação: {exercise_name}"),
+            content=dialog_content,
+            actions=[
+                ft.TextButton("Fechar", on_click=lambda e: self.page.close(dialog))
+            ],
+        )
+        self.page.open(dialog)
 
     def toggle_favorite(self, on_favorite_click):
         self.is_favorited = not self.is_favorited
