@@ -1,5 +1,5 @@
 import flet as ft
-from components.custom_list_tile import CustomListTile
+from components.workout_tile import WorkoutTile
 from datetime import datetime
 
 
@@ -110,54 +110,18 @@ def Homepage(page: ft.Page, supabase):
 
     workout_grid = ft.ResponsiveRow(
         controls=[
-            ft.Card(
-                col=10,
-                content=ft.Container(
-                    content=ft.Column(
-                        [
-                            CustomListTile(
-                                leading=ft.Image(
-                                    src=workout["image_url"],
-                                    width=64,
-                                    height=150,
-                                    fit=ft.ImageFit.COVER,
-                                    border_radius=ft.border_radius.all(10),
-                                    error_content=ft.Icon(ft.Icons.ERROR),
-                                ),
-                                title=ft.Text(
-                                    workout["name"], weight=ft.FontWeight.BOLD
-                                ),
-                                subtitle=ft.Text(workout["day"].capitalize()),
-                                trailing=ft.Stack(
-                                    [
-                                        ft.Checkbox(
-                                            value=workout["day"] == current_day
-                                        ),
-                                    ]
-                                ),
-                            ),
-                            ft.Text(
-                                "Hoje é dia de descanso",
-                                theme_style=ft.TextThemeStyle.LABEL_MEDIUM,
-                                color=ft.Colors.GREY,
-                                italic=True,
-                                visible=workout["name"] == "Descanso",
-                                overflow=ft.TextOverflow.ELLIPSIS,
-                            ),
-                            ft.ElevatedButton(
-                                "Ver Treino",
-                                on_click=lambda e, day=workout["day"]: page.go(
-                                    f"/treino/{day}"
-                                ),
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        expand=False,
+            ft.Container(
+                content=WorkoutTile(
+                    workout_name=workout["name"],
+                    day=workout["day"],
+                    image_url=workout["image_url"],
+                    is_current_day=workout["day"] == current_day,
+                    on_view_click=lambda e, day=workout["day"]: page.go(
+                        f"/treino/{day}"
                     ),
-                    padding=5,
                 ),
-                elevation=3,
+                col={"xs": 12, "sm": 6, "md": 4, "lg": 3},  # Responsivo
+                padding=10,
             )
             for workout in workouts
         ],
