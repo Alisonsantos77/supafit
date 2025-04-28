@@ -1,5 +1,5 @@
 import flet as ft
-from components.workout_tile import WorkoutTile
+from components.components import WorkoutTile
 from datetime import datetime
 
 

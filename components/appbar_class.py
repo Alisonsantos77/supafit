@@ -1,35 +1,45 @@
 import flet as ft
-from components.avatar_component import AvatarComponent
+from components.components import AvatarComponent
 
 
-# def create_appbar(title: str, user_id: str) -> ft.AppBar:
-#     def handle_menu_item(e):
-#         if e.control.content.controls[1].value == "Perfil":
-#             e.page.go("/profile")
-#         elif e.control.content.controls[1].value == "Histórico":
-#             e.page.go("/history")
-#         elif e.control.content.controls[1].value == "Pergunte ao Treinador":
-#             e.page.go("/ask_trainer")
-#         elif e.control.content.controls[1].value == "Configurações":
-#             e.page.go("/settings")
-#         elif e.control.content.controls[1].value == "Galeria de Vitórias":
-#             e.page.go("/community")
-#         elif e.control.content.controls[1].value == "Sair":
-#             e.page.client_storage.remove("user_id")
-#             e.page.go("/login")
-            
 def create_appbar(title: str) -> ft.AppBar:
     def handle_menu_item(e):
+        user_id = e.page.client_storage.get("user_id")
+        print(
+            f"Opção clicada: {e.control.content.controls[1].value}, user_id: {user_id}"
+        )
+
+        if not user_id:
+            e.page.go("/login")
+            return
+
         if e.control.content.controls[1].value == "Perfil":
-            e.page.go("/profile")
+            e.page.go("/profile_settings")
         elif e.control.content.controls[1].value == "Histórico":
             e.page.go("/history")
         elif e.control.content.controls[1].value == "Pergunte ao Treinador":
-            e.page.go("/ask_trainer")
-        elif e.control.content.controls[1].value == "Configurações":
-            e.page.go("/settings")
+            e.page.go("/interactions")
         elif e.control.content.controls[1].value == "Galeria de Vitórias":
-            e.page.go("/community")
+            e.page.go("/interactions")
+        elif e.control.content.controls[1].value == "Sair":
+
+            def confirm_logout(e):
+                if e.control.text == "Sim":
+                    e.page.client_storage.remove("user_id")
+                    e.page.go("/login")
+                e.page.close(confirm_dialog)
+
+            confirm_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirmar Saída"),
+                content=ft.Text("Tem certeza que deseja sair?"),
+                actions=[
+                    ft.TextButton("Sim", on_click=confirm_logout),
+                    ft.TextButton("Não", on_click=confirm_logout),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            e.page.open(confirm_dialog)
 
     return ft.AppBar(
         title=ft.Text(f"{title}", size=20, weight=ft.FontWeight.BOLD),
@@ -66,15 +76,6 @@ def create_appbar(title: str) -> ft.AppBar:
                             [
                                 ft.Icon(ft.Icons.TIMER, size=20),
                                 ft.Text("Pergunte ao Treinador", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.SETTINGS, size=20),
-                                ft.Text("Configurações", size=14),
                             ]
                         ),
                         on_click=handle_menu_item,

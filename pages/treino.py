@@ -3,7 +3,7 @@ import asyncio
 import requests
 import logging
 from components.exercise_tile import ExerciseTile
-from components.timer_dialog import TimerDialog
+from components.components import TimerDialog
 import os
 from dotenv import load_dotenv
 
@@ -60,7 +60,7 @@ def Treinopage(page: ft.Page, supabase, day):
         def confirm_finish(e):
             if e.control.text == "Sim":
                 training_running = False
-                page.go("/")
+                page.go("/home")
             page.close(confirm_dialog)
 
         confirm_dialog = ft.AlertDialog(
@@ -105,7 +105,7 @@ def Treinopage(page: ft.Page, supabase, day):
             response = requests.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
-            logger.info(f"Dados brutos da API para {api_name}: {data}")
+            # logger.info(f"Dados brutos da API para {api_name}: {data}")
             return data
         except Exception as e:
             logger.error(f"Erro ao buscar dados para {api_name}: {str(e)}")
@@ -352,7 +352,7 @@ def Treinopage(page: ft.Page, supabase, day):
         content=ft.ResponsiveRow(
             [
                 ft.Container(
-                    ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/")),
+                    ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/home")),
                     col={"sm": 2, "md": 1},
                 ),
                 ft.Container(

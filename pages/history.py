@@ -1,5 +1,5 @@
 import flet as ft
-from services.supabase_service import SupabaseService
+from services.services import SupabaseService
 from utils.helpers import format_date
 
 
@@ -27,7 +27,7 @@ def HistoryPage(page: ft.Page):
         content=ft.Column(
             [
                 ft.Text("Histórico de Treinos", size=24, weight=ft.FontWeight.BOLD),
-                ft.ElevatedButton("Voltar", on_click=lambda e: page.go("/")),
+                ft.ElevatedButton("Voltar", on_click=lambda e: page.go("/home")),
                 ft.Column(history_cards, scroll=ft.ScrollMode.AUTO),
             ],
             alignment=ft.MainAxisAlignment.CENTER,

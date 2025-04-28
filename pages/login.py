@@ -2,12 +2,12 @@ import flet as ft
 import flet_lottie as fl
 import os
 from time import sleep
-from services.supabase_service import SupabaseService
+from services.services import SupabaseService
 
 
 def LoginPage(page: ft.Page):
     supabase_service = SupabaseService()
-    lottie_url = os.getenv("LOTTIE_LOGIN")  # Você pode definir isso no seu .env
+    lottie_url = os.getenv("LOTTIE_LOGIN")
 
     login_lottie = fl.Lottie(
         src=lottie_url,
@@ -174,7 +174,7 @@ def LoginPage(page: ft.Page):
         if response and response.user:
             page.client_storage.set("user_id", response.user.id)
             hide_loading(loading_dialog)
-            show_success_and_redirect("/", "Login realizado!")
+            show_success_and_redirect("/home", "Login realizado!")
         else:
             hide_loading(loading_dialog)
             status_text.value = "Email ou senha inválidos"

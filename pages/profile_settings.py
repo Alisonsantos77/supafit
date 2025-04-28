@@ -1,8 +1,8 @@
 import flet as ft
-from services.supabase_service import SupabaseService
+from services.services import SupabaseService
 
 
-def SettingsPage(page: ft.Page):
+def ProfileSettingsPage(page: ft.Page):
     supabase_service = SupabaseService()
     user_id = page.client_storage.get("user_id") or "default_user"
     profile = (
@@ -11,43 +11,44 @@ def SettingsPage(page: ft.Page):
         else {}
     )
 
+    name_field = ft.TextField(label="Nome", value=profile.get("name", ""))
+    age_field = ft.TextField(label="Idade", value=str(profile.get("age", 0)))
     theme_switch = ft.Switch(
         label="Tema Escuro",
         value=profile.get("theme", "light") == "dark",
-        on_change=lambda e: update_theme(e),
     )
     rest_duration = ft.TextField(
         label="Duração do Intervalo (segundos)",
         value=str(profile.get("rest_duration", 60)),
     )
 
-    def update_theme(e):
+    def save_all(e):
         page.theme_mode = (
             ft.ThemeMode.DARK if theme_switch.value else ft.ThemeMode.LIGHT
         )
         supabase_service.client.table("user_profiles").upsert(
-            {"user_id": user_id, "theme": "dark" if theme_switch.value else "light"}
-        ).execute()
-        page.update()
-
-    def save_settings(e):
-        supabase_service.client.table("user_profiles").upsert(
             {
                 "user_id": user_id,
+                "name": name_field.value,
+                "age": int(age_field.value) if age_field.value else 0,
+                "theme": "dark" if theme_switch.value else "light",
                 "rest_duration": (
                     int(rest_duration.value) if rest_duration.value else 60
                 ),
             }
         ).execute()
+        page.go("/home")
 
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text("Configurações", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text("Perfil e Configurações", size=24, weight=ft.FontWeight.BOLD),
+                name_field,
+                age_field,
                 theme_switch,
                 rest_duration,
-                ft.ElevatedButton("Salvar", on_click=save_settings),
-                ft.ElevatedButton("Voltar", on_click=lambda e: page.go("/")),
+                ft.ElevatedButton("Salvar", on_click=save_all),
+                ft.ElevatedButton("Voltar", on_click=lambda e: page.go("/home")),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
         ),

@@ -1,7 +1,7 @@
 import flet as ft
 import logging
-from components.load_editor import LoadEditor
-from components.timer_dialog import TimerDialog
+from components.components import LoadEditor
+from components.components import TimerDialog
 
 logger = logging.getLogger("supafit.exercise_tile")
 
