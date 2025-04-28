@@ -1,3 +1,4 @@
+import httpx
 from supabase import create_client, Client
 import os
 import requests
@@ -88,35 +89,39 @@ class AnthropicService:
             return "Você é mais forte do que imagina!"
 
     @staticmethod
-    def answer_question(question, history):
+    def answer_question(self, question, history):
         try:
-            headers = {
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            messages = [
-                {
-                    "role": "system",
-                    "content": "Você é um treinador de fitness experiente. Responda de forma amigável e profissional.",
-                }
-            ]
-            for msg in history:
-                messages.append({"role": "user", "content": msg["question"]})
-                messages.append({"role": "assistant", "content": msg["answer"]})
+            # Formatar o histórico de mensagens no formato esperado pela API
+            messages = []
+            for item in history:
+                messages.append({"role": "user", "content": item["question"]})
+                messages.append({"role": "assistant", "content": item["answer"]})
             messages.append({"role": "user", "content": question})
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "max_tokens": 500,
-                "messages": messages,
-            }
-            response = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload)
+
+            response = httpx.post(
+                self.base_url,
+                headers={
+                    "x-api-key": self.api_key,
+                    "Content-Type": "application/json",
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": "claude-3-opus-20240229",
+                    "messages": messages,
+                    "max_tokens": 1000,
+                    "temperature": 0.7,
+                },
+                timeout=30,
+            )
             response.raise_for_status()
-            data = response.json()
-            return data["content"][0]["text"].strip()
-        except Exception as e:
-            logger.error(f"Erro ao responder pergunta: {str(e)}")
-            return "Desculpe, não consegui responder agora. Tente novamente!"
+            result = response.json()
+            return result["content"][0]["text"]
+        except httpx.HTTPStatusError as ex:
+            logging.error(f"Erro ao responder pergunta: {str(ex)}")
+            raise
+        except Exception as ex:
+            logging.error(f"Erro inesperado: {str(ex)}")
+            return "Desculpe, não consegui responder agora."
 
     @staticmethod
     def get_training_tip(exercise_name: str, level: str):

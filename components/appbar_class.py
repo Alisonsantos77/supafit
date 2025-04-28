@@ -1,8 +1,9 @@
 import flet as ft
+from flet import Icons
 from components.components import AvatarComponent
 
 
-def create_appbar(title: str) -> ft.AppBar:
+def create_appbar(title: str, user_id=None) -> ft.AppBar:
     def handle_menu_item(e):
         user_id = e.page.client_storage.get("user_id")
         print(
@@ -41,15 +42,23 @@ def create_appbar(title: str) -> ft.AppBar:
             )
             e.page.open(confirm_dialog)
 
+    avatar = AvatarComponent(
+        user_id=user_id if user_id else None,
+        image_url=(
+            "https://avatars.githubusercontent.com/u/12345678?v=4"
+            if not user_id
+            else None
+        ),
+        radius=20,
+        is_trainer=False,
+    )
+
     return ft.AppBar(
         title=ft.Text(f"{title}", size=20, weight=ft.FontWeight.BOLD),
         center_title=True,
         actions=[
             ft.PopupMenuButton(
-                content=AvatarComponent(
-                    image_url="https://avatars.githubusercontent.com/u/12345678?v=4",
-                    radius=20,
-                ),
+                content=avatar,
                 icon=ft.Icons.PERSON,
                 tooltip="Perfil",
                 items=[

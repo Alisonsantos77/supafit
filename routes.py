@@ -13,12 +13,24 @@ def setup_routes(page: ft.Page, supabase, anthropic):
     def route_change(route):
         page.views.clear()
         user_id = page.client_storage.get("user_id")
-        print(
-            f"Rota solicitada: {page.route}, user_id: {user_id}"
-        )
+        print(f"Rota solicitada: {page.route}, user_id: {user_id}")
 
+        # Redirecionar para /home se já autenticado e rota é /
+        if user_id and page.route == "/":
+            page.views.append(
+                ft.View(
+                    route="/home",
+                    appbar=create_appbar("Supafit"),
+                    controls=[Homepage(page, supabase)],
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
+                    padding=20,
+                )
+            )
+            page.go("/home")
         # Redirecionar para login se não houver user_id, exceto para /login e /register
-        if not user_id and page.route not in ["/login", "/register"]:
+        elif not user_id and page.route not in ["/login", "/register"]:
             page.views.append(
                 ft.View(
                     appbar=create_appbar("Login - Supafit"),
