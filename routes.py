@@ -2,11 +2,22 @@ import flet as ft
 from pages.home import Homepage
 from pages.treino import Treinopage
 from components.appbar_class import create_appbar
+from pages.login import LoginPage
 
-
-def setup_routes(page: ft.Page, supabase):
+def setup_routes(page: ft.Page, supabase, anthropic):
     def route_change(route):
         page.views.clear()
+        page.views.append(
+            ft.View(
+            appbar=create_appbar("Login - Supafit"),
+                padding=20,
+                route="/login",
+                controls=[LoginPage(page)],
+                vertical_alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                scroll=ft.ScrollMode.AUTO,
+            )
+        )
         if page.route == "/":
             page.window.height = 1920
             page.window.width = 1080
