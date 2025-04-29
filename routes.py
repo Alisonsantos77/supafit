@@ -2,11 +2,12 @@ import flet as ft
 from pages.home import Homepage
 from pages.treino import Treinopage
 from pages.profile_settings import ProfileSettingsPage
-from pages.interactions import InteractionsPage
 from pages.history import HistoryPage
 from components.appbar_class import create_appbar
 from pages.login import LoginPage
 from pages.register import RegisterPage
+from pages.community_tab import CommunityTab
+from pages.trainer_tab import TrainerTab
 
 
 def setup_routes(page: ft.Page, supabase, anthropic):
@@ -55,9 +56,29 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     scroll=ft.ScrollMode.AUTO,
                 )
             )
+        elif page.route == "/community":
+            page.views.append(
+                ft.View(
+                    appbar=create_appbar("Comunidade"),
+                    route="/community",
+                    controls=[CommunityTab(page, supabase)],
+                    padding=20,
+                    scroll=ft.ScrollMode.AUTO,
+                )
+            )
+        elif page.route == "/trainer":
+            page.views.append(
+                ft.View(
+                    appbar=create_appbar("Treinador"),
+                    route="/trainer",
+                    controls=[TrainerTab(page, supabase, anthropic)],
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
+                    padding=20,
+                )
+            )
         elif page.route == "/home":
-            page.window.height = 1920
-            page.window.width = 1080
             page.views.append(
                 ft.View(
                     route="/home",
@@ -86,18 +107,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     appbar=create_appbar("Perfil e Configurações"),
                     route="/profile_settings",
                     controls=[ProfileSettingsPage(page)],
-                    vertical_alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    scroll=ft.ScrollMode.AUTO,
-                    padding=20,
-                )
-            )
-        elif page.route == "/interactions":
-            page.views.append(
-                ft.View(
-                    appbar=create_appbar("Interações"),
-                    route="/interactions",
-                    controls=[InteractionsPage(page, supabase, anthropic)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     scroll=ft.ScrollMode.AUTO,

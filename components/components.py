@@ -23,7 +23,9 @@ class AvatarComponent(ft.CircleAvatar):
             self.image_url = image_url
         else:
             if not user_id:
-                raise ValueError("user_id é obrigatório se image_url não for fornecido.")
+                raise ValueError(
+                    "user_id é obrigatório se image_url não for fornecido."
+                )
             self.image_url = (
                 f"https://robohash.org/{user_id}_trainer.png?set=set3"
                 if is_trainer
@@ -69,7 +71,7 @@ class WorkoutTile(ft.ExpansionTile):
             height=64,
             fit=ft.ImageFit.COVER,
             border_radius=ft.border_radius.all(10),
-            error_content=ft.Icon(ft.Icons.ERROR),
+            error_content=ft.Icon(ft.Icons.ERROR_ROUNDED),
         )
         self.trailing = ft.Checkbox(value=is_current_day, disabled=True)
         self.controls = [

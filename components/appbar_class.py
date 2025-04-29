@@ -19,9 +19,9 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
         elif e.control.content.controls[1].value == "Histórico":
             e.page.go("/history")
         elif e.control.content.controls[1].value == "Pergunte ao Treinador":
-            e.page.go("/interactions")
+            e.page.go("/trainer")
         elif e.control.content.controls[1].value == "Galeria de Vitórias":
-            e.page.go("/interactions")
+            e.page.go("/community")
         elif e.control.content.controls[1].value == "Sair":
 
             def confirm_logout(e):
@@ -45,9 +45,7 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
     avatar = AvatarComponent(
         user_id=user_id if user_id else None,
         image_url=(
-            "https://avatars.githubusercontent.com/u/12345678?v=4"
-            if not user_id
-            else None
+            user_id if user_id else "https://picsum.photos/200"
         ),
         radius=20,
         is_trainer=False,

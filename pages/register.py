@@ -62,7 +62,7 @@ def RegisterPage(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=5,
     )
-    status_text = ft.Text("", color=ft.Colors.ERROR)
+    status_text = ft.Text("", color=ft.Colors.RED)
 
     register_button = ft.ElevatedButton(
         "Registrar",

@@ -46,7 +46,7 @@ def LoginPage(page: ft.Page):
     )
     status_text = ft.Text(
         "",
-        color=ft.Colors.ERROR,
+        color=ft.Colors.RED,
         size=14,
         italic=True,
     )
