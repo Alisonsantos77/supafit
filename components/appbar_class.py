@@ -47,7 +47,7 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
         image_url=(
             user_id if user_id else "https://picsum.photos/200"
         ),
-        radius=20,
+        radius=10,
         is_trainer=False,
     )
 

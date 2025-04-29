@@ -2,8 +2,8 @@ import flet as ft
 from datetime import datetime
 import logging
 from components.components import AvatarComponent
+from utils.notification import send_notification
 
-# Configura o logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -423,6 +423,11 @@ def CommunityTab(page: ft.Page, supabase_service):
             victory_input.value = ""
             category_dropdown.value = None
             update_victories(selected_category)
+            send_notification(
+                page,
+                "Vitória Postada!",
+                "Sua conquista foi compartilhada com a comunidade!",
+            )
             page.open(
                 ft.SnackBar(
                     content=ft.Text(

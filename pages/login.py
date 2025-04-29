@@ -3,6 +3,16 @@ import flet_lottie as fl
 import os
 from time import sleep
 from services.services import SupabaseService
+from utils.notification import send_notification
+import logging
+
+# Configurar logger
+logger = logging.getLogger("supafit.login")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def LoginPage(page: ft.Page):
@@ -120,11 +130,13 @@ def LoginPage(page: ft.Page):
         page.dialog = loading_dialog
         page.open(loading_dialog)
         page.update()
+        logger.info("Diálogo de carregamento exibido")
         return loading_dialog
 
     def hide_loading(dialog):
         page.close(dialog)
         page.update()
+        logger.info("Diálogo de carregamento fechado")
 
     def show_success_and_redirect(route, message="Sucesso!"):
         success_dialog = ft.AlertDialog(
@@ -153,10 +165,34 @@ def LoginPage(page: ft.Page):
         page.dialog = success_dialog
         page.open(success_dialog)
         page.update()
+        logger.info(f"Diálogo de sucesso exibido: {message}")
         sleep(2)
         page.close(success_dialog)
         page.go(route)
         page.update()
+
+    # Função para salvar dados localmente
+    def save_user_data(user_id, email):
+        try:
+            # Salvar no client_storage
+            page.client_storage.set("supafit.user_id", user_id)
+            page.client_storage.set("supafit.email", email)
+            logger.info(
+                f"Dados salvos no client_storage: user_id={user_id}, email={email}"
+            )
+
+            # Salvar em arquivo
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                file_path = os.path.join(app_data_path, "user_data.txt")
+                with open(file_path, "w") as f:
+                    f.write(f"user_id={user_id}\nemail={email}\n")
+                logger.info(f"Dados salvos em arquivo: {file_path}")
+            else:
+                logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
+        except Exception as ex:
+            logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
+            send_notification(page, "Erro", "Falha ao salvar dados localmente.")
 
     def login(e):
         email = email_field.value.strip()
@@ -165,20 +201,29 @@ def LoginPage(page: ft.Page):
         if not email or not password:
             status_text.value = "Preencha email e senha!"
             page.update()
+            logger.warning("Tentativa de login com campos vazios")
+            send_notification(page, "Erro", "Preencha email e senha!")
             return
 
         loading_dialog = show_loading()
 
-        response = supabase_service.login(email, password)
+        try:
+            response = supabase_service.login(email, password)
 
-        if response and response.user:
-            page.client_storage.set("user_id", response.user.id)
-            hide_loading(loading_dialog)
-            show_success_and_redirect("/home", "Login realizado!")
-        else:
+            if response and response.user:
+                logger.info(f"Login bem-sucedido para o email: {email}")
+                save_user_data(response.user.id, response.user.email)
+                hide_loading(loading_dialog)
+                send_notification(page, "Sucesso", "Login realizado com sucesso!")
+                show_success_and_redirect("/home", "Login realizado!")
+            else:
+                raise Exception("Resposta inválida do Supabase Auth")
+        except Exception as ex:
             hide_loading(loading_dialog)
             status_text.value = "Email ou senha inválidos"
             page.update()
+            logger.error(f"Erro no login: {str(ex)}")
+            send_notification(page, "Erro", "Email ou senha inválidos")
 
     login_button.on_click = login
 
@@ -210,7 +255,6 @@ def LoginPage(page: ft.Page):
                     login_button,
                     ft.Container(height=10),
                     register_row,
-                    activate_row,
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,

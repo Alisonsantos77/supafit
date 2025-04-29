@@ -8,7 +8,7 @@ from pages.login import LoginPage
 from pages.register import RegisterPage
 from pages.community_tab import CommunityTab
 from pages.trainer_tab import TrainerTab
-
+from pages.terms_page import TermsPage
 
 def setup_routes(page: ft.Page, supabase, anthropic):
     def route_change(route):
@@ -135,6 +135,29 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     scroll=ft.ScrollMode.AUTO,
+                )
+            )
+        elif page.route == "/terms":
+            page.views.append(
+                ft.View(
+                    appbar=ft.AppBar(
+                        title=ft.Text("Termos de Uso e Política de Privacidade"),
+                        center_title=True,
+                        bgcolor=ft.colors.SURFACE_VARIANT,
+                        actions=[
+                            ft.IconButton(
+                                icon=ft.icons.CLOSE,
+                                tooltip="Fechar",
+                                on_click=lambda _: page.go("/"),
+                            )
+                        ],
+                    ),
+                    route="/terms",
+                    controls=[TermsPage(page)],
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
+                    padding=20,
                 )
             )
         page.update()

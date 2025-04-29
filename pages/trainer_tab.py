@@ -4,7 +4,7 @@ from services.services import AnthropicService
 import httpx
 import time
 from datetime import datetime
-
+from utils.notification import send_notification
 
 # Classe para representar uma mensagem
 class Message:
@@ -73,8 +73,8 @@ class ChatMessage(ft.Row):
                                 ft.Text(
                                     message.text,
                                     selectable=True,
-                                    width=message_width,  # Largura responsiva
-                                    no_wrap=False,  # Permite quebra de linha
+                                    width=message_width, 
+                                    no_wrap=False,  
                                     color=text_color,
                                 ),
                                 ft.Text(
@@ -100,20 +100,19 @@ class ChatMessage(ft.Row):
 
 
 def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
-    # Configurações iniciais da página para melhor responsividade e visual
     page.padding = 10
 
     user_id = page.client_storage.get("user_id") or "default_user"
 
     # Contêiner do chat
     chat_container = ft.ListView(
-        expand=False,  # Desativa expand para controlar a altura manualmente
+        expand=False,
         spacing=10,
         padding=10,
         auto_scroll=True,
         height=(
             page.window.height * 0.6 if page.window.height else 400
-        ),  # Altura proporcional à tela
+        ),
     )
 
     # Campo de pergunta
@@ -290,6 +289,9 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
 
             question_field.value = ""
             load_chat()
+            send_notification(
+                page, "Resposta do Treinador", "O treinador respondeu sua pergunta!"
+            )
             page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
 
             last_question_time = time.time()

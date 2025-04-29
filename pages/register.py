@@ -3,48 +3,67 @@ import flet_lottie as fl
 import re
 from time import sleep
 from services.services import SupabaseService
-from flet.security import encrypt
+from utils.notification import send_notification
 import os
+import logging
+
+# Configurar logger
+logger = logging.getLogger("supafit.register")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 LOTTIE_REGISTER = os.getenv("LOTTIE_REGISTER")
 
 
 def RegisterPage(page: ft.Page):
     supabase_service = SupabaseService()
-    page.scroll = ft.ScrollMode.HIDDEN
+    page.scroll = ft.ScrollMode.AUTO  # Permitir rolagem para telas pequenas
     register_btn = ft.Ref[ft.ElevatedButton]()
 
+    # Campos do formulário (estilizados como login.py)
     email_field = ft.TextField(
         label="Email",
-        width=300,
-        border_color=ft.Colors.BLUE,
-        focused_border_color=ft.Colors.BLUE,
-        border_radius=5,
-        keyboard_type="email",
+        width=320,
+        border="underline",
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_GREY),
+        border_color=ft.Colors.BLUE_600,
+        focused_border_color=ft.Colors.BLUE_400,
+        cursor_color=ft.Colors.BLUE_400,
+        text_size=16,
+        keyboard_type=ft.KeyboardType.EMAIL,
         prefix_icon=ft.Icons.EMAIL,
         disabled=True,
     )
     password_field = ft.TextField(
         label="Senha",
-        width=300,
+        width=320,
+        border="underline",
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_GREY),
+        border_color=ft.Colors.BLUE_600,
+        focused_border_color=ft.Colors.BLUE_400,
+        cursor_color=ft.Colors.BLUE_400,
+        text_size=16,
         password=True,
         can_reveal_password=True,
-        border_color=ft.Colors.BLUE,
-        focused_border_color=ft.Colors.BLUE,
-        border_radius=5,
         disabled=True,
     )
     level_dropdown = ft.Dropdown(
         label="Nível de Fitness",
+        width=320,
         options=[
             ft.dropdown.Option("iniciante"),
             ft.dropdown.Option("intermediário"),
             ft.dropdown.Option("avançado"),
         ],
         value="iniciante",
-        width=300,
-        border_color=ft.Colors.BLUE,
+        border_color=ft.Colors.BLUE_600,
         focused_border_color=ft.Colors.BLUE_400,
+        text_size=16,
         disabled=True,
     )
     terms_checkbox = ft.Checkbox(
@@ -53,36 +72,52 @@ def RegisterPage(page: ft.Page):
     )
     terms_link = ft.TextButton(
         "Leia aqui",
-        style=ft.ButtonStyle(color=ft.Colors.BLUE_700),
+        style=ft.ButtonStyle(
+            color={
+                ft.ControlState.HOVERED: ft.Colors.BLUE_400,
+                ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+            }
+        ),
         on_click=lambda _: page.go("/terms"),
     )
-    terms_row = ft.Column(
-        [terms_checkbox, terms_link],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=5,
-    )
-    status_text = ft.Text("", color=ft.Colors.RED)
+    status_text = ft.Text("", color=ft.Colors.RED, size=14, italic=True)
 
     register_button = ft.ElevatedButton(
         "Registrar",
-        bgcolor=ft.Colors.GREY_400,
-        color=ft.Colors.WHITE,
-        width=300,
-        height=50,
         style=ft.ButtonStyle(
-            elevation=2,
+            bgcolor={
+                ft.ControlState.HOVERED: ft.Colors.BLUE_500,
+                ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+            },
+            color=ft.Colors.WHITE,
+            elevation={"pressed": 2, "": 5},
+            animation_duration=300,
             shape=ft.RoundedRectangleBorder(radius=5),
         ),
+        width=320,
+        height=50,
         disabled=True,
         ref=register_btn,
     )
-    login_button = ft.TextButton(
-        "Já tem uma conta? Faça login",
-        style=ft.ButtonStyle(color=ft.Colors.BLUE),
-        on_click=lambda e: page.go("/login"),
+    login_row = ft.Row(
+        [
+            ft.Text("Já tem uma conta?", size=14, color=ft.Colors.BLUE_GREY_600),
+            ft.TextButton(
+                "Faça login",
+                style=ft.ButtonStyle(
+                    color={
+                        ft.ControlState.HOVERED: ft.Colors.BLUE_400,
+                        ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
+                    }
+                ),
+                on_click=lambda e: page.go("/login"),
+            ),
+        ],
+        spacing=5,
+        alignment=ft.MainAxisAlignment.CENTER,
     )
 
+    # Função para atualizar estado do formulário
     def update_form_state(e):
         are_terms_accepted = terms_checkbox.value
         email_field.disabled = not are_terms_accepted
@@ -90,42 +125,52 @@ def RegisterPage(page: ft.Page):
         level_dropdown.disabled = not are_terms_accepted
         register_btn.current.disabled = not are_terms_accepted
         register_btn.current.bgcolor = (
-            ft.Colors.BLUE if are_terms_accepted else ft.Colors.GREY_400
+            ft.Colors.BLUE_700 if are_terms_accepted else ft.Colors.GREY_400
         )
-        register_btn.current.color = ft.Colors.WHITE
         page.update()
+        logger.info(
+            f"Estado do formulário atualizado: Termos aceitos = {are_terms_accepted}"
+        )
 
     terms_checkbox.on_change = update_form_state
 
+    # Função para exibir diálogo de carregamento
     def show_loading():
         loading_dialog = ft.AlertDialog(
             content=ft.Container(
-                content=ft.ProgressRing(), alignment=ft.alignment.center
+                content=ft.ProgressRing(color=ft.Colors.BLUE_400),
+                alignment=ft.alignment.center,
             ),
             bgcolor=ft.Colors.TRANSPARENT,
             modal=True,
-            disabled=True,
         )
         page.dialog = loading_dialog
         page.open(loading_dialog)
         page.update()
+        logger.info("Diálogo de carregamento exibido")
         return loading_dialog
 
+    # Função para fechar diálogo de carregamento
     def hide_loading(dialog):
         page.close(dialog)
         page.update()
+        logger.info("Diálogo de carregamento fechado")
 
+    # Função para exibir diálogo de sucesso
     def show_success_and_redirect(route, message="Sucesso!"):
         success_dialog = ft.AlertDialog(
             content=ft.Container(
                 content=ft.Column(
                     controls=[
-                        ft.Icon(ft.Icons.CHECK_CIRCLE, size=50, color=ft.Colors.GREEN),
+                        ft.Icon(
+                            ft.Icons.CHECK_CIRCLE, size=50, color=ft.Colors.GREEN_400
+                        ),
                         ft.Text(
                             message,
-                            size=18,
+                            size=16,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREEN,
+                            color=ft.Colors.GREEN_400,
+                            text_align=ft.TextAlign.CENTER,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -135,21 +180,50 @@ def RegisterPage(page: ft.Page):
             ),
             bgcolor=ft.Colors.TRANSPARENT,
             modal=True,
-            disabled=True,
         )
         page.dialog = success_dialog
         page.open(success_dialog)
         page.update()
+        logger.info(f"Diálogo de sucesso exibido: {message}")
         sleep(2)
         page.close(success_dialog)
         page.go(route)
 
+    # Função para salvar dados localmente
+    def save_user_data(user_id, email, level):
+        try:
+            # Salvar no client_storage
+            page.client_storage.set("supafit.user_id", user_id)
+            page.client_storage.set("supafit.email", email)
+            page.client_storage.set("supafit.level", level)
+            logger.info(
+                f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
+            )
+
+            # Salvar em arquivo
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                file_path = os.path.join(app_data_path, "user_data.txt")
+                with open(file_path, "w") as f:
+                    f.write(f"user_id={user_id}\nemail={email}\nlevel={level}\n")
+                logger.info(f"Dados salvos em arquivo: {file_path}")
+            else:
+                logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
+        except Exception as ex:
+            logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
+            send_notification(page, "Erro", "Falha ao salvar dados localmente.")
+
+    # Função de registro
     def register(e):
         if not terms_checkbox.value:
             status_text.value = (
                 "Você precisa aceitar os Termos de Uso e a Política de Privacidade!"
             )
             page.update()
+            logger.warning("Tentativa de registro sem aceitar os termos")
+            send_notification(
+                page, "Erro", "Aceite os Termos de Uso e a Política de Privacidade."
+            )
             return
 
         email = email_field.value.strip()
@@ -159,74 +233,126 @@ def RegisterPage(page: ft.Page):
         if not email or not password or not level:
             status_text.value = "Preencha todos os campos!"
             page.update()
+            logger.warning("Tentativa de registro com campos vazios")
+            send_notification(page, "Erro", "Preencha todos os campos do formulário.")
             return
 
         email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, email):
             status_text.value = "Email inválido! Use o formato: nome@dominio.com"
             page.update()
+            logger.warning(f"Tentativa de registro com email inválido: {email}")
+            send_notification(
+                page, "Erro", "Email inválido. Use o formato: nome@dominio.com"
+            )
+            return
+
+        if len(password) < 6:
+            status_text.value = "A senha deve ter pelo menos 6 caracteres!"
+            page.update()
+            logger.warning("Tentativa de registro com senha curta")
+            send_notification(page, "Erro", "A senha deve ter pelo menos 6 caracteres.")
             return
 
         loading_dialog = show_loading()
         try:
+            logger.info(f"Iniciando registro para o email: {email}")
             response = supabase_service.client.auth.sign_up(
                 {"email": email, "password": password}
             )
-            user_id = response.user.id
+
+            if response.user is None:
+                raise Exception("Nenhum usuário retornado pelo Supabase Auth")
+
+            user_data = {
+                "user_id": response.user.id,
+                "email": response.user.email,
+                "created_at": response.user.created_at,
+                "confirmed_at": response.user.confirmed_at,
+                "role": response.user.role,
+                "user_metadata": response.user.user_metadata,
+                "session_access_token": (
+                    response.session.access_token if response.session else None
+                ),
+            }
+            logger.info(f"Dados do Supabase Auth: {user_data}")
+
+            # Inserir perfil no Supabase
             supabase_service.client.table("user_profiles").insert(
-                {"user_id": user_id, "level": level}
+                {"user_id": response.user.id, "level": level}
             ).execute()
-            page.client_storage.set("user_id", user_id)
+
+            # Salvar dados localmente
+            save_user_data(response.user.id, response.user.email, level)
+
             hide_loading(loading_dialog)
+            send_notification(
+                page, "Sucesso", "Registro concluído! Verifique seu email."
+            )
             show_success_and_redirect(
                 "/login", "Registro concluído! Verifique seu email para ativar a conta."
             )
+
         except Exception as ex:
             hide_loading(loading_dialog)
             status_text.value = f"Erro ao registrar: {str(ex)}"
             page.update()
+            logger.error(f"Erro no registro: {str(ex)}")
+            send_notification(page, "Erro", f"Erro ao registrar: {str(ex)}")
 
     register_button.on_click = register
 
+    # Container para animação Lottie
     lottie_container = ft.Container(
         content=fl.Lottie(
             src=LOTTIE_REGISTER,
             background_loading=True,
             filter_quality=ft.FilterQuality.HIGH,
             repeat=True,
+            fit=ft.ImageFit.CONTAIN,
         ),
         width=400,
-        height=350,
-        alignment=ft.alignment.center,
+        height=400,
     )
 
-    form_container = ft.Column(
-        [
-            ft.Text("Crie sua Conta", size=24, weight=ft.FontWeight.BOLD),
-            email_field,
-            password_field,
-            level_dropdown,
-            terms_row,
-            register_button,
-            login_button,
-            status_text,
+    # Layout responsivo
+    layout_register = ft.ResponsiveRow(
+        controls=[
+            ft.Column(
+                col={"sm": 6, "md": 5, "lg": 4},
+                controls=[lottie_container],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            ft.Column(
+                col={"sm": 6, "md": 5, "lg": 4},
+                controls=[
+                    ft.Container(height=20),
+                    ft.Text(
+                        "Crie sua Conta",
+                        size=28,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    email_field,
+                    password_field,
+                    level_dropdown,
+                    ft.Column(
+                        [terms_checkbox, terms_link],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    register_button,
+                    login_row,
+                    status_text,
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15,
+            ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=20,
-        width=400,
-    )
-
-    top_row = ft.Row(
-        [lottie_container, form_container],
-        alignment=ft.MainAxisAlignment.CENTER,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=30,
+        columns=12,
     )
 
-    return ft.Container(
-        content=ft.Column(
-            [top_row], alignment=ft.MainAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO
-        ),
-        padding=20,
-    )
+    return layout_register

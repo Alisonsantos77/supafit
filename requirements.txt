@@ -1,0 +1,9 @@
+flet
+flet-permission-handler
+pyjnius
+httpx
+python-dotenv
+requests
+supabase
+flet-lottie
+cryptography

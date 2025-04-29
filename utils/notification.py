@@ -19,7 +19,7 @@ def send_notification(page: ft.Page, title: str, text: str):
         text (str): Texto da notificação.
     """
     try:
-        if page.platform == ft.PagePlatform.ANDROID:
+        if page.platform == ft.PagePlatform.ANDROID or page.platform == ft.PagePlatform.IOS:
             try:
                 from jnius import autoclass, cast
                 from flet_permission_handler import PermissionHandler
@@ -88,16 +88,27 @@ def send_notification(page: ft.Page, title: str, text: str):
                 logger.error(f"Erro ao enviar notificação nativa no Android: {str(e)}")
                 # Fallback para SnackBar
                 snack_bar = ft.SnackBar(
-                    content=ft.Column(
-                        [
-                            ft.Text(title, weight=ft.FontWeight.BOLD),
-                            ft.Text(text),
-                        ],
-                        spacing=5,
-                    ),
-                    duration=5000,
+                    content=ft.Text(
+                        spans=[
+                            ft.TextSpan(
+                            text=f"{title: }",
+                            style=ft.TextStyle(
+                                color=ft.Colors.WHITE,
+                                weight=ft.FontWeight.BOLD,
+                                size=16,
+                            ),
+                        ),
+                            ft.TextSpan(text=f"{text}",
+                                        style=ft.TextStyle(
+                                    color=ft.Colors.WHITE,
+                                    size=14,
+                                ),
+                            )
+                        ]
+                        ),
                     action="OK",
-                    action_color=ft.Colors.GREEN,
+                    bgcolor=ft.Colors.RED,
+                    action_color=ft.Colors.WHITE,
                 )
                 page.overlay.append(snack_bar)
                 snack_bar.open = True
@@ -105,16 +116,22 @@ def send_notification(page: ft.Page, title: str, text: str):
         else:
             # SnackBar para plataformas não mobile (Windows, Linux, macOS, Web)
             snack_bar = ft.SnackBar(
-                content=ft.Column(
-                    [
-                        ft.Text(title, weight=ft.FontWeight.BOLD),
-                        ft.Text(text),
-                    ],
-                    spacing=5,
+                content=ft.Text(
+                    spans=[
+                        ft.TextSpan(
+                            text=f"{title: }",
+                            style=ft.TextStyle(
+                                weight=ft.FontWeight.BOLD,
+                                size=16,
+                            ),
+                        ),
+                        ft.TextSpan(
+                            text=f"{text}",
+                            style=ft.TextStyle(
+                                size=14,
+                            ))
+                    ]
                 ),
-                duration=5000,
-                action="OK",
-                action_color=ft.Colors.GREEN,
             )
             page.overlay.append(snack_bar)
             snack_bar.open = True
@@ -123,10 +140,10 @@ def send_notification(page: ft.Page, title: str, text: str):
     except Exception as e:
         logger.error(f"Erro ao enviar notificação: {str(e)}")
         snack_bar = ft.SnackBar(
-            content=ft.Text(f"Erro ao exibir notificação: {str(e)}"),
-            duration=5000,
+            content=ft.Text(f"Erro ao exibir notificação", color=ft.Colors.WHITE),
             action="OK",
-            action_color=ft.Colors.RED,
+            action_color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.RED,
         )
         page.overlay.append(snack_bar)
         snack_bar.open = True
