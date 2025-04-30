@@ -6,7 +6,6 @@ from services.services import SupabaseService
 from utils.notification import send_notification
 import logging
 
-# Configurar logger
 logger = logging.getLogger("supafit.login")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -97,20 +96,18 @@ def LoginPage(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
     )
 
-    activate_row = ft.Row(
+    forgot_password_row = ft.Row(
         [
-            ft.Text(
-                "Já tem conta, mas não ativou?", size=14, color=ft.Colors.BLUE_GREY_600
-            ),
+            ft.Text("Esqueceu sua senha?", size=14, color=ft.Colors.BLUE_GREY_600),
             ft.TextButton(
-                "Ative aqui",
+                "Recuperar",
                 style=ft.ButtonStyle(
                     color={
                         ft.ControlState.HOVERED: ft.Colors.BLUE_400,
                         ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
                     },
                 ),
-                on_click=lambda _: page.go("/activation"),
+                on_click=lambda _: page.go("/forgot_password"),
             ),
         ],
         spacing=5,
@@ -170,23 +167,29 @@ def LoginPage(page: ft.Page):
         page.close(success_dialog)
         page.go(route)
         page.update()
+        logger.info(f"Redirecionando para a rota: {route}")
 
     # Função para salvar dados localmente
-    def save_user_data(user_id, email):
+    def save_user_data(user_id, email, level=None):
         try:
             # Salvar no client_storage
             page.client_storage.set("supafit.user_id", user_id)
             page.client_storage.set("supafit.email", email)
+            if level:
+                page.client_storage.set("supafit.level", level)
             logger.info(
-                f"Dados salvos no client_storage: user_id={user_id}, email={email}"
+                f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
             )
 
-            # Salvar em arquivo
+            # Salvar em arquivo user_data.txt
             app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
             if app_data_path:
                 file_path = os.path.join(app_data_path, "user_data.txt")
                 with open(file_path, "w") as f:
-                    f.write(f"user_id={user_id}\nemail={email}\n")
+                    content = f"user_id={user_id}\nemail={email}\n"
+                    if level:
+                        content += f"level={level}\n"
+                    f.write(content)
                 logger.info(f"Dados salvos em arquivo: {file_path}")
             else:
                 logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
@@ -212,18 +215,55 @@ def LoginPage(page: ft.Page):
 
             if response and response.user:
                 logger.info(f"Login bem-sucedido para o email: {email}")
-                save_user_data(response.user.id, response.user.email)
+                # Validar user_id com dados armazenados
+                if not supabase_service.validate_user_id(response.user.id):
+                    raise Exception(
+                        "ID de usuário inválido ou não corresponde aos dados armazenados."
+                    )
+
+                # Verificar se o perfil já existe
+                profile_response = (
+                    supabase_service.client.table("user_profiles")
+                    .select("*")
+                    .eq("user_id", response.user.id)
+                    .execute()
+                )
+                logger.info(
+                    f"Verificando perfil para user_id: {response.user.id}, resposta: {profile_response.data}"
+                )
+
+                level = page.client_storage.get("supafit.level")
+                # Salvar dados localmente
+                save_user_data(response.user.id, response.user.email, level)
+
                 hide_loading(loading_dialog)
                 send_notification(page, "Sucesso", "Login realizado com sucesso!")
-                show_success_and_redirect("/home", "Login realizado!")
+
+                if not profile_response.data:
+                    logger.info(
+                        f"Perfil não encontrado para user_id: {response.user.id}. Redirecionando para /create_profile."
+                    )
+                    show_success_and_redirect(
+                        "/create_profile", "Login realizado! Vamos criar seu perfil."
+                    )
+                else:
+                    logger.info(
+                        f"Perfil encontrado para user_id: {response.user.id}. Redirecionando para /home."
+                    )
+                    show_success_and_redirect("/home", "Login realizado!")
             else:
                 raise Exception("Resposta inválida do Supabase Auth")
         except Exception as ex:
             hide_loading(loading_dialog)
-            status_text.value = "Email ou senha inválidos"
+            error_message = (
+                "Por favor, confirme seu email antes de fazer login."
+                if "Email not confirmed" in str(ex)
+                else str(ex)
+            )
+            status_text.value = error_message
             page.update()
             logger.error(f"Erro no login: {str(ex)}")
-            send_notification(page, "Erro", "Email ou senha inválidos")
+            send_notification(page, "Erro", error_message)
 
     login_button.on_click = login
 
@@ -251,6 +291,7 @@ def LoginPage(page: ft.Page):
                     ),
                     email_field,
                     password_field,
+                    forgot_password_row,
                     status_text,
                     login_button,
                     ft.Container(height=10),

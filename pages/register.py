@@ -1,13 +1,12 @@
 import flet as ft
 import flet_lottie as fl
 import re
+import os
+import logging
 from time import sleep
 from services.services import SupabaseService
 from utils.notification import send_notification
-import os
-import logging
 
-# Configurar logger
 logger = logging.getLogger("supafit.register")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -20,10 +19,9 @@ LOTTIE_REGISTER = os.getenv("LOTTIE_REGISTER")
 
 def RegisterPage(page: ft.Page):
     supabase_service = SupabaseService()
-    page.scroll = ft.ScrollMode.AUTO  # Permitir rolagem para telas pequenas
+    page.scroll = ft.ScrollMode.AUTO  
     register_btn = ft.Ref[ft.ElevatedButton]()
 
-    # Campos do formulário (estilizados como login.py)
     email_field = ft.TextField(
         label="Email",
         width=320,
@@ -117,7 +115,6 @@ def RegisterPage(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
     )
 
-    # Função para atualizar estado do formulário
     def update_form_state(e):
         are_terms_accepted = terms_checkbox.value
         email_field.disabled = not are_terms_accepted
@@ -192,7 +189,6 @@ def RegisterPage(page: ft.Page):
     # Função para salvar dados localmente
     def save_user_data(user_id, email, level):
         try:
-            # Salvar no client_storage
             page.client_storage.set("supafit.user_id", user_id)
             page.client_storage.set("supafit.email", email)
             page.client_storage.set("supafit.level", level)
@@ -200,7 +196,7 @@ def RegisterPage(page: ft.Page):
                 f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
             )
 
-            # Salvar em arquivo
+            # Salvar em arquivo user_data.txt
             app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
             if app_data_path:
                 file_path = os.path.join(app_data_path, "user_data.txt")
@@ -213,7 +209,6 @@ def RegisterPage(page: ft.Page):
             logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
             send_notification(page, "Erro", "Falha ao salvar dados localmente.")
 
-    # Função de registro
     def register(e):
         if not terms_checkbox.value:
             status_text.value = (
@@ -264,25 +259,46 @@ def RegisterPage(page: ft.Page):
             if response.user is None:
                 raise Exception("Nenhum usuário retornado pelo Supabase Auth")
 
-            user_data = {
+            # Salvar dados de autenticação
+            auth_data = {
                 "user_id": response.user.id,
                 "email": response.user.email,
-                "created_at": response.user.created_at,
-                "confirmed_at": response.user.confirmed_at,
-                "role": response.user.role,
-                "user_metadata": response.user.user_metadata,
-                "session_access_token": (
+                "access_token": (
                     response.session.access_token if response.session else None
                 ),
+                "refresh_token": (
+                    response.session.refresh_token if response.session else None
+                ),
+                "created_at": response.user.created_at.isoformat(),
+                "confirmed_at": (
+                    response.user.confirmed_at.isoformat()
+                    if response.user.confirmed_at
+                    else None
+                ),
             }
-            logger.info(f"Dados do Supabase Auth: {user_data}")
+            supabase_service.save_auth_data(auth_data)
+            logger.info(f"Dados de autenticação salvos: {auth_data}")
 
-            # Inserir perfil no Supabase
-            supabase_service.client.table("user_profiles").insert(
-                {"user_id": response.user.id, "level": level}
-            ).execute()
+            # Configurar a sessão para requisições autenticadas
+            if response.session:
+                supabase_service.client.auth.set_session(
+                    response.session.access_token, response.session.refresh_token
+                )
+                logger.info("Sessão configurada com sucesso.")
+            else:
+                logger.warning(
+                    "Nenhuma sessão retornada no sign_up. Perfil será criado após o login."
+                )
 
-            # Salvar dados localmente
+            # Validar user_id (ignorar validação para novo usuário)
+            if not supabase_service.validate_user_id(
+                response.user.id, is_new_user=True
+            ):
+                raise Exception(
+                    "ID de usuário inválido ou não corresponde aos dados armazenados."
+                )
+
+            # Salvar dados localmente, mas não criar o perfil ainda
             save_user_data(response.user.id, response.user.email, level)
 
             hide_loading(loading_dialog)
@@ -302,7 +318,6 @@ def RegisterPage(page: ft.Page):
 
     register_button.on_click = register
 
-    # Container para animação Lottie
     lottie_container = ft.Container(
         content=fl.Lottie(
             src=LOTTIE_REGISTER,
@@ -315,7 +330,6 @@ def RegisterPage(page: ft.Page):
         height=400,
     )
 
-    # Layout responsivo
     layout_register = ft.ResponsiveRow(
         controls=[
             ft.Column(

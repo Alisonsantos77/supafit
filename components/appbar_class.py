@@ -5,7 +5,9 @@ from components.components import AvatarComponent
 
 def create_appbar(title: str, user_id=None) -> ft.AppBar:
     def handle_menu_item(e):
-        user_id = e.page.client_storage.get("user_id")
+        user_id = e.page.client_storage.get(
+            "supafit.user_id"
+        )
         print(
             f"Opção clicada: {e.control.content.controls[1].value}, user_id: {user_id}"
         )
@@ -26,7 +28,9 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
 
             def confirm_logout(e):
                 if e.control.text == "Sim":
-                    e.page.client_storage.remove("user_id")
+                    e.page.client_storage.remove(
+                        "supafit.user_id"
+                    ) 
                     e.page.go("/login")
                 e.page.close(confirm_dialog)
 
@@ -44,9 +48,7 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
 
     avatar = AvatarComponent(
         user_id=user_id if user_id else None,
-        image_url=(
-            user_id if user_id else "https://picsum.photos/200"
-        ),
+        image_url=(user_id if user_id else "https://picsum.photos/200"),
         radius=10,
         is_trainer=False,
     )

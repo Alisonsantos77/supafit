@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from utils.notification import send_notification
 
+
 # Classe para representar uma mensagem
 class Message:
     def __init__(
@@ -53,7 +54,6 @@ class ChatMessage(ft.Row):
             alignment = ft.MainAxisAlignment.END
             margin = ft.margin.only(left=20)
 
-        # Ajusta a largura do texto para ser responsiva (70% da largura da tela, com mínimo de 200 e máximo de 400)
         message_width = (
             min(max(page.window.width * 0.7, 200), 400) if page.window.width else 300
         )
@@ -73,8 +73,8 @@ class ChatMessage(ft.Row):
                                 ft.Text(
                                     message.text,
                                     selectable=True,
-                                    width=message_width, 
-                                    no_wrap=False,  
+                                    width=message_width,
+                                    no_wrap=False,
                                     color=text_color,
                                 ),
                                 ft.Text(
@@ -102,7 +102,22 @@ class ChatMessage(ft.Row):
 def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
     page.padding = 10
 
-    user_id = page.client_storage.get("user_id") or "default_user"
+    user_id = page.client_storage.get("supafit.user_id")
+
+    if not user_id or user_id == "default_user":
+        print("Nenhum user_id válido encontrado. Usuário não autenticado.")
+        return ft.Column(
+            [
+                ft.Text(
+                    "Erro: Você precisa estar logado para acessar o chat com o treinador.",
+                    size=20,
+                    color=ft.Colors.RED,
+                ),
+                ft.ElevatedButton(
+                    "Ir para Login", on_click=lambda e: page.go("/login")
+                ),
+            ]
+        )
 
     # Contêiner do chat
     chat_container = ft.ListView(
@@ -110,9 +125,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         spacing=10,
         padding=10,
         auto_scroll=True,
-        height=(
-            page.window.height * 0.6 if page.window.height else 400
-        ),
+        height=(page.window.height * 0.6 if page.window.height else 400),
     )
 
     # Campo de pergunta
@@ -132,7 +145,6 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         border_color=ft.Colors.GREY_600,
     )
 
-    # Botão de enviar
     ask_button = ft.ElevatedButton(
         "Enviar",
         style=ft.ButtonStyle(
@@ -160,7 +172,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
 
     def load_chat():
         resp = (
-            supabase_service.table("trainer_qa")
+            supabase_service.client.table("trainer_qa")
             .select("*")
             .eq("user_id", user_id)
             .order("created_at")
@@ -214,7 +226,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         def confirm_clear(e):
             if e.control.text == "Sim":
                 try:
-                    supabase_service.table("trainer_qa").delete().eq(
+                    supabase_service.client.table("trainer_qa").delete().eq(
                         "user_id", user_id
                     ).execute()
                     load_chat()
@@ -278,7 +290,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             if not answer or "desculpe" in answer.lower():
                 raise ValueError("Resposta inválida do Anthropic")
 
-            supabase_service.table("trainer_qa").insert(
+            supabase_service.client.table("trainer_qa").insert(
                 {
                     "user_id": user_id,
                     "question": question,

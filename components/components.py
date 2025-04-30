@@ -1,7 +1,6 @@
 import flet as ft
 import threading
 import time
-import flet as ft
 from flet import Icons
 
 
@@ -278,7 +277,9 @@ class LoadEditor(ft.Row):
             if e.control.text == "Sim":
                 try:
                     load = float(self.load_field.value) if self.load_field.value else 0
-                    self.supabase.table("progress").insert(
+                    self.supabase.client.table(
+                        "progress"
+                    ).insert( 
                         {
                             "exercise_id": self.exercise_id,
                             "load": load,

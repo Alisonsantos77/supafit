@@ -91,7 +91,7 @@ def send_notification(page: ft.Page, title: str, text: str):
                     content=ft.Text(
                         spans=[
                             ft.TextSpan(
-                            text=f"{title: }",
+                            text=f"{title:}",
                             style=ft.TextStyle(
                                 color=ft.Colors.WHITE,
                                 weight=ft.FontWeight.BOLD,
@@ -119,7 +119,7 @@ def send_notification(page: ft.Page, title: str, text: str):
                 content=ft.Text(
                     spans=[
                         ft.TextSpan(
-                            text=f"{title: }",
+                            text=f"{title:}",
                             style=ft.TextStyle(
                                 weight=ft.FontWeight.BOLD,
                                 size=16,

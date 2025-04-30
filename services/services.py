@@ -1,284 +1,194 @@
 import os
+import json
 import logging
-import requests
-import httpx
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import requests
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-# Environment variables
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-ANTHROPIC_API_URL = os.getenv("ANTHROPIC_API_URL")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+logger = logging.getLogger("services.services")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class SupabaseService:
     def __init__(self):
-        if not SUPABASE_URL or not SUPABASE_KEY:
-            logger.error(
-                "SUPABASE_URL e SUPABASE_KEY devem ser definidos nas variáveis de ambiente."
-            )
-            raise ValueError("Faltando configuração do Supabase")
-        try:
-            self.client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-            logger.info("Supabase client inicializado com sucesso.")
-        except Exception as e:
-            logger.error(f"Erro ao inicializar o cliente Supabase: {e}")
-            raise
+        load_dotenv()
+        self.url = os.getenv("SUPABASE_URL")
+        self.key = os.getenv("SUPABASE_KEY")
+        self.client: Client = create_client(self.url, self.key)
+        logger.info("Supabase client inicializado com sucesso.")
 
-    def login(self, email: str, password: str):
-        try:
-            logger.info(f"Tentando fazer login com o email: {email}")
-            response = self.client.auth.sign_in_with_password(
-                {"email": email, "password": password}
+        # Carregar e configurar a sessão automaticamente
+        self.load_auth_data()
+        self.auth_data = self.load_auth_data() or {}
+        if self.auth_data.get("access_token") and self.auth_data.get("refresh_token"):
+            self.client.auth.set_session(
+                self.auth_data["access_token"], self.auth_data["refresh_token"]
             )
-            logger.info("Login com sucesso.")
-            if response.error:
-                logger.error(f"Erro ao fazer login: {response.error}")
-                return None
-            return response
-        except Exception as e:
-            logger.error(f"Erro ao fazer login: {e}")
+            logger.info("Sessão configurada automaticamente com base em auth_data.txt.")
+
+    def load_auth_data(self):
+        """Carrega os dados de autenticação do arquivo auth_data.txt."""
+        app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+        if not app_data_path:
+            logger.warning(
+                "FLET_APP_STORAGE_DATA não definido, não foi possível carregar auth_data.txt"
+            )
             return None
 
-    def get_workouts(self, user_id: str):
+        file_path = os.path.join(app_data_path, "auth_data.txt")
         try:
-            logger.info(f"Buscando treinos para o user_id: {user_id}")
-            return (
-                self.client.table("daily_workouts")
-                .select("*")
-                .eq("user_id", user_id)
-                .execute()
-            )
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+                logger.info(f"Dados de autenticação carregados: {data}")
+                return data
+            else:
+                logger.warning(f"Arquivo auth_data.txt não encontrado em {file_path}")
+                return None
         except Exception as e:
-            logger.error(f"Erro ao buscar treinos: {e}")
-            raise
+            logger.error(f"Erro ao carregar auth_data.txt: {str(e)}")
+            return None
 
-    def get_exercises(self, workout_id: str):
+    def save_auth_data(self, auth_data):
+        """Salva os dados de autenticação em auth_data.txt."""
+        app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+        if not app_data_path:
+            logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
+            return
+
+        file_path = os.path.join(app_data_path, "auth_data.txt")
         try:
-            logger.info(f"Buscando exercícios para o workout_id: {workout_id}")
-            return (
-                self.client.table("exercises")
-                .select("*")
-                .eq("workout_id", workout_id)
-                .execute()
-            )
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "w") as f:
+                json.dump(auth_data, f, indent=4)
+            logger.info(f"Dados de autenticação salvos em {file_path}: {auth_data}")
         except Exception as e:
-            logger.error(f"Erro ao buscar exercícios: {e}")
-            raise
+            logger.error(f"Erro ao salvar auth_data.txt: {str(e)}")
 
-    def update_exercise(self, exercise_id: str, data: dict):
+    def login(self, email: str, password: str):
+        """Realiza login e configura a sessão."""
+        logger.info(f"Tentando fazer login com o email: {email}")
+        response = self.client.auth.sign_in_with_password(
+            {"email": email, "password": password}
+        )
+        if response.user:
+            logger.info("Login com sucesso.")
+            auth_data = {
+                "user_id": response.user.id,
+                "email": response.user.email,
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token,
+                "created_at": response.user.created_at.isoformat(),
+                "confirmed_at": (
+                    response.user.confirmed_at.isoformat()
+                    if response.user.confirmed_at
+                    else None
+                ),
+            }
+            self.save_auth_data(auth_data)
+            self.auth_data = auth_data
+            self.client.auth.set_session(
+                response.session.access_token, response.session.refresh_token
+            )
+            logger.info("Sessão configurada com sucesso.")
+            return response
+        else:
+            logger.error("Falha no login: Nenhum usuário retornado.")
+            raise Exception("Falha no login: Nenhum usuário retornado.")
+
+    def validate_user_id(self, user_id: str, is_new_user: bool = False):
+        """Valida se o user_id corresponde aos dados armazenados."""
+        if is_new_user:
+            logger.info(f"Novo usuário, validação de user_id ignorada: {user_id}")
+            return True
+
+        stored_auth_data = self.load_auth_data()
+        if not stored_auth_data:
+            logger.warning("Nenhum dado de autenticação encontrado para validação.")
+            return False
+
+        stored_user_id = stored_auth_data.get("user_id")
+        if stored_user_id != user_id:
+            logger.error(
+                f"Validação de user_id falhou: esperado {stored_user_id}, recebido {user_id}"
+            )
+            return False
+
+        logger.info(f"Validação de user_id bem-sucedida: {user_id}")
+        return True
+
+    def create_profile(self, user_id: str, profile_data: dict):
+        """Cria um perfil na tabela user_profiles."""
+        logger.info(f"Criando perfil para user_id: {user_id}")
         try:
-            logger.info(f"Atualizando exercício {exercise_id} com {data}")
-            return (
-                self.client.table("exercises")
-                .update(data)
-                .eq("id", exercise_id)
-                .execute()
-            )
+            response = self.client.table("user_profiles").insert(profile_data).execute()
+            logger.info(f"Perfil criado com sucesso: {response.data}")
+            return response.data
         except Exception as e:
-            logger.error(f"Erro ao atualizar exercício: {e}")
-            raise
-
+            logger.error(f"Erro ao criar perfil: {str(e)}")
+            raise e
     def get_profile(self, user_id: str):
-        try:
-            logger.info(f"Buscando perfil para o user_id: {user_id}")
-            return (
-                self.client.table("user_profiles")
-                .select("*")
-                .eq("user_id", user_id)
-                .execute()
-            )
-        except Exception as e:
-            logger.error(f"Error fetching profile: {e}")
-            raise
+            logger.info("Buscando perfil para user_id: %s", user_id)
+            try:
+                response = (
+                    self.client.table("user_profiles")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .execute()
+                )
+                logger.info("Perfil recuperado: %s", response.data)
+                return response
+            except Exception as e:
+                logger.error("Erro ao buscar perfil: %s", str(e))
+                raise
 
+    async def logout(self):
+        try:
+            self.client.auth.sign_out()
+            if os.path.exists(self.auth_data_path):
+                os.remove(self.auth_data_path)
+            logger.info("Logout realizado com sucesso.")
+        except Exception as e:
+            logger.error("Erro ao fazer logout: %s", str(e))
+            raise
 
 class AnthropicService:
-    def __init__(
-        self, api_key: str = ANTHROPIC_API_KEY, base_url: str = ANTHROPIC_API_URL
-    ):
-        if not api_key or not base_url:
-            logger.error(
-                "ANTHROPIC_API_KEY and ANTHROPIC_API_URL must be set in environment variables."
-            )
-            raise ValueError("Missing Anthropic configuration")
-        self.api_key = api_key
-        self.base_url = base_url
-        logger.info("AnthropicService initialized with base_url: %s", self.base_url)
+    def __init__(self):
+        self.api_key = os.getenv("ANTHROPIC_API_KEY")
+        self.base_url = "https://api.anthropic.com/v1/messages"
+        logger.info(f"AnthropicService initialized with base_url: {self.base_url}")
 
-    def get_motivational_quote(self) -> str:
-        try:
-            logger.info("Requesting motivational quote from Anthropic.")
-            headers = {
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "max_tokens": 50,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Forneça uma frase motivacional curta e inspiradora para alguém que está começando a treinar na academia.",
-                    }
-                ],
-            }
-            response = requests.post(self.base_url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            quote = data["content"][0]["text"].strip()
-            logger.info("Received motivational quote.")
-            return quote
-        except Exception as e:
-            logger.error(f"Error generating motivational quote: {e}")
-            return "Você é mais forte do que imagina!"
+    def get_workout_plan(self, user_data: dict):
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        prompt = f"""
+        Crie um plano de treino personalizado com base nos seguintes dados do usuário:
+        - Nível: {user_data.get('level', 'iniciante')}
+        - Objetivo: {user_data.get('goal', 'melhorar saúde')}
+        - Peso: {user_data.get('weight', 'N/A')} kg
+        - Altura: {user_data.get('height', 'N/A')} cm
+        - Idade: {user_data.get('age', 'N/A')} anos
 
-    def answer_question(self, question: str, history: list) -> str:
+        Forneça um plano de treino semanal, com exercícios, séries, repetições e dias da semana.
         """
-        Envia a pergunta e o histórico para a API da Anthropic e retorna o texto da resposta.
-        Usa modelo 'claude-3-5-sonnet-latest' para maior qualidade.
-        """
+        data = {
+            "model": "claude-3-opus-20240229",
+            "max_tokens": 1000,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         try:
-            logger.info("Sending question to Anthropic: %s", question)
-            # Monta o payload com histórico + nova pergunta
-            messages = []
-            for item in history:
-                messages.append({"role": "user", "content": item.get("question", "")})
-                messages.append({"role": "assistant", "content": item.get("answer", "")})
-            messages.append({"role": "user", "content": question})
-
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "messages": messages,
-                "max_tokens": 1000,
-                "temperature": 0.7,
-            }
-            headers = {
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            }
-            # Chama o endpoint v1/messages
-            response = httpx.post(
-                f"{self.base_url}/v1/messages" if not self.base_url.endswith('/v1/messages') else self.base_url,
-                json=payload,
-                headers=headers,
-                timeout=30,
-            )
+            response = requests.post(self.base_url, headers=headers, json=data)
             response.raise_for_status()
-            data = response.json()
-            # Analisa resposta, pode variar conforme a versão da API
-            # Tenta primeiro 'content', depois 'completion'
-            if "content" in data and isinstance(data["content"], list):
-                text = data["content"][0].get("text", "").strip()
-            elif "completion" in data:
-                # para versões que retornam {'completion': 'texto...'}
-                text = data["completion"].strip()
-            else:
-                # fallback: converte tudo em string
-                text = str(data)
-
-            logger.info("Received answer from Anthropic: %s", text[:50])
-            return text
-
-        except httpx.HTTPStatusError as ex:
-            error_text = ex.response.text or str(ex)
-            logger.error(
-                "Anthropic API returned status %s: %s", ex.response.status_code, error_text
-            )
-            raise
-        except Exception as ex:
-            logger.error(f"Unexpected error in answer_question: {ex}")
-            return "Desculpe, não consegui responder agora."
-
-    def get_training_tip(self, exercise_name: str, level: str) -> str:
-        try:
-            logger.info(
-                "Requesting training tip for '%s' at level '%s'.", exercise_name, level
-            )
-            headers = {
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            prompt = f"Forneça uma dica prática e específica para melhorar a execução do exercício '{exercise_name}' para uma pessoa de nível {level}."
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "max_tokens": 100,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            response = requests.post(self.base_url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            tip = data["content"][0]["text"].strip()
-            logger.info("Received training tip.")
-            return tip
+            result = response.json()
+            logger.info("Plano de treino gerado com sucesso pelo Anthropic.")
+            return result.get("content", [{}])[0].get("text", "Nenhum plano gerado.")
         except Exception as e:
-            logger.error(f"Error generating training tip: {e}")
-            return "Mantenha a postura correta e respire adequadamente!"
-
-    def generate_workout_plan(
-        self, day: str, user_level: str, supabase: SupabaseService
-    ) -> str:
-        try:
-            logger.info(
-                "Generating workout plan for day '%s' at level '%s'.", day, user_level
-            )
-            headers = {
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            prompt = f"Crie um plano de treino para o dia {day} para uma pessoa de nível {user_level}. Inclua 4-6 exercícios com nome, séries, repetições e carga sugerida (se aplicável)."
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "max_tokens": 500,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            response = requests.post(self.base_url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            plan = data["content"][0]["text"].strip()
-            # Insert into Supabase
-            supabase.client.table("workouts").insert(
-                {"day": day, "name": f"Treino {day.capitalize()}", "description": plan}
-            ).execute()
-            logger.info("Workout plan generated and saved to database.")
-            return plan
-        except Exception as e:
-            logger.error(f"Error generating workout plan: {e}")
-            return "Não foi possível gerar o plano de treino. Tente novamente!"
-
-
-def get_unsplash_image(query: str) -> str:
-    if not UNSPLASH_ACCESS_KEY:
-        logger.error("UNSPLASH_ACCESS_KEY is not set in environment variables.")
-        return "https://picsum.photos/200"
-    try:
-        logger.info(f"Fetching Unsplash image for query: {query}")
-        url = f"https://api.unsplash.com/search/photos?query={query}&client_id={UNSPLASH_ACCESS_KEY}"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        results = data.get("results", [])
-        if results:
-            image_url = results[0]["urls"]["regular"]
-            logger.info("Unsplash image fetched successfully.")
-            return image_url
-        logger.warning("No Unsplash results for query: %s", query)
-        return "https://picsum.photos/200"
-    except Exception as e:
-        logger.error(f"Error fetching Unsplash image: {e}")
-        return "https://picsum.photos/200"
+            logger.error(f"Erro ao gerar plano de treino com Anthropic: {str(e)}")
+            raise e

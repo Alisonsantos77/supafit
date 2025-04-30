@@ -9,12 +9,24 @@ from pages.register import RegisterPage
 from pages.community_tab import CommunityTab
 from pages.trainer_tab import TrainerTab
 from pages.terms_page import TermsPage
+from pages.create_profile import CreateProfilePage
+import logging
+
+logger = logging.getLogger("supafit.routes")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 def setup_routes(page: ft.Page, supabase, anthropic):
     def route_change(route):
         page.views.clear()
-        user_id = page.client_storage.get("user_id")
-        print(f"Rota solicitada: {page.route}, user_id: {user_id}")
+        user_id = page.client_storage.get(
+            "supafit.user_id"
+        ) 
+        logger.info(f"Rota solicitada: {page.route}, user_id: {user_id}")
 
         # Redirecionar para /home se já autenticado e rota é /
         if user_id and page.route == "/":
@@ -30,8 +42,8 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 )
             )
             page.go("/home")
-        # Redirecionar para login se não houver user_id, exceto para /login e /register
-        elif not user_id and page.route not in ["/login", "/register"]:
+        # Redirecionar para login se não houver user_id, exceto para /login, /register e /terms
+        elif not user_id and page.route not in ["/login", "/register", "/terms"]:
             page.views.append(
                 ft.View(
                     appbar=create_appbar("Login - Supafit"),
@@ -72,6 +84,18 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     appbar=create_appbar("Treinador"),
                     route="/trainer",
                     controls=[TrainerTab(page, supabase, anthropic)],
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    scroll=ft.ScrollMode.AUTO,
+                    padding=20,
+                )
+            )
+        elif page.route == "/create_profile":
+            page.views.append(
+                ft.View(
+                    appbar=create_appbar("Criar Perfil"),
+                    route="/create_profile",
+                    controls=[CreateProfilePage(page, supabase)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     scroll=ft.ScrollMode.AUTO,
@@ -143,17 +167,16 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     appbar=ft.AppBar(
                         title=ft.Text("Termos de Uso e Política de Privacidade"),
                         center_title=True,
-                        bgcolor=ft.colors.SURFACE_VARIANT,
                         actions=[
                             ft.IconButton(
-                                icon=ft.icons.CLOSE,
+                                icon=ft.Icons.CLOSE,
                                 tooltip="Fechar",
                                 on_click=lambda _: page.go("/"),
                             )
                         ],
                     ),
                     route="/terms",
-                    controls=[TermsPage(page)],
+                    controls=[TermsPage(page, supabase, anthropic)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     scroll=ft.ScrollMode.AUTO,
@@ -161,7 +184,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 )
             )
         page.update()
-        print(f"Rota alterada para: {page.route}")
+        logger.info(f"Rota alterada para: {page.route}")
 
     def view_pop(view):
         page.views.pop()

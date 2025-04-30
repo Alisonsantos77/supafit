@@ -153,3 +153,4 @@ cython_debug/
 #.idea/
 /main.py
 /URL shortener/assets/manifest.json
+storage

@@ -1,9 +1,17 @@
 import flet as ft
 
+from services.services import SupabaseService
+from utils.notification import send_notification
+import logging
 
+logger = logging.getLogger("supafit.terms")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def TermsPage(page: ft.Page, supabase, anthropic):
-
     # Conteúdo dos Termos de Uso em Markdown
     terms_markdown = """
 # Termos de Uso do DebtManager
@@ -124,32 +132,52 @@ No DebtManager, levamos sua privacidade a sério! Como lidamos com dados sensív
 
 Estamos aqui para ajudar você a organizar suas finanças com segurança!
     """
-
     # Monta o conteúdo da página com Markdown
-    terms_content = ft.Column([
-        ft.Row(alignment=ft.MainAxisAlignment.CENTER, controls=[
-
-            ft.Container(
-                content=ft.Image(
-                    src="logo/icon_full.png",
-                    width=200,
-                    height=200,
-                    fit=ft.ImageFit.CONTAIN,
-                )),
-        ]),
-        ft.Markdown(
-            terms_markdown,
-            selectable=True,
-            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-            on_tap_link=lambda e: page.launch_url(e.data),
-        ),
-        ft.Divider(),
-        ft.Markdown(
-            privacy_markdown,
-            selectable=True,
-            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-            on_tap_link=lambda e: page.launch_url(e.data),
-        ),
-    ], spacing=20, scroll=ft.ScrollMode.AUTO)
+    terms_content = ft.Column(
+        [
+            ft.ResponsiveRow(
+                [
+                    ft.Container(
+                        ft.Container(
+                            content=ft.Image(
+                                src="icon.png",
+                                width=200,
+                                height=200,
+                                fit=ft.ImageFit.CONTAIN,
+                            )
+                        ),
+                        padding=5,
+                        bgcolor=ft.Colors.YELLOW,
+                        col=10,
+                    ),
+                    ft.Container(
+                        ft.Markdown(
+                            terms_markdown,
+                            selectable=True,
+                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                            on_tap_link=lambda e: page.launch_url(e.data),
+                        ),
+                        padding=5,
+                        bgcolor=ft.Colors.GREEN,
+                        col=10,
+                    ),
+                    ft.Divider(),
+                    ft.Container(
+                        ft.Markdown(
+                            privacy_markdown,
+                            selectable=True,
+                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                            on_tap_link=lambda e: page.launch_url(e.data),
+                        ),
+                        padding=5,
+                        bgcolor=ft.Colors.BLUE,
+                        col=10,
+                    ),
+                ],
+            ),
+        ],
+        spacing=20,
+        scroll=ft.ScrollMode.AUTO,
+    )
 
     return ft.Container(content=terms_content, padding=20)

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def CommunityTab(page: ft.Page, supabase_service):
-    user_id = page.client_storage.get("user_id") or "default_user"
+    user_id = page.client_storage.get("supafit.user_id") or "default_user"
 
     victories_grid = ft.GridView(
         expand=True,
@@ -33,80 +33,45 @@ def CommunityTab(page: ft.Page, supabase_service):
             victories_grid.controls.append(create_victory_card(victory))
         page.update()
 
+
     def load_victories(category="Todas"):
-        # Dados fictícios
-        mock_victories = [
-            {
-                "user_id": "user1",
-                "content": "Consegui levantar 100kg no supino!",
-                "created_at": "2025-04-28T10:00:00Z",
-                "category": "Força",
-            },
-            {
-                "user_id": "user2",
-                "content": "Corri 10km sem parar pela primeira vez!",
-                "created_at": "2025-04-27T15:30:00Z",
-                "category": "Resistência",
-            },
-            {
-                "user_id": "user3",
-                "content": "Completei 30 dias de dieta balanceada!",
-                "created_at": "2025-04-26T08:00:00Z",
-                "category": "Nutrição",
-            },
-        ]
+        try:
+            query = supabase_service.client.table("victories").select("*")
+            if category != "Todas":
+                query = query.eq("category", category)
+            resp_victories = query.order("created_at", desc=True).execute()
+            victories_data = resp_victories.data or []
+            if not victories_data:
+                logger.info("Nenhuma vitória encontrada.")
+                return []
 
-        # Busca vitórias reais do Supabase
-        query = (
-            supabase_service.table("victories")
-            .select("*")
-            .order("created_at", desc=True)
-        )
-        resp_victories = query.execute()
-        logger.info(f"Retorno da tabela 'victories': {resp_victories.data}")
+            # Busca nomes dos usuários
+            user_ids = [victory["user_id"] for victory in victories_data]
+            user_info = {}
+            if user_ids:
+                resp_users = (
+                    supabase_service.client.table("user_profiles")
+                    .select("user_id, name")
+                    .in_("user_id", user_ids)
+                    .execute()
+                )
+                for user in resp_users.data or []:
+                    user_info[user["user_id"]] = user.get("name", "supafit_user")
 
-        # Combina dados fictícios com reais
-        victories_data = mock_victories + (
-            resp_victories.data if isinstance(resp_victories.data, list) else []
-        )
-
-        # Filtra por categoria apenas os dados fictícios
-        if category != "Todas":
-            victories_data = [
-                v for v in victories_data if v.get("category") == category
-            ]
-
-        # Busca informações dos usuários
-        user_ids = [item["user_id"] for item in victories_data if "user_id" in item]
-        user_info = {}
-        if user_ids:
-            resp_users = (
-                supabase_service.table("user_profiles")
-                .select("user_id, name")
-                .in_("user_id", user_ids)
-                .execute()
-            )
-            for user in resp_users.data:
-                user_id = user["user_id"]
-                name = user.get("name")
-                user_info[user_id] = name or "supafit_user"
-
-        # Adiciona nomes e contagem de curtidas
-        for victory in victories_data:
-            victory["author_name"] = user_info.get(victory["user_id"], "supafit_user")
-            # Conta curtidas
-            if "id" in victory:
+            # Adiciona nomes e contagem de curtidas
+            for victory in victories_data:
+                victory["author_name"] = user_info.get(victory["user_id"], "supafit_user")
                 likes = (
-                    supabase_service.table("victory_likes")
+                    supabase_service.client.table("victory_likes")
                     .select("count", count=True)
                     .eq("victory_id", victory["id"])
                     .execute()
                 )
                 victory["likes"] = likes.data[0]["count"] if likes.data else 0
-                # Verifica se o usuário curtiu
-                if user_id != "default_user":
+                victory["liked"] = False
+                if user_id:
                     liked = (
-                        supabase_service.table("victory_likes")
+                        supabase_service.client.table("victory_likes")
                         .select("id")
                         .eq("victory_id", victory["id"])
                         .eq("user_id", user_id)
@@ -114,8 +79,11 @@ def CommunityTab(page: ft.Page, supabase_service):
                     )
                     victory["liked"] = bool(liked.data)
 
-        return victories_data
-
+            return victories_data
+        except Exception as e:
+            logger.error(f"Erro ao carregar vitórias: {str(e)}")
+            return []
+#
     def create_victory_card(victory):
         # Formata a data
         try:
@@ -282,12 +250,12 @@ def CommunityTab(page: ft.Page, supabase_service):
         try:
             if currently_liked:
                 # Remove curtida
-                supabase_service.table("victory_likes").delete().eq(
+                supabase_service.client.table("victory_likes").delete().eq(
                     "victory_id", victory_id
                 ).eq("user_id", user_id).execute()
             else:
                 # Adiciona curtida
-                supabase_service.table("victory_likes").insert(
+                supabase_service.client.table("victory_likes").insert(
                     {
                         "victory_id": victory_id,
                         "user_id": user_id,
@@ -325,16 +293,16 @@ def CommunityTab(page: ft.Page, supabase_service):
         try:
             # Verifica se o usuário é o autor
             victory = (
-                supabase_service.table("victories")
+                supabase_service.client.table("victories")
                 .select("user_id")
                 .eq("id", victory_id)
                 .execute()
             )
             if victory.data and victory.data[0]["user_id"] == user_id:
-                supabase_service.table("victories").delete().eq(
+                supabase_service.client.table("victories").delete().eq(
                     "id", victory_id
                 ).execute()
-                supabase_service.table("victory_likes").delete().eq(
+                supabase_service.client.table("victory_likes").delete().eq(
                     "victory_id", victory_id
                 ).execute()
                 update_victories(selected_category)
@@ -413,7 +381,7 @@ def CommunityTab(page: ft.Page, supabase_service):
             return
 
         try:
-            supabase_service.table("victories").insert(
+            supabase_service.client.table("victories").insert(
                 {
                     "user_id": user_id,
                     "content": victory_text,

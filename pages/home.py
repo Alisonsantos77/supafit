@@ -1,62 +1,115 @@
 import flet as ft
 from components.components import WorkoutTile
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def Homepage(page: ft.Page, supabase):
+    user_id = page.client_storage.get("supafit.user_id")
+
     def load_workouts():
         try:
-            response = supabase.table("workouts").select("*").execute()
+            if not user_id:
+                logger.warning(
+                    "Nenhum user_id válido encontrado. Carregando treinos padrão."
+                )
+                return [
+                    {
+                        "day": "segunda",
+                        "name": "Peito e Tríceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "terça",
+                        "name": "Costas e Bíceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "quarta",
+                        "name": "Pernas",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "quinta",
+                        "name": "Ombros",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "sexta",
+                        "name": "Peito e Tríceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "sábado",
+                        "name": "Descanso",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "domingo",
+                        "name": "Descanso",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                ]
+
+            # filtrar por user_id
+            response = (
+                supabase.client.table("daily_workouts")
+                .select("*")
+                .eq("user_id", user_id)
+                .execute()
+            )
             if not response.data:
-                print("Nenhum treino encontrado")
+                logger.info(
+                    "Nenhum treino encontrado para o usuário. Carregando treinos padrão."
+                )
+                return [
+                    {
+                        "day": "segunda",
+                        "name": "Peito e Tríceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "terça",
+                        "name": "Costas e Bíceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "quarta",
+                        "name": "Pernas",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "quinta",
+                        "name": "Ombros",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "sexta",
+                        "name": "Peito e Tríceps",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "sábado",
+                        "name": "Descanso",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                    {
+                        "day": "domingo",
+                        "name": "Descanso",
+                        "image_url": "https://picsum.photos/200",
+                    },
+                ]
             return [
                 {
                     **workout,
                     "image_url": workout.get("image_url", "https://picsum.photos/200"),
                 }
-                for workout in (
-                    response.data
-                    or [
-                        {
-                            "day": "segunda",
-                            "name": "Peito e Tríceps",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "terça",
-                            "name": "Costas e Bíceps",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "quarta",
-                            "name": "Pernas",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "quinta",
-                            "name": "Ombros",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "sexta",
-                            "name": "Peito e Tríceps",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "sábado",
-                            "name": "Descanso",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                        {
-                            "day": "domingo",
-                            "name": "Descanso",
-                            "image_url": "https://picsum.photos/200",
-                        },
-                    ]
-                )
+                for workout in response.data
             ]
         except Exception as e:
-            print(f"Erro ao carregar treinos: {str(e)}")
+            logger.error(f"Erro ao carregar treinos: {str(e)}")
             return [
                 {
                     "day": "segunda",
