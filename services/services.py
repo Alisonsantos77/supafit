@@ -1,10 +1,11 @@
 import os
 import json
 import logging
+import httpx
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import requests
-
+import flet as ft
 logger = logging.getLogger("services.services")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -22,13 +23,35 @@ class SupabaseService:
         logger.info("Supabase client inicializado com sucesso.")
 
         # Carregar e configurar a sessão automaticamente
-        self.load_auth_data()
         self.auth_data = self.load_auth_data() or {}
         if self.auth_data.get("access_token") and self.auth_data.get("refresh_token"):
-            self.client.auth.set_session(
-                self.auth_data["access_token"], self.auth_data["refresh_token"]
+            try:
+                # Configurar a sessão
+                response = self.client.auth.set_session(
+                    self.auth_data["access_token"], self.auth_data["refresh_token"]
+                )
+                # Atualizar auth_data com novos tokens, se disponíveis
+                if response.session:
+                    self.auth_data.update(
+                        {
+                            "access_token": response.session.access_token,
+                            "refresh_token": response.session.refresh_token,
+                        }
+                    )
+                    self.save_auth_data(self.auth_data)
+                    logger.info("Sessão configurada e novos tokens salvos com sucesso.")
+                else:
+                    logger.warning("Nenhuma sessão retornada ao configurar tokens.")
+            except Exception as e:
+                logger.error(f"Erro ao configurar sessão: {str(e)}")
+                # Limpar auth_data.txt para forçar novo login
+                self.auth_data = {}
+                self.save_auth_data({})
+                raise
+        else:
+            logger.info(
+                "Nenhum token de autenticação encontrado, sessão não configurada."
             )
-            logger.info("Sessão configurada automaticamente com base em auth_data.txt.")
 
     def load_auth_data(self):
         """Carrega os dados de autenticação do arquivo auth_data.txt."""
@@ -89,6 +112,13 @@ class SupabaseService:
                     else None
                 ),
             }
+            # Limpar auth_data.txt antes de salvar novos dados
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                file_path = os.path.join(app_data_path, "auth_data.txt")
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Arquivo auth_data.txt removido antes de salvar novos dados.")
             self.save_auth_data(auth_data)
             self.auth_data = auth_data
             self.client.auth.set_session(
@@ -129,32 +159,43 @@ class SupabaseService:
             logger.info(f"Perfil criado com sucesso: {response.data}")
             return response.data
         except Exception as e:
-            logger.error(f"Erro ao criar perfil: {str(e)}")
+            logger.error(f"Erro ao criar perfil para user_id {user_id}: {str(e)}")
+            if "permission denied" in str(e).lower():
+                logger.error("Permissão negada para inserir em user_profiles. Verifique as políticas de RLS.")
             raise e
+
     def get_profile(self, user_id: str):
-            logger.info("Buscando perfil para user_id: %s", user_id)
-            try:
-                response = (
+        logger.info("Buscando perfil para user_id: %s", user_id)
+        try:
+            response = (
                     self.client.table("user_profiles")
                     .select("*")
                     .eq("user_id", user_id)
                     .execute()
                 )
-                logger.info("Perfil recuperado: %s", response.data)
-                return response
-            except Exception as e:
-                logger.error("Erro ao buscar perfil: %s", str(e))
-                raise
+            logger.info("Perfil recuperado: %s", response.data)
+            return response
+        except Exception as e:
+            logger.error("Erro ao buscar perfil: %s", str(e))
+            raise
 
-    async def logout(self):
+    async def logout(self, page: ft.Page = None):
         try:
             self.client.auth.sign_out()
-            if os.path.exists(self.auth_data_path):
-                os.remove(self.auth_data_path)
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                for file in ["auth_data.txt", "user_data.txt"]:
+                    file_path = os.path.join(app_data_path, file)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+            if page:
+                page.client_storage.clear()
+                logger.info("client_storage limpo.")
             logger.info("Logout realizado com sucesso.")
         except Exception as e:
             logger.error("Erro ao fazer logout: %s", str(e))
             raise
+
 
 class AnthropicService:
     def __init__(self):
@@ -192,3 +233,103 @@ class AnthropicService:
         except Exception as e:
             logger.error(f"Erro ao gerar plano de treino com Anthropic: {str(e)}")
             raise e
+
+    def answer_question(self, question: str, history: list) -> str:
+        """
+        Envia a pergunta e o histórico para a API da Anthropic e retorna o texto da resposta.
+        Usa modelo 'claude-3-5-sonnet-latest' para maior qualidade.
+        """
+        try:
+            logger.info("Sending question to Anthropic: %s", question)
+            # Monta o payload com histórico + nova pergunta
+            messages = []
+            for item in history:
+                messages.append({"role": "user", "content": item.get("question", "")})
+                messages.append(
+                    {"role": "assistant", "content": item.get("answer", "")}
+                )
+            messages.append({"role": "user", "content": question})
+
+            payload = {
+                "model": "claude-3-5-sonnet-latest",
+                "messages": messages,
+                "max_tokens": 1000,
+                "temperature": 0.7,
+            }
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            response = httpx.post(
+                (
+                    f"{self.base_url}/v1/messages"
+                    if not self.base_url.endswith("/v1/messages")
+                    else self.base_url
+                ),
+                json=payload,
+                headers=headers,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+            # Analisa resposta, pode variar conforme a versão da API
+            # Tenta primeiro 'content', depois 'completion'
+            if "content" in data and isinstance(data["content"], list):
+                text = data["content"][0].get("text", "").strip()
+            elif "completion" in data:
+                # para versões que retornam {'completion': 'texto...'}
+                text = data["completion"].strip()
+            else:
+                # fallback: converte tudo em string
+                text = str(data)
+
+            logger.info("Received answer from Anthropic: %s", text[:50])
+            return text
+
+        except httpx.HTTPStatusError as ex:
+            error_text = ex.response.text or str(ex)
+            logger.error(
+                "Anthropic API returned status %s: %s",
+                ex.response.status_code,
+                error_text,
+            )
+            raise
+        except Exception as ex:
+            logger.error(f"Unexpected error in answer_question: {ex}")
+            return "Desculpe, não consegui responder agora."
+
+    def is_sensitive_question(self, question: str) -> bool:
+        """
+        Verifica se a pergunta contém conteúdo sensível ou inadequado usando o Claude.
+        Retorna True se for sensível, False caso contrário.
+        """
+        try:
+            moderation_prompt = f"""Determine if the following question is sensitive or inappropriate. 
+            If it is, respond with 'sensitive', otherwise respond with 'safe'.
+
+            Question: {question}
+
+            Response:"""
+            payload = {
+                "model": "claude-3-5-sonnet-latest",
+                "max_tokens": 10,
+                "messages": [{"role": "user", "content": moderation_prompt}],
+            }
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            response = httpx.post(
+                self.base_url, json=payload, headers=headers, timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            if "content" in data and isinstance(data["content"], list):
+                text = data["content"][0].get("text", "").strip()
+                return text.lower() == "sensitive"
+            return False
+        except Exception as e:
+            logger.error(f"Error checking sensitive question: {str(e)}")
+            return False

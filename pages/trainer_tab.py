@@ -254,28 +254,23 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         )
         page.open(confirm_dialog)
 
+
     def ask_question(e):
-        nonlocal last_question_time
-
-        # Verifica o cooldown
-        current_time = time.time()
-        if current_time - last_question_time < COOLDOWN_SECONDS:
-            page.open(
-                ft.SnackBar(
-                    ft.Text(
-                        "Calma aí! Espere um pouco antes de mandar outra pergunta. 😅"
-                    ),
-                    bgcolor=ft.Colors.ORANGE_700,
-                )
-            )
-            return
-
         question = question_field.value.strip()
         if not question:
             page.open(ft.SnackBar(ft.Text("Digite uma pergunta!")))
             return
 
-        # Desabilita o botão e mostra loader
+        # Verifica se a pergunta é sensível
+        if anthropic.is_sensitive_question(question):
+            page.open(
+                ft.SnackBar(
+                    ft.Text("Conversa sensível detectada", color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.RED,
+                )
+            )
+            return
+
         ask_button.disabled = True
         ask_button.content = ft.Row(
             [ft.ProgressRing(width=16, height=16), ft.Text(" Enviando...")],
@@ -287,47 +282,43 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             history = load_chat()
             answer = anthropic.answer_question(question, history)
 
+            # Se a resposta vier inválida, tratamos como erro
             if not answer or "desculpe" in answer.lower():
                 raise ValueError("Resposta inválida do Anthropic")
 
+            # Salva no Supabase
             supabase_service.client.table("trainer_qa").insert(
-                {
-                    "user_id": user_id,
-                    "question": question,
-                    "answer": answer,
-                    "created_at": datetime.now().isoformat(),
-                }
+                {"user_id": user_id, "question": question, "answer": answer}
             ).execute()
 
+            # Limpa campo e recarrega chat
             question_field.value = ""
             load_chat()
-            send_notification(
-                page, "Resposta do Treinador", "O treinador respondeu sua pergunta!"
-            )
-            page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
 
-            last_question_time = time.time()
+            # SnackBar de sucesso
+            page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
 
         except httpx.HTTPStatusError as ex:
             detail = ex.response.text or str(ex)
             page.open(
                 ft.SnackBar(
-                    ft.Text(f"Erro na API Anthropic: {detail}"),
+                    ft.Text(f"Erro na API Anthropic: {detail}", color=ft.Colors.WHITE),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
         except Exception as ex:
             page.open(
                 ft.SnackBar(
-                    ft.Text(f"Erro ao obter resposta: {str(ex)}"),
+                    ft.Text(f"Erro ao obter resposta: {str(e)}", color=ft.Colors.WHITE),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
         finally:
+            # Restaura o botão
             ask_button.disabled = False
             ask_button.content = ft.Text("Enviar")
             page.update()
-
+        
     ask_button.on_click = ask_question
     clear_button.on_click = clear_chat
 

@@ -45,45 +45,82 @@ def CommunityTab(page: ft.Page, supabase_service):
                 logger.info("Nenhuma vitória encontrada.")
                 return []
 
-            # Busca nomes dos usuários
-            user_ids = [victory["user_id"] for victory in victories_data]
-            user_info = {}
+            # Coleta todos os user_ids e victory_ids
+            user_ids = [v["user_id"] for v in victories_data]
+            victory_ids = [v["id"] for v in victories_data]
+            name_map = {}
+
+            # 1. Buscar nomes de public_profile_info
             if user_ids:
-                resp_users = (
-                    supabase_service.client.table("user_profiles")
+                resp_pub = (
+                    supabase_service.client.table("public_profile_info")
                     .select("user_id, name")
                     .in_("user_id", user_ids)
                     .execute()
                 )
-                for user in resp_users.data or []:
-                    user_info[user["user_id"]] = user.get("name", "supafit_user")
+                for p in resp_pub.data or []:
+                    if p.get("name"):
+                        name_map[p["user_id"]] = p["name"]
 
-            # Adiciona nomes e contagem de curtidas
-            for victory in victories_data:
-                victory["author_name"] = user_info.get(victory["user_id"], "supafit_user")
-                likes = (
-                    supabase_service.client.table("victory_likes")
-                    .select("count", count=True)
-                    .eq("victory_id", victory["id"])
+            # 2. Fallback para user_profiles
+            missing_ids = [uid for uid in user_ids if uid not in name_map]
+            if missing_ids:
+                resp_profiles = (
+                    supabase_service.client.table("user_profiles")
+                    .select("user_id, name")
+                    .in_("user_id", missing_ids)
                     .execute()
                 )
-                victory["likes"] = likes.data[0]["count"] if likes.data else 0
-                victory["liked"] = False
-                if user_id:
-                    liked = (
-                        supabase_service.client.table("victory_likes")
-                        .select("id")
-                        .eq("victory_id", victory["id"])
-                        .eq("user_id", user_id)
-                        .execute()
-                    )
-                    victory["liked"] = bool(liked.data)
+                for profile in resp_profiles.data or []:
+                    if profile.get("name"):
+                        name_map[profile["user_id"]] = profile["name"]
+
+            # 3. Fallback final: gerar apelido estável com hash
+            import hashlib
+
+            for v in victories_data:
+                uid = v["user_id"]
+                if uid not in name_map:
+                    name_map[uid] = f"Usuário_{hashlib.sha1(uid.encode()).hexdigest()[:6]}"
+                v["author_name"] = name_map[uid]
+
+            # 4. Buscar total de curtidas por vitória
+            likes_map = {}
+            if victory_ids:
+                resp_likes = (
+                    supabase_service.client.table("victory_likes")
+                    .select("victory_id", count="exact")
+                    .in_("victory_id", victory_ids)
+                    .execute()
+                )
+                for item in resp_likes.data or []:
+                    vid = item["victory_id"]
+                    likes_map[vid] = likes_map.get(vid, 0) + 1
+
+            # 5. Buscar se o usuário curtiu cada vitória
+            user_liked_ids = set()
+            if user_id:
+                resp_user_likes = (
+                    supabase_service.client.table("victory_likes")
+                    .select("victory_id")
+                    .eq("user_id", user_id)
+                    .in_("victory_id", victory_ids)
+                    .execute()
+                )
+                user_liked_ids = {item["victory_id"] for item in resp_user_likes.data or []}
+
+            # 6. Aplicar likes e status de curtida
+            for v in victories_data:
+                vid = v["id"]
+                v["likes"] = likes_map.get(vid, 0)
+                v["liked"] = vid in user_liked_ids
 
             return victories_data
+
         except Exception as e:
             logger.error(f"Erro ao carregar vitórias: {str(e)}")
             return []
-#
+
     def create_victory_card(victory):
         # Formata a data
         try:
