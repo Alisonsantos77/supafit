@@ -13,6 +13,49 @@ class CustomListTile(ft.ListTile):
         self.content_padding = content_padding
 
 
+class CustomAppBar(ft.AppBar):
+    def __init__(self, page: ft.Page, user_id: str = None, on_menu_click=None):
+        super().__init__()
+        self.leading = ft.Icon(ft.Icons.FITNESS_CENTER, size=30)
+        self.leading_width = 40
+        self.title = ft.Text("SupaFit", size=20, weight=ft.FontWeight.BOLD)
+        self.center_title = False
+        self.elevation = 4
+        self.actions = [
+            ft.PopupMenuButton(
+                items=[
+                    ft.PopupMenuItem(
+                        text="Perfil", on_click=lambda e: page.go("/profile_settings")
+                    ),
+                    ft.PopupMenuItem(
+                        text="Histórico", on_click=lambda e: page.go("/history")
+                    ),
+                    ft.PopupMenuItem(
+                        text="Pergunte ao Treinador",
+                        on_click=lambda e: page.go("/trainer"),
+                    ),
+                    ft.PopupMenuItem(
+                        text="Galeria de Vitórias",
+                        on_click=lambda e: page.go("/community"),
+                    ),
+                    ft.PopupMenuItem(
+                        text="Sair",
+                        on_click=lambda e: self._handle_logout(page, user_id),
+                    ),
+                ]
+            )
+        ]
+        self.on_menu_click = on_menu_click
+
+    def _handle_logout(self, page: ft.Page, user_id: str):
+        if user_id:
+            supabase_service = page.get_control(
+                "supabase_service"
+            )  # Assumindo que está disponível
+            supabase_service.logout(page)
+        page.go("/login")
+
+
 # Componentes de Avatares
 class AvatarComponent(ft.CircleAvatar):
     def __init__(

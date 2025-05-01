@@ -1,102 +1,12 @@
 import flet as ft
-from components.components import AvatarComponent
+import asyncio
+from components.message import ChatMessage, Message
 from services.services import AnthropicService
 import httpx
 import time
 from datetime import datetime
 from utils.notification import send_notification
-
-
-# Classe para representar uma mensagem
-class Message:
-    def __init__(
-        self, user_name: str, text: str, user_type: str = "user", created_at: str = None
-    ):
-        self.user_name = user_name
-        self.text = text
-        self.user_type = user_type
-        self.created_at = created_at
-
-
-# Classe para renderizar uma mensagem no chat
-class ChatMessage(ft.Row):
-    def __init__(self, message: Message, page: ft.Page):
-        super().__init__()
-        self.vertical_alignment = ft.CrossAxisAlignment.START
-
-        # Define o avatar com base no tipo de usuário
-        if message.user_type == "trainer":
-            avatar = AvatarComponent(message.user_name, radius=20, is_trainer=True)
-        else:
-            avatar = AvatarComponent(message.user_name, radius=20, is_trainer=False)
-
-        # Formata a data/hora da mensagem
-        time_str = ""
-        if message.created_at:
-            try:
-                time_str = datetime.fromisoformat(
-                    message.created_at.replace("Z", "+00:00")
-                ).strftime("%H:%M")
-            except:
-                time_str = "Horário desconhecido"
-
-        # Define as cores e o alinhamento com base no tipo de usuário
-        if message.user_type == "trainer":
-            bgcolor = ft.Colors.GREEN
-            text_color = ft.Colors.WHITE
-            time_color = ft.Colors.WHITE54
-            alignment = ft.MainAxisAlignment.START
-            margin = ft.margin.only(right=20)
-        else:
-            bgcolor = ft.Colors.BLUE_700
-            text_color = ft.Colors.WHITE
-            time_color = ft.Colors.WHITE54
-            alignment = ft.MainAxisAlignment.END
-            margin = ft.margin.only(left=20)
-
-        message_width = (
-            min(max(page.window.width * 0.7, 200), 400) if page.window.width else 300
-        )
-
-        self.controls = [
-            ft.Container(
-                content=ft.Row(
-                    [
-                        avatar,
-                        ft.Column(
-                            [
-                                ft.Text(
-                                    message.user_name,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=text_color,
-                                ),
-                                ft.Text(
-                                    message.text,
-                                    selectable=True,
-                                    width=message_width,
-                                    no_wrap=False,
-                                    color=text_color,
-                                ),
-                                ft.Text(
-                                    time_str,
-                                    size=10,
-                                    color=time_color,
-                                    text_align=ft.TextAlign.RIGHT,
-                                ),
-                            ],
-                            tight=True,
-                            spacing=5,
-                        ),
-                    ],
-                    alignment=alignment,
-                    vertical_alignment=ft.CrossAxisAlignment.START,
-                ),
-                bgcolor=bgcolor,
-                padding=10,
-                border_radius=10,
-                margin=margin,
-            ),
-        ]
+from postgrest.exceptions import APIError
 
 
 def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
@@ -119,17 +29,25 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             ]
         )
 
+    # Referências para controles
+    chat_ref = ft.Ref[ft.ListView]()
+    question_field_ref = ft.Ref[ft.TextField]()
+    ask_button_ref = ft.Ref[ft.ElevatedButton]()
+    main_column_ref = ft.Ref[ft.Column]()  # Nova referência para a Column principal
+
     # Contêiner do chat
     chat_container = ft.ListView(
-        expand=False,
+        ref=chat_ref,
+        expand=True,
         spacing=10,
         padding=10,
         auto_scroll=True,
-        height=(page.window.height * 0.6 if page.window.height else 400),
+        width=page.window.width,
     )
 
     # Campo de pergunta
     question_field = ft.TextField(
+        ref=question_field_ref,
         label="Faça sua pergunta",
         multiline=True,
         expand=True,
@@ -146,7 +64,8 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
     )
 
     ask_button = ft.ElevatedButton(
-        "Enviar",
+        ref=ask_button_ref,
+        text="Enviar",
         style=ft.ButtonStyle(
             padding=ft.padding.symmetric(horizontal=20, vertical=10),
             shape=ft.RoundedRectangleBorder(radius=5),
@@ -168,77 +87,121 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
 
     # Controle de cooldown
     last_question_time = 0
-    COOLDOWN_SECONDS = 2  # Delay de 2 segundos entre perguntas
+    COOLDOWN_SECONDS = 2
 
-    def load_chat():
-        resp = (
-            supabase_service.client.table("trainer_qa")
-            .select("*")
-            .eq("user_id", user_id)
-            .order("created_at")
-            .execute()
-        )
-        chat_container.controls.clear()
-
-        # Mensagem inicial do treinador
-        chat_container.controls.append(
-            ChatMessage(
-                Message(
-                    user_name="Treinador",
-                    text="Olá! Como posso ajudar com seu treino hoje? 😄",
-                    user_type="trainer",
-                ),
-                page,
+    async def load_chat():
+        try:
+            resp = (
+                supabase_service.client.table("trainer_qa")
+                .select("*")
+                .eq("user_id", user_id)
+                .order("created_at")
+                .limit(50)
+                .execute()
             )
-        )
+            chat_ref.current.controls.clear()
 
-        # Histórico de perguntas e respostas
-        for item in resp.data:
-            # Pergunta do usuário
-            chat_container.controls.append(
-                ChatMessage(
-                    Message(
-                        user_name="Você",
-                        text=item["question"],
-                        user_type="user",
-                        created_at=item["created_at"],
-                    ),
-                    page,
-                )
-            )
-            # Resposta do treinador
-            chat_container.controls.append(
+            # Mensagem inicial do treinador
+            chat_ref.current.controls.append(
                 ChatMessage(
                     Message(
                         user_name="Treinador",
-                        text=item["answer"],
+                        text="Olá! Como posso ajudar com seu treino hoje? 😄",
                         user_type="trainer",
-                        created_at=item["created_at"],
                     ),
                     page,
                 )
             )
 
-        page.update()
-        return resp.data
+            # Histórico de perguntas e respostas
+            for item in resp.data:
+                chat_ref.current.controls.append(
+                    ChatMessage(
+                        Message(
+                            user_name="Você",
+                            text=item["question"],
+                            user_type="user",
+                            created_at=item["created_at"],
+                        ),
+                        page,
+                    )
+                )
+                chat_ref.current.controls.append(
+                    ChatMessage(
+                        Message(
+                            user_name="Treinador",
+                            text=item["answer"],
+                            user_type="trainer",
+                            created_at=item["created_at"],
+                        ),
+                        page,
+                    )
+                )
 
-    def clear_chat(e):
-        def confirm_clear(e):
-            if e.control.text == "Sim":
-                try:
-                    supabase_service.client.table("trainer_qa").delete().eq(
-                        "user_id", user_id
-                    ).execute()
-                    load_chat()
-                    page.open(ft.SnackBar(ft.Text("Chat limpo com sucesso!")))
-                except Exception as ex:
+            print("Rolar para o final da coluna principal")
+            main_column_ref.current.scroll_to(
+                offset=-1, duration=1000, curve=ft.AnimationCurve.EASE_OUT
+            )
+            page.update()
+            return resp.data
+        except APIError as e:
+            if e.code == "42501":
+                if supabase_service.refresh_session():
+                    page.go(page.route)
+                    return []
+                else:
                     page.open(
                         ft.SnackBar(
-                            ft.Text(f"Erro ao limpar chat: {str(ex)}"),
+                            ft.Text(
+                                "Sessão expirada. Por favor, faça login novamente."
+                            ),
                             bgcolor=ft.Colors.RED_700,
                         )
                     )
+                    page.go("/login")
+                    return []
+            else:
+                page.open(ft.SnackBar(ft.Text(f"Erro ao carregar chat: {str(e)}")))
+                return []
+
+    async def clear_chat(e):
+        async def confirm_clear(e):
+            if e.control.text == "Sim":
+                try:
+                    await supabase_service.client.table("trainer_qa").delete().eq(
+                        "user_id", user_id
+                    ).execute()
+                    chat_ref.current.controls = [
+                        ChatMessage(
+                            Message(
+                                user_name="Treinador",
+                                text="Olá! Como posso ajudar com seu treino hoje? 😄",
+                                user_type="trainer",
+                            ),
+                            page,
+                        )
+                    ]
+                    page.open(ft.SnackBar(ft.Text("Chat limpo com sucesso!")))
+                except APIError as ex:
+                    if ex.code == "42501":
+                        if supabase_service.refresh_session():
+                            page.go(page.route)
+                        else:
+                            page.open(
+                                ft.SnackBar(
+                                    ft.Text(
+                                        "Sessão expirada. Por favor, faça login novamente."
+                                    ),
+                                    bgcolor=ft.Colors.RED_700,
+                                )
+                            )
+                            page.go("/login")
+                    else:
+                        page.open(
+                            ft.SnackBar(ft.Text(f"Erro ao limpar chat: {str(ex)}"))
+                        )
             page.close(confirm_dialog)
+            page.update()
 
         confirm_dialog = ft.AlertDialog(
             modal=True,
@@ -248,20 +211,28 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             ),
             actions=[
                 ft.TextButton("Sim", on_click=confirm_clear),
-                ft.TextButton("Não", on_click=confirm_clear),
+                ft.TextButton("Não", on_click=lambda e: page.close(confirm_dialog)),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
         page.open(confirm_dialog)
 
+    async def ask_question(e):
+        nonlocal last_question_time
+        current_time = time.time()
+        if current_time - last_question_time < COOLDOWN_SECONDS:
+            page.open(
+                ft.SnackBar(
+                    ft.Text("Aguarde um momento antes de enviar outra pergunta! 😅")
+                )
+            )
+            return
 
-    def ask_question(e):
-        question = question_field.value.strip()
+        question = question_field_ref.current.value.strip()
         if not question:
             page.open(ft.SnackBar(ft.Text("Digite uma pergunta!")))
             return
 
-        # Verifica se a pergunta é sensível
         if anthropic.is_sensitive_question(question):
             page.open(
                 ft.SnackBar(
@@ -271,32 +242,90 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             )
             return
 
-        ask_button.disabled = True
-        ask_button.content = ft.Row(
+        ask_button_ref.current.disabled = True
+        ask_button_ref.current.content = ft.Row(
             [ft.ProgressRing(width=16, height=16), ft.Text(" Enviando...")],
             alignment=ft.MainAxisAlignment.CENTER,
         )
         page.update()
 
         try:
-            history = load_chat()
-            answer = anthropic.answer_question(question, history)
+            history = await load_chat()
+            chat_ref.current.controls.append(
+                ChatMessage(
+                    Message(
+                        user_name="Você",
+                        text=question,
+                        user_type="user",
+                        created_at=datetime.now().isoformat(),
+                    ),
+                    page,
+                )
+            )
+            if len(chat_ref.current.controls) > 50:
+                chat_ref.current.controls.pop(0)
 
-            # Se a resposta vier inválida, tratamos como erro
+            typing_indicator = ft.AnimatedSwitcher(
+                content=ft.Row(
+                    [
+                        ft.Text("Treinador está digitando"),
+                        ft.ProgressRing(width=16, height=16),
+                    ]
+                ),
+                transition=ft.AnimatedSwitcherTransition.FADE,
+                duration=500,
+                reverse_duration=500,
+            )
+            chat_ref.current.controls.append(typing_indicator)
+            page.update()
+            await asyncio.sleep(1)
+
+            answer = anthropic.answer_question(question, history)
             if not answer or "desculpe" in answer.lower():
                 raise ValueError("Resposta inválida do Anthropic")
 
-            # Salva no Supabase
-            supabase_service.client.table("trainer_qa").insert(
-                {"user_id": user_id, "question": question, "answer": answer}
+            chat_ref.current.controls.remove(typing_indicator)
+
+            answer_message = ChatMessage(
+                Message(
+                    user_name="Treinador",
+                    text="",
+                    user_type="trainer",
+                    created_at=datetime.now().isoformat(),
+                ),
+                page,
+            )
+            chat_ref.current.controls.append(answer_message)
+            if len(chat_ref.current.controls) > 50:
+                chat_ref.current.controls.pop(0)
+
+            streamed_text = ""
+            for char in answer:
+                streamed_text += char
+                answer_message.update_text(streamed_text)
+                await asyncio.sleep(0.03)
+                page.update()
+
+            await supabase_service.client.table("trainer_qa").insert(
+                {
+                    "user_id": user_id,
+                    "question": question,
+                    "answer": answer,
+                    "created_at": datetime.now().isoformat(),
+                }
             ).execute()
 
-            # Limpa campo e recarrega chat
-            question_field.value = ""
-            load_chat()
-
-            # SnackBar de sucesso
+            question_field_ref.current.value = ""
+            send_notification(
+                page, "Resposta do Treinador", "O treinador respondeu sua pergunta!"
+            )
             page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
+            last_question_time = current_time
+
+            main_column_ref.current.scroll_to(
+                offset=-1, duration=1000, curve=ft.AnimationCurve.EASE_OUT
+            )
+            page.update()
 
         except httpx.HTTPStatusError as ex:
             detail = ex.response.text or str(ex)
@@ -306,26 +335,51 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                     bgcolor=ft.Colors.RED_700,
                 )
             )
+        except APIError as ex:
+            if ex.code == "42501" or "permission denied" in str(ex).lower():
+                if supabase_service.refresh_session():
+                    page.go(page.route)
+                else:
+                    page.open(
+                        ft.SnackBar(
+                            ft.Text(
+                                "Sessão expirada ou permissão negada. Por favor, faça login novamente."
+                            ),
+                            bgcolor=ft.Colors.RED_700,
+                        )
+                    )
+                    page.go("/login")
+            else:
+                page.open(
+                    ft.SnackBar(
+                        ft.Text(
+                            f"Erro ao obter resposta: {str(ex)}", color=ft.Colors.WHITE
+                        ),
+                        bgcolor=ft.Colors.RED_700,
+                    )
+                )
         except Exception as ex:
             page.open(
                 ft.SnackBar(
-                    ft.Text(f"Erro ao obter resposta: {str(e)}", color=ft.Colors.WHITE),
+                    ft.Text(
+                        f"Erro ao obter resposta: {str(ex)}", color=ft.Colors.WHITE
+                    ),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
         finally:
-            # Restaura o botão
-            ask_button.disabled = False
-            ask_button.content = ft.Text("Enviar")
-            page.update()
-        
+            ask_button_ref.current.disabled = False
+            ask_button_ref.current.content = ft.Text("Enviar")
+            page.update() 
+
     ask_button.on_click = ask_question
     clear_button.on_click = clear_chat
 
-    load_chat()
+    page.run_task(load_chat)
 
     return ft.Column(
-        [
+        ref=main_column_ref,
+        controls=[
             ft.Row(
                 [
                     ft.Text(
@@ -342,6 +396,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 content=chat_container,
                 border_radius=5,
                 padding=10,
+                expand=True,
             ),
             ft.ResponsiveRow(
                 [

@@ -86,7 +86,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     controls=[TrainerTab(page, supabase, anthropic)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    scroll=ft.ScrollMode.AUTO,
                     padding=20,
                 )
             )

@@ -4,7 +4,7 @@ from services.services import SupabaseService
 
 def ProfileSettingsPage(page: ft.Page):
     supabase_service = SupabaseService()
-    user_id = page.client_storage.get("supafit.user_id") or "default_user"
+    user_id = page.client_storage.get("supafit.user_id") or "supafit_user"
     profile = (
         supabase_service.get_profile(user_id).data[0]
         if supabase_service.get_profile(user_id).data

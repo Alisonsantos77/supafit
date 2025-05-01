@@ -6,6 +6,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import requests
 import flet as ft
+
 logger = logging.getLogger("services.services")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -15,11 +16,12 @@ logger.addHandler(handler)
 
 
 class SupabaseService:
-    def __init__(self):
+    def __init__(self, page: ft.Page = None):
         load_dotenv()
         self.url = os.getenv("SUPABASE_URL")
         self.key = os.getenv("SUPABASE_KEY")
         self.client: Client = create_client(self.url, self.key)
+        self.page = page
         logger.info("Supabase client inicializado com sucesso.")
 
         # Carregar e configurar a sessão automaticamente
@@ -39,12 +41,18 @@ class SupabaseService:
                         }
                     )
                     self.save_auth_data(self.auth_data)
+                    if self.page:
+                        self.page.client_storage.set(
+                            "supafit.access_token", response.session.access_token
+                        )
+                        self.page.client_storage.set(
+                            "supafit.refresh_token", response.session.refresh_token
+                        )
                     logger.info("Sessão configurada e novos tokens salvos com sucesso.")
                 else:
                     logger.warning("Nenhuma sessão retornada ao configurar tokens.")
             except Exception as e:
                 logger.error(f"Erro ao configurar sessão: {str(e)}")
-                # Limpar auth_data.txt para forçar novo login
                 self.auth_data = {}
                 self.save_auth_data({})
                 raise
@@ -52,6 +60,38 @@ class SupabaseService:
             logger.info(
                 "Nenhum token de autenticação encontrado, sessão não configurada."
             )
+
+    def refresh_session(self):
+        """Tenta renovar a sessão usando o refresh_token."""
+        try:
+            if not self.auth_data.get("refresh_token"):
+                logger.warning("Nenhum refresh_token disponível para renovação.")
+                return False
+
+            session = self.client.auth.refresh_session()
+            if session:
+                self.auth_data.update(
+                    {
+                        "access_token": session.access_token,
+                        "refresh_token": session.refresh_token,
+                    }
+                )
+                self.save_auth_data(self.auth_data)
+                if self.page:
+                    self.page.client_storage.set(
+                        "supafit.access_token", session.access_token
+                    )
+                    self.page.client_storage.set(
+                        "supafit.refresh_token", session.refresh_token
+                    )
+                logger.info("Sessão renovada com sucesso.")
+                return True
+            else:
+                logger.error("Falha ao renovar sessão: nenhuma sessão retornada.")
+                return False
+        except Exception as e:
+            logger.error(f"Erro ao renovar sessão: {str(e)}")
+            return False
 
     def load_auth_data(self):
         """Carrega os dados de autenticação do arquivo auth_data.txt."""
@@ -118,8 +158,19 @@ class SupabaseService:
                 file_path = os.path.join(app_data_path, "auth_data.txt")
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                    logger.info(f"Arquivo auth_data.txt removido antes de salvar novos dados.")
+                    logger.info(
+                        f"Arquivo auth_data.txt removido antes de salvar novos dados."
+                    )
             self.save_auth_data(auth_data)
+            if self.page:
+                self.page.client_storage.set(
+                    "supafit.access_token", response.session.access_token
+                )
+                self.page.client_storage.set(
+                    "supafit.refresh_token", response.session.refresh_token
+                )
+                self.page.client_storage.set("supafit.user_id", response.user.id)
+                self.page.client_storage.set("supafit.email", response.user.email)
             self.auth_data = auth_data
             self.client.auth.set_session(
                 response.session.access_token, response.session.refresh_token
@@ -161,18 +212,20 @@ class SupabaseService:
         except Exception as e:
             logger.error(f"Erro ao criar perfil para user_id {user_id}: {str(e)}")
             if "permission denied" in str(e).lower():
-                logger.error("Permissão negada para inserir em user_profiles. Verifique as políticas de RLS.")
+                logger.error(
+                    "Permissão negada para inserir em user_profiles. Verifique as políticas de RLS."
+                )
             raise e
 
     def get_profile(self, user_id: str):
         logger.info("Buscando perfil para user_id: %s", user_id)
         try:
             response = (
-                    self.client.table("user_profiles")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .execute()
-                )
+                self.client.table("user_profiles")
+                .select("*")
+                .eq("user_id", user_id)
+                .execute()
+            )
             logger.info("Perfil recuperado: %s", response.data)
             return response
         except Exception as e:
@@ -236,68 +289,38 @@ class AnthropicService:
 
     def answer_question(self, question: str, history: list) -> str:
         """
-        Envia a pergunta e o histórico para a API da Anthropic e retorna o texto da resposta.
-        Usa modelo 'claude-3-5-sonnet-latest' para maior qualidade.
+        Envia à API Claude-3 um prompt customizado para o treinador,
+        mantendo tom amigável, descontraído e profissional.
         """
         try:
-            logger.info("Sending question to Anthropic: %s", question)
-            # Monta o payload com histórico + nova pergunta
-            messages = []
+            system = (
+                "Você é um treinador virtual: amigável, casual, profissional e com bom humor. "
+                "Responda de forma clara, motivadora e leve."
+            )
+            msgs = [{"role": "system", "content": system}]
             for item in history:
-                messages.append({"role": "user", "content": item.get("question", "")})
-                messages.append(
-                    {"role": "assistant", "content": item.get("answer", "")}
-                )
-            messages.append({"role": "user", "content": question})
+                msgs.append({"role": "user", "content": item["question"]})
+                msgs.append({"role": "assistant", "content": item["answer"]})
+            msgs.append({"role": "user", "content": question})
 
-            payload = {
-                "model": "claude-3-5-sonnet-latest",
-                "messages": messages,
-                "max_tokens": 1000,
-                "temperature": 0.7,
-            }
             headers = {
                 "x-api-key": self.api_key,
                 "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
+                "content-type": "application/json",
             }
-            response = httpx.post(
-                (
-                    f"{self.base_url}/v1/messages"
-                    if not self.base_url.endswith("/v1/messages")
-                    else self.base_url
-                ),
-                json=payload,
-                headers=headers,
-                timeout=30,
-            )
-            response.raise_for_status()
-            data = response.json()
-            # Analisa resposta, pode variar conforme a versão da API
-            # Tenta primeiro 'content', depois 'completion'
-            if "content" in data and isinstance(data["content"], list):
-                text = data["content"][0].get("text", "").strip()
-            elif "completion" in data:
-                # para versões que retornam {'completion': 'texto...'}
-                text = data["completion"].strip()
-            else:
-                # fallback: converte tudo em string
-                text = str(data)
-
-            logger.info("Received answer from Anthropic: %s", text[:50])
-            return text
-
-        except httpx.HTTPStatusError as ex:
-            error_text = ex.response.text or str(ex)
-            logger.error(
-                "Anthropic API returned status %s: %s",
-                ex.response.status_code,
-                error_text,
-            )
-            raise
-        except Exception as ex:
-            logger.error(f"Unexpected error in answer_question: {ex}")
-            return "Desculpe, não consegui responder agora."
+            data = {
+                "model": "claude-3-5-sonnet-latest",
+                "messages": msgs,
+                "max_tokens": 1000,
+                "temperature": 0.7,
+            }
+            res = requests.post(self.base_url, headers=headers, json=data)
+            res.raise_for_status()
+            rj = res.json()
+            return rj.get("choices", [{}])[0].get("message", {}).get("content", "")
+        except Exception as e:
+            logger.error(f"Erro ao obter resposta do Anthropic: {str(e)}")
+            return "Desculpe, não consegui responder agora. 😕"
 
     def is_sensitive_question(self, question: str) -> bool:
         """

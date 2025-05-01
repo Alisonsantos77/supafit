@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def CommunityTab(page: ft.Page, supabase_service):
-    user_id = page.client_storage.get("supafit.user_id") or "default_user"
+    user_id = page.client_storage.get("supafit.user_id") or "supafit_user"
 
     victories_grid = ft.GridView(
         expand=True,
@@ -271,7 +271,7 @@ def CommunityTab(page: ft.Page, supabase_service):
         page.open(dialog)
 
     def toggle_like(victory_id, currently_liked):
-        if user_id == "default_user":
+        if user_id == "supafit_user":
             page.open(
                 ft.SnackBar(
                     content=ft.Text(
@@ -314,7 +314,7 @@ def CommunityTab(page: ft.Page, supabase_service):
             )
 
     def delete_victory(victory_id):
-        if user_id == "default_user":
+        if user_id == "supafit_user":
             page.open(
                 ft.SnackBar(
                     content=ft.Text(
@@ -378,7 +378,7 @@ def CommunityTab(page: ft.Page, supabase_service):
             )
 
     def post_victory(e):
-        if user_id == "default_user":
+        if user_id == "supafit_user":
             page.open(
                 ft.SnackBar(
                     content=ft.Text(
