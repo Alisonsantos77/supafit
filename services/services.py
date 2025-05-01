@@ -287,41 +287,67 @@ class AnthropicService:
             logger.error(f"Erro ao gerar plano de treino com Anthropic: {str(e)}")
             raise e
 
+
     def answer_question(self, question: str, history: list) -> str:
         """
-        Envia à API Claude-3 um prompt customizado para o treinador,
-        mantendo tom amigável, descontraído e profissional.
+        Envia a pergunta e o histórico para a API da Anthropic e retorna o texto da resposta.
+        Usa modelo 'claude-3-5-sonnet-latest' para maior qualidade.
         """
         try:
-            system = (
-                "Você é um treinador virtual: amigável, casual, profissional e com bom humor. "
-                "Responda de forma clara, motivadora e leve."
-            )
-            msgs = [{"role": "system", "content": system}]
+            logger.info("Sending question to Anthropic: %s", question)
+            # Monta o payload com histórico + nova pergunta
+            messages = []
             for item in history:
-                msgs.append({"role": "user", "content": item["question"]})
-                msgs.append({"role": "assistant", "content": item["answer"]})
-            msgs.append({"role": "user", "content": question})
+                messages.append({"role": "user", "content": item.get("question", "")})
+                messages.append({"role": "assistant", "content": item.get("answer", "")})
+            messages.append({"role": "user", "content": question})
 
+            payload = {
+                "model": "claude-3-5-sonnet-latest",
+                "max_tokens": 1000,
+                "temperature": 0.7,
+                "messages": messages,  # Incluir messages no payload
+            }
             headers = {
                 "x-api-key": self.api_key,
                 "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
+                "Content-Type": "application/json",
             }
-            data = {
-                "model": "claude-3-5-sonnet-latest",
-                "messages": msgs,
-                "max_tokens": 1000,
-                "temperature": 0.7,
-            }
-            res = requests.post(self.base_url, headers=headers, json=data)
-            res.raise_for_status()
-            rj = res.json()
-            return rj.get("choices", [{}])[0].get("message", {}).get("content", "")
-        except Exception as e:
-            logger.error(f"Erro ao obter resposta do Anthropic: {str(e)}")
-            return "Desculpe, não consegui responder agora. 😕"
+            response = httpx.post(
+                (
+                    f"{self.base_url}/v1/messages"
+                    if not self.base_url.endswith("/v1/messages")
+                    else self.base_url
+                ),
+                json=payload,
+                headers=headers,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+            # Analisa resposta, pode variar conforme a versão da API
+            if "content" in data and isinstance(data["content"], list):
+                text = data["content"][0].get("text", "").strip()
+            elif "completion" in data:
+                text = data["completion"].strip()
+            else:
+                text = str(data)
 
+            logger.info("Received answer from Anthropic: %s", text[:50])
+            return text
+
+        except httpx.HTTPStatusError as ex:
+            error_text = ex.response.text or str(ex)
+            logger.error(
+                "Anthropic API returned status %s: %s",
+                ex.response.status_code,
+                error_text,
+            )
+            raise
+        except Exception as ex:
+            logger.error(f"Unexpected error in answer_question: {ex}")
+            return "Desculpe, não consegui responder agora."
+    
     def is_sensitive_question(self, question: str) -> bool:
         """
         Verifica se a pergunta contém conteúdo sensível ou inadequado usando o Claude.
@@ -338,6 +364,7 @@ class AnthropicService:
                 "model": "claude-3-5-sonnet-latest",
                 "max_tokens": 10,
                 "messages": [{"role": "user", "content": moderation_prompt}],
+                "stream": True
             }
             headers = {
                 "x-api-key": self.api_key,
