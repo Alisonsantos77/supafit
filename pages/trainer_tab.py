@@ -5,7 +5,6 @@ from services.services import AnthropicService
 import httpx
 import time
 from datetime import datetime
-from utils.notification import send_notification
 from postgrest.exceptions import APIError
 
 
@@ -316,9 +315,6 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             ).execute()
 
             question_field_ref.current.value = ""
-            send_notification(
-                page, "Resposta do Treinador", "O treinador respondeu sua pergunta!"
-            )
             page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
             last_question_time = current_time
 

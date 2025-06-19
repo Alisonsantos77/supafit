@@ -3,7 +3,6 @@ import flet_lottie as fl
 import os
 from time import sleep
 from services.services import SupabaseService
-from utils.notification import send_notification
 import logging
 
 logger = logging.getLogger("supafit.login")
@@ -195,7 +194,6 @@ def LoginPage(page: ft.Page):
                 logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
         except Exception as ex:
             logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
-            send_notification(page, "Erro", "Falha ao salvar dados localmente.")
 
     def login(e):
         email = email_field.value.strip()
@@ -205,7 +203,6 @@ def LoginPage(page: ft.Page):
             status_text.value = "Preencha email e senha!"
             page.update()
             logger.warning("Tentativa de login com campos vazios")
-            send_notification(page, "Erro", "Preencha email e senha!")
             return
 
         loading_dialog = show_loading()
@@ -237,7 +234,6 @@ def LoginPage(page: ft.Page):
                 save_user_data(response.user.id, response.user.email, level)
 
                 hide_loading(loading_dialog)
-                send_notification(page, "Sucesso", "Login realizado com sucesso!")
 
                 if not profile_response.data:
                     logger.info(
@@ -263,7 +259,6 @@ def LoginPage(page: ft.Page):
             status_text.value = error_message
             page.update()
             logger.error(f"Erro no login: {str(ex)}")
-            send_notification(page, "Erro", error_message)
 
     login_button.on_click = login
 

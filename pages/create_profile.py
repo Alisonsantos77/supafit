@@ -1,7 +1,6 @@
 import flet as ft
 import logging
 import time
-from utils.notification import send_notification
 
 logger = logging.getLogger("supafit.create_profile")
 logger.setLevel(logging.INFO)
@@ -135,7 +134,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
                 logger.warning("Altura não é um número.")
                 return False
             height_input.error_text = None
-            profile_data["height"] = height
+            profile_data["height"] = int(height)
             logger.info(f"Altura coletada: {height}")
             return True
         elif current_step[0] == 4:
@@ -240,7 +239,6 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         level = page.client_storage.get("supafit.level")
 
         if not user_id:
-            send_notification(page, "Erro", "Usuário não autenticado!")
             logger.warning("Tentativa de criar perfil sem user_id")
             page.go("/login")
             return
@@ -256,14 +254,12 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         try:
             supabase_service.create_profile(user_id, profile_data)
             hide_loading(loading_dialog)
-            send_notification(page, "Sucesso", "Perfil criado com sucesso!")
             logger.info(f"Perfil criado para user_id: {user_id}")
             reset_form()
             page.go("/home")
             page.update()
         except Exception as ex:
             hide_loading(loading_dialog)
-            send_notification(page, "Erro", f"Erro ao criar perfil: {str(ex)}")
             logger.error(f"Erro ao criar perfil: {str(ex)}")
             page.update()
 

@@ -3,7 +3,6 @@ import flet_lottie as fl
 import os
 from time import sleep
 from services.services import SupabaseService
-from utils.notification import send_notification
 import logging
 
 logger = logging.getLogger("supafit.forgot_password")
@@ -140,7 +139,6 @@ def ForgotPasswordPage(page: ft.Page):
             status_text.value = "Preencha o campo de email!"
             page.update()
             logger.warning("Tentativa de redefinição de senha com campo vazio")
-            send_notification(page, "Erro", "Preencha o campo de email!")
             return
 
         loading_dialog = show_loading()
@@ -152,9 +150,6 @@ def ForgotPasswordPage(page: ft.Page):
             )
 
             hide_loading(loading_dialog)
-            send_notification(
-                page, "Sucesso", "Link de redefinição enviado para seu email!"
-            )
             show_success_and_redirect(
                 "/login", "Link de redefinição enviado! Verifique seu email."
             )
@@ -164,7 +159,6 @@ def ForgotPasswordPage(page: ft.Page):
             status_text.value = "Erro ao enviar o link de redefinição"
             page.update()
             logger.error(f"Erro na redefinição de senha: {error_message}")
-            send_notification(page, "Erro", f"Erro ao enviar o link: {error_message}")
         finally:
             page.update()
 

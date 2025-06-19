@@ -1,7 +1,6 @@
 import flet as ft
 
 from services.services import SupabaseService
-from utils.notification import send_notification
 import logging
 
 logger = logging.getLogger("supafit.terms")

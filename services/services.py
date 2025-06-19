@@ -107,7 +107,7 @@ class SupabaseService:
             if os.path.exists(file_path):
                 with open(file_path, "r") as f:
                     data = json.load(f)
-                logger.info(f"Dados de autenticação carregados: {data}")
+                logger.info(f"Dados de autenticação carregados:\n%s", json.dumps(data, indent=4))
                 return data
             else:
                 logger.warning(f"Arquivo auth_data.txt não encontrado em {file_path}")
@@ -207,7 +207,7 @@ class SupabaseService:
         logger.info(f"Criando perfil para user_id: {user_id}")
         try:
             response = self.client.table("user_profiles").insert(profile_data).execute()
-            logger.info(f"Perfil criado com sucesso: {response.data}")
+            logger.info("Perfil criado com sucesso:\n%s", json.dumps(profile_data, indent=2))
             return response.data
         except Exception as e:
             logger.error(f"Erro ao criar perfil para user_id {user_id}: {str(e)}")

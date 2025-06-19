@@ -1,8 +1,7 @@
 import flet as ft
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from components.components import AvatarComponent
-from utils.notification import send_notification
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ def CommunityTab(page: ft.Page, supabase_service):
             victories_grid.controls.append(create_victory_card(victory))
         page.update()
 
-
     def load_victories(category="Todas"):
         try:
             query = supabase_service.client.table("victories").select("*")
@@ -52,16 +50,19 @@ def CommunityTab(page: ft.Page, supabase_service):
 
             # 1. Buscar nomes de public_profile_info
             if user_ids:
-                resp_pub = (
-                    supabase_service.client.table("public_profile_info")
-                    .select("user_id, name")
-                    .in_("user_id", user_ids)
-                    .execute()
-                )
-                for p in resp_pub.data or []:
-                    if p.get("name"):
-                        name_map[p["user_id"]] = p["name"]
-
+                try:
+                    resp_pub = (
+                        supabase_service.client.table("public_profile_info")
+                        .select("user_id, name")
+                        .in_("user_id", user_ids)
+                        .execute()
+                    )
+                except Exception as e:
+                    logger.error(f"Erro ao buscar public_profile_info: {str(e)}")
+                    resp_pub = {"data": []}
+                for profile in resp_pub.data or []:
+                    if profile.get("name"):
+                        name_map[profile["user_id"]] = profile["name"]
             # 2. Fallback para user_profiles
             missing_ids = [uid for uid in user_ids if uid not in name_map]
             if missing_ids:
@@ -81,7 +82,9 @@ def CommunityTab(page: ft.Page, supabase_service):
             for v in victories_data:
                 uid = v["user_id"]
                 if uid not in name_map:
-                    name_map[uid] = f"Usuário_{hashlib.sha1(uid.encode()).hexdigest()[:6]}"
+                    name_map[uid] = (
+                        f"Usuário_{hashlib.sha1(uid.encode()).hexdigest()[:6]}"
+                    )
                 v["author_name"] = name_map[uid]
 
             # 4. Buscar total de curtidas por vitória
@@ -107,7 +110,9 @@ def CommunityTab(page: ft.Page, supabase_service):
                     .in_("victory_id", victory_ids)
                     .execute()
                 )
-                user_liked_ids = {item["victory_id"] for item in resp_user_likes.data or []}
+                user_liked_ids = {
+                    item["victory_id"] for item in resp_user_likes.data or []
+                }
 
             # 6. Aplicar likes e status de curtida
             for v in victories_data:
@@ -296,7 +301,7 @@ def CommunityTab(page: ft.Page, supabase_service):
                     {
                         "victory_id": victory_id,
                         "user_id": user_id,
-                        "created_at": datetime.utcnow().isoformat() + "Z",
+                        "created_at": datetime.now(timezone.utc).isoformat()
                     }
                 ).execute()
             update_victories(selected_category)
@@ -422,17 +427,12 @@ def CommunityTab(page: ft.Page, supabase_service):
                 {
                     "user_id": user_id,
                     "content": victory_text,
-                    "created_at": datetime.utcnow().isoformat() + "Z",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 }
             ).execute()
             victory_input.value = ""
             category_dropdown.value = None
             update_victories(selected_category)
-            send_notification(
-                page,
-                "Vitória Postada!",
-                "Sua conquista foi compartilhada com a comunidade!",
-            )
             page.open(
                 ft.SnackBar(
                     content=ft.Text(

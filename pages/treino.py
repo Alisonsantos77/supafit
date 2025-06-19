@@ -6,7 +6,6 @@ from components.exercise_tile import ExerciseTile
 from components.components import TimerDialog
 import os
 from dotenv import load_dotenv
-from utils.notification import send_notification
 
 load_dotenv()
 
@@ -61,11 +60,6 @@ def Treinopage(page: ft.Page, supabase, day):
         def confirm_finish(e):
             if e.control.text == "Sim":
                 training_running = False
-                send_notification(
-                    page,
-                    "Treino Finalizado!",
-                    f"Parabéns! Você completou o treino de {day.capitalize()}.",
-                )
                 page.go("/home")
             page.close(confirm_dialog)
 

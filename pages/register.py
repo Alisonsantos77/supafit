@@ -1,3 +1,4 @@
+import json
 import flet as ft
 import flet_lottie as fl
 import re
@@ -5,7 +6,6 @@ import os
 import logging
 from time import sleep
 from services.services import SupabaseService
-from utils.notification import send_notification
 
 logger = logging.getLogger("supafit.register")
 logger.setLevel(logging.INFO)
@@ -207,7 +207,6 @@ def RegisterPage(page: ft.Page):
                 logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
         except Exception as ex:
             logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
-            send_notification(page, "Erro", "Falha ao salvar dados localmente.")
 
     def register(e):
         if not terms_checkbox.value:
@@ -216,9 +215,6 @@ def RegisterPage(page: ft.Page):
             )
             page.update()
             logger.warning("Tentativa de registro sem aceitar os termos")
-            send_notification(
-                page, "Erro", "Aceite os Termos de Uso e a Política de Privacidade."
-            )
             return
 
         email = email_field.value.strip()
@@ -229,7 +225,6 @@ def RegisterPage(page: ft.Page):
             status_text.value = "Preencha todos os campos!"
             page.update()
             logger.warning("Tentativa de registro com campos vazios")
-            send_notification(page, "Erro", "Preencha todos os campos do formulário.")
             return
 
         email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -237,16 +232,12 @@ def RegisterPage(page: ft.Page):
             status_text.value = "Email inválido! Use o formato: nome@dominio.com"
             page.update()
             logger.warning(f"Tentativa de registro com email inválido: {email}")
-            send_notification(
-                page, "Erro", "Email inválido. Use o formato: nome@dominio.com"
-            )
             return
 
         if len(password) < 6:
             status_text.value = "A senha deve ter pelo menos 6 caracteres!"
             page.update()
             logger.warning("Tentativa de registro com senha curta")
-            send_notification(page, "Erro", "A senha deve ter pelo menos 6 caracteres.")
             return
 
         loading_dialog = show_loading()
@@ -277,7 +268,7 @@ def RegisterPage(page: ft.Page):
                 ),
             }
             supabase_service.save_auth_data(auth_data)
-            logger.info(f"Dados de autenticação salvos: {auth_data}")
+            logger.info(f"Dados de autenticação salvos:\n%s", json.dumps(auth_data, indent=2))
 
             # Configurar a sessão para requisições autenticadas
             if response.session:
@@ -302,9 +293,6 @@ def RegisterPage(page: ft.Page):
             save_user_data(response.user.id, response.user.email, level)
 
             hide_loading(loading_dialog)
-            send_notification(
-                page, "Sucesso", "Registro concluído! Verifique seu email."
-            )
             show_success_and_redirect(
                 "/login", "Registro concluído! Verifique seu email para ativar a conta."
             )
@@ -314,7 +302,6 @@ def RegisterPage(page: ft.Page):
             status_text.value = f"Erro ao registrar: {str(ex)}"
             page.update()
             logger.error(f"Erro no registro: {str(ex)}")
-            send_notification(page, "Erro", f"Erro ao registrar: {str(ex)}")
 
     register_button.on_click = register
 
