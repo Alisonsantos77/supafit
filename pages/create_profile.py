@@ -377,7 +377,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         alignment=ft.alignment.center,
-        animate=ft.animation.Animation(500, ft.AnimationCurve.EASE_IN_OUT),
+        animate=ft.Animation(500, ft.AnimationCurve.EASE_IN_OUT),
     )
 
     update_view()
