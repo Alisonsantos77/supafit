@@ -51,7 +51,7 @@ class CustomAppBar(ft.AppBar):
         if user_id:
             supabase_service = page.get_control(
                 "supabase_service"
-            )  # Assumindo que está disponível
+            )
             supabase_service.logout(page)
         page.go("/login")
 

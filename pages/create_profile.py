@@ -253,6 +253,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
 
         try:
             supabase_service.create_profile(user_id, profile_data)
+            page.client_storage.set("supafit.profile_created", True)  # Marcar perfil como criado
             hide_loading(loading_dialog)
             logger.info(f"Perfil criado para user_id: {user_id}")
             reset_form()

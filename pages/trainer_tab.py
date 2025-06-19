@@ -9,6 +9,16 @@ from postgrest.exceptions import APIError
 
 
 def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
+    """Cria a interface da aba Treinador para interação com IA via Anthropic API.
+
+    Args:
+        page (ft.Page): Instância da página Flet para renderização UI.
+        supabase_service (SupabaseService): Serviço para operações no Supabase.
+        anthropic (AnthropicService): Serviço para interações com a API Anthropic.
+
+    Returns:
+        ft.Control: Interface renderizada da aba Treinador.
+    """
     page.padding = 10
 
     user_id = page.client_storage.get("supafit.user_id")
@@ -32,7 +42,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
     chat_ref = ft.Ref[ft.ListView]()
     question_field_ref = ft.Ref[ft.TextField]()
     ask_button_ref = ft.Ref[ft.ElevatedButton]()
-    main_column_ref = ft.Ref[ft.Column]()  # Nova referência para a Column principal
+    main_column_ref = ft.Ref[ft.Column]()
 
     # Contêiner do chat
     chat_container = ft.ListView(
@@ -56,12 +66,12 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         max_lines=5,
         filled=True,
         shift_enter=True,
-        on_submit=lambda e: ask_question(e),
         bgcolor=ft.Colors.GREY_800,
         color=ft.Colors.WHITE,
         border_color=ft.Colors.GREY_600,
     )
 
+    # Botão de enviar
     ask_button = ft.ElevatedButton(
         ref=ask_button_ref,
         text="Enviar",
@@ -82,13 +92,15 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             padding=ft.padding.symmetric(horizontal=20, vertical=10),
             shape=ft.RoundedRectangleBorder(radius=5),
         ),
+        on_click=lambda e: page.run_task(clear_chat),
     )
 
-    # Controle de cooldown
-    last_question_time = 0
+    # Controle de cooldown e estado
+    last_question_time = [0]  # Usar lista para permitir modificação em função aninhada
     COOLDOWN_SECONDS = 2
 
     async def load_chat():
+        """Carrega o histórico de conversa do Supabase."""
         try:
             resp = (
                 supabase_service.client.table("trainer_qa")
@@ -112,7 +124,6 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 )
             )
 
-            # Histórico de perguntas e respostas
             for item in resp.data:
                 chat_ref.current.controls.append(
                     ChatMessage(
@@ -125,17 +136,18 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                         page,
                     )
                 )
-                chat_ref.current.controls.append(
-                    ChatMessage(
-                        Message(
-                            user_name="Treinador",
-                            text=item["answer"],
-                            user_type="trainer",
-                            created_at=item["created_at"],
-                        ),
-                        page,
+                if item.get("answer"):
+                    chat_ref.current.controls.append(
+                        ChatMessage(
+                            Message(
+                                user_name="Treinador",
+                                text=item["answer"],
+                                user_type="trainer",
+                                created_at=item["created_at"],
+                            ),
+                            page,
+                        )
                     )
-                )
 
             print("Rolar para o final da coluna principal")
             main_column_ref.current.scroll_to(
@@ -163,7 +175,9 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 page.open(ft.SnackBar(ft.Text(f"Erro ao carregar chat: {str(e)}")))
                 return []
 
-    async def clear_chat(e):
+    async def clear_chat():
+        """Limpa o histórico de conversa após confirmação."""
+
         async def confirm_clear(e):
             if e.control.text == "Sim":
                 try:
@@ -217,12 +231,12 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         page.open(confirm_dialog)
 
     async def ask_question(e):
-        nonlocal last_question_time
+        """Processa a submissão de pergunta e obtém resposta da IA."""
         current_time = time.time()
-        if current_time - last_question_time < COOLDOWN_SECONDS:
+        if current_time - last_question_time[0] < COOLDOWN_SECONDS:
             page.open(
                 ft.SnackBar(
-                    ft.Text("Aguarde um momento antes de enviar outra pergunta! 😅")
+                    ft.Text("Aguarde um momento antes de enviar outra pergunta!")
                 )
             )
             return
@@ -231,12 +245,15 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         if not question:
             page.open(ft.SnackBar(ft.Text("Digite uma pergunta!")))
             return
-
+        if len(question) > 500:
+            page.open(
+                ft.SnackBar(ft.Text("Pergunta muito longa (máximo 500 caracteres)."))
+            )
+            return
         if anthropic.is_sensitive_question(question):
             page.open(
                 ft.SnackBar(
-                    ft.Text("Conversa sensível detectada", color=ft.Colors.WHITE),
-                    bgcolor=ft.Colors.RED,
+                    ft.Text("Conversa sensível detectada."), bgcolor=ft.Colors.RED
                 )
             )
             return
@@ -284,7 +301,6 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 raise ValueError("Resposta inválida do Anthropic")
 
             chat_ref.current.controls.remove(typing_indicator)
-
             answer_message = ChatMessage(
                 Message(
                     user_name="Treinador",
@@ -314,9 +330,9 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 }
             ).execute()
 
-            question_field_ref.current.value = ""
+            question_field_ref.current.value = ""  # Limpa o input após envio
             page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
-            last_question_time = current_time
+            last_question_time[0] = current_time
 
             main_column_ref.current.scroll_to(
                 offset=-1, duration=1000, curve=ft.AnimationCurve.EASE_OUT
@@ -327,7 +343,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             detail = ex.response.text or str(ex)
             page.open(
                 ft.SnackBar(
-                    ft.Text(f"Erro na API Anthropic: {detail}", color=ft.Colors.WHITE),
+                    ft.Text(f"Erro na API Anthropic: {detail}"),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
@@ -339,7 +355,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                     page.open(
                         ft.SnackBar(
                             ft.Text(
-                                "Sessão expirada ou permissão negada. Por favor, faça login novamente."
+                                "Sessão expirada. Por favor, faça login novamente."
                             ),
                             bgcolor=ft.Colors.RED_700,
                         )
@@ -348,29 +364,26 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             else:
                 page.open(
                     ft.SnackBar(
-                        ft.Text(
-                            f"Erro ao obter resposta: {str(ex)}", color=ft.Colors.WHITE
-                        ),
+                        ft.Text(f"Erro ao obter resposta: {str(ex)}"),
                         bgcolor=ft.Colors.RED_700,
                     )
                 )
         except Exception as ex:
             page.open(
                 ft.SnackBar(
-                    ft.Text(
-                        f"Erro ao obter resposta: {str(ex)}", color=ft.Colors.WHITE
-                    ),
+                    ft.Text(f"Erro ao obter resposta: {str(ex)}"),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
         finally:
             ask_button_ref.current.disabled = False
             ask_button_ref.current.content = ft.Text("Enviar")
-            page.update() 
+            page.update()
 
-    ask_button.on_click = ask_question
-    clear_button.on_click = clear_chat
+    # Define o manipulador de clique assíncrono para o botão
+    ask_button.on_click = lambda e: page.run_task(ask_question, e)
 
+    # Executa a tarefa de carregamento ao iniciar
     page.run_task(load_chat)
 
     return ft.Column(
