@@ -2,15 +2,9 @@ import flet as ft
 import logging
 import time
 
-logger = logging.getLogger("supafit.create_profile")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+from utils.logger import get_logger
+
+logger = get_logger("supabafit.create_profile")
 
 
 def CreateProfilePage(page: ft.Page, supabase_service):

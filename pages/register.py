@@ -3,16 +3,12 @@ import flet as ft
 import flet_lottie as fl
 import re
 import os
-import logging
 from time import sleep
 from services.services import SupabaseService
 
-logger = logging.getLogger("supafit.register")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+from utils.logger import get_logger
+
+logger = get_logger("supabafit.register")
 
 LOTTIE_REGISTER = os.getenv("LOTTIE_REGISTER")
 

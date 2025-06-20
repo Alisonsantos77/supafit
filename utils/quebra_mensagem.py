@@ -21,14 +21,9 @@ class UnicodeFilter(logging.Filter):
         return True
 
 
-logger = logging.getLogger("supafit.quebra_mensagem")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-handler.addFilter(UnicodeFilter())  
-logger.addHandler(handler)
+from utils.logger import get_logger
+
+logger = get_logger("supabafit.quebra_mensagem")
 
 """
 Arquivo para manipulação de textos no chat do SupaFit, 

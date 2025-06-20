@@ -3,30 +3,15 @@ import asyncio
 import time
 from datetime import datetime
 import uuid
-import logging
 from components.message import ChatMessage, Message
-from services.services import AnthropicService
+from services.services import AnthropicService, SupabaseService
 from postgrest.exceptions import APIError
 from utils.quebra_mensagem import integrate_with_chat
-
-logger = logging.getLogger("supafit.trainer.chat_logic")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+from utils.logger import get_logger
 
 COOLDOWN_SECONDS = 2
 
-import logging
-from services.services import SupabaseService
-
-logger = logging.getLogger("supafit.trainer.data")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger("supabafit.trainer_chat.data")
 
 
 def get_user_profile(supabase_service: SupabaseService, user_id: str) -> dict:

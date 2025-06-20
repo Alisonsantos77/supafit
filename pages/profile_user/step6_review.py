@@ -1,6 +1,9 @@
 import flet as ft
-from .base_step import BaseStep, logger
+from .base_step import BaseStep
 
+from utils.logger import get_logger
+
+logger = get_logger("supabafit.profile_user.step6_review")
 
 class Step6Review(BaseStep):
     """Etapa 6: Revisão dos dados do perfil.

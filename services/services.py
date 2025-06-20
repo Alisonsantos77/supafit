@@ -1,18 +1,13 @@
 import os
 import json
-import logging
 import httpx
 import requests
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import flet as ft
+from utils.logger import get_logger
 
-logger = logging.getLogger("supabafit.services")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger("supabafit.services")
 
 
 class SupabaseService:

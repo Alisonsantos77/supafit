@@ -27,14 +27,9 @@ class UnicodeFilter(logging.Filter):
         return True
 
 
-logger = logging.getLogger("supafit.trainer.chat_logic")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-handler.addFilter(UnicodeFilter())  # Adiciona o filtro
-logger.addHandler(handler)
+from utils.logger import get_logger
+
+logger = get_logger("supabafit.trainer.chat_logic")
 
 COOLDOWN_SECONDS = 2
 

@@ -3,14 +3,9 @@ import flet_lottie as fl
 import os
 from time import sleep
 from services.services import SupabaseService
-import logging
+from utils.logger import get_logger
 
-logger = logging.getLogger("supafit.login")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger("supabafit.login")
 
 
 def LoginPage(page: ft.Page):

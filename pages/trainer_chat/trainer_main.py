@@ -8,14 +8,9 @@ from pages.trainer_chat.components import (
 from pages.trainer_chat.chat_logic import load_chat_history, clear_chat, ask_question
 from pages.trainer_chat.data import get_user_profile
 from services.services import AnthropicService
-import logging
+from utils.logger import get_logger
 
-logger = logging.getLogger("supafit.trainer.main")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger("supabafit.trainer_chat.trainer_main")
 
 
 def TrainerTab(
