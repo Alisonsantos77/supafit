@@ -11,14 +11,9 @@ logger = get_logger("supabafit.services")
 
 
 class SupabaseService:
-    """Classe de serviço para gerenciar autenticação e operações de dados com Supabase."""
+    """Versão melhorada do serviço Supabase com autenticação simplificada."""
 
     def __init__(self, page: ft.Page = None):
-        """Inicializa o cliente Supabase com gerenciamento de autenticação e sessão.
-
-        Args:
-            page (ft.Page, optional): Instância da página Flet para acesso ao armazenamento do cliente.
-        """
         load_dotenv()
         self.url = os.getenv("SUPABASE_URL")
         self.key = os.getenv("SUPABASE_KEY")
@@ -26,356 +21,200 @@ class SupabaseService:
         self.page = page
         logger.info("Cliente Supabase inicializado com sucesso.")
 
-        # Carrega e configura a sessão automaticamente
-        self.auth_data = self.load_auth_data() or {}
-        if self.auth_data.get("access_token") and self.auth_data.get("refresh_token"):
-            try:
-                response = self.client.auth.set_session(
-                    self.auth_data["access_token"], self.auth_data["refresh_token"]
-                )
+        # Tentar restaurar sessão automaticamente
+        self._restore_session()
+
+    def _restore_session(self):
+        """Restaura sessão do client_storage se disponível."""
+        if not self.page:
+            return
+
+        try:
+            access_token = self.page.client_storage.get("supafit.access_token")
+            refresh_token = self.page.client_storage.get("supafit.refresh_token")
+
+            if access_token and refresh_token:
+                response = self.client.auth.set_session(access_token, refresh_token)
                 if response.session:
-                    self.auth_data.update(
-                        {
-                            "access_token": response.session.access_token,
-                            "refresh_token": response.session.refresh_token,
-                            "user_id": response.user.id,
-                            "email": response.user.email,
-                        }
-                    )
-                    self.save_auth_data(self.auth_data)
-                    if self.page:
-                        self.page.client_storage.set(
-                            "supafit.access_token", response.session.access_token
-                        )
-                        self.page.client_storage.set(
-                            "supafit.refresh_token", response.session.refresh_token
-                        )
-                        self.page.client_storage.set(
-                            "supafit.user_id", response.user.id
-                        )
-                        self.page.client_storage.set(
-                            "supafit.email", response.user.email
-                        )
-                        # Verificar perfil no banco
-                        profile_response = self.get_profile(response.user.id)
-                        profile_created = bool(
-                            profile_response.data and len(profile_response.data) > 0
-                        )
-                        self.page.client_storage.set(
-                            "supafit.profile_created", profile_created
-                        )
-                        if profile_created:
-                            self.page.client_storage.set(
-                                "supafit.level",
-                                profile_response.data[0].get("level", "iniciante"),
-                            )
-                        logger.info(
-                            f"Perfil {'encontrado' if profile_created else 'não encontrado'} para user_id: {response.user.id}, definido profile_created como {profile_created}."
-                        )
-                    logger.info("Sessão configurada e tokens atualizados com sucesso.")
+                    logger.info("Sessão restaurada com sucesso.")
+                    self._update_client_storage(response)
                 else:
-                    logger.warning(
-                        "Nenhuma sessão retornada durante configuração de tokens."
-                    )
-                    self.handle_invalid_token()
-            except Exception as e:
-                logger.error(f"Falha ao configurar sessão: {str(e)}")
-                if "Invalid Refresh Token" in str(e):
-                    self.handle_invalid_token()
-                else:
-                    self.auth_data = {}
-                    self.save_auth_data({})
-                    if self.page:
-                        self.page.client_storage.clear()
-                        self.page.go("/login")
-                    raise
-        else:
-            logger.info(
-                "Nenhum token de autenticação encontrado; sessão não configurada."
+                    logger.warning("Falha ao restaurar sessão.")
+                    self._clear_session()
+        except Exception as e:
+            logger.error(f"Erro ao restaurar sessão: {e}")
+            self._clear_session()
+
+    def _update_client_storage(self, auth_response):
+        """Atualiza dados de autenticação no client_storage."""
+        if not self.page or not auth_response.session:
+            return
+
+        try:
+            session = auth_response.session
+            user = auth_response.user
+
+            # Salvar dados essenciais
+            self.page.client_storage.set("supafit.access_token", session.access_token)
+            self.page.client_storage.set("supafit.refresh_token", session.refresh_token)
+            self.page.client_storage.set("supafit.user_id", user.id)
+            self.page.client_storage.set("supafit.email", user.email)
+
+            # Verificar e salvar perfil
+            self._check_and_save_profile(user.id)
+
+            logger.info(f"Client storage atualizado para user: {user.email}")
+        except Exception as e:
+            logger.error(f"Erro ao atualizar client storage: {e}")
+
+    def _check_and_save_profile(self, user_id: str):
+        """Verifica e salva informações do perfil no client_storage."""
+        try:
+            profile_response = self.get_profile(user_id)
+            profile_exists = bool(
+                profile_response.data and len(profile_response.data) > 0
             )
 
-    def handle_invalid_token(self):
-        """Trata tokens inválidos limpando dados de autenticação e redirecionando para login."""
-        logger.warning("Token de atualização inválido detectado. Limpando sessão.")
+            self.page.client_storage.set("supafit.profile_created", profile_exists)
+
+            if profile_exists:
+                level = profile_response.data[0].get("level", "iniciante")
+                self.page.client_storage.set("supafit.level", level)
+                logger.info(f"Perfil encontrado - Nível: {level}")
+            else:
+                logger.info("Perfil não encontrado - redirecionamento necessário")
+
+        except Exception as e:
+            logger.error(f"Erro ao verificar perfil: {e}")
+
+    def _clear_session(self):
+        """Limpa dados de sessão."""
         try:
             self.client.auth.sign_out()
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                for file in ["auth_data.txt", "user_data.txt"]:
-                    file_path = os.path.join(app_data_path, file)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        logger.info(
-                            f"Arquivo {file} removido durante limpeza de sessão."
-                        )
             if self.page:
-                self.page.client_storage.clear()
-                logger.info("Armazenamento do cliente limpo durante limpeza de sessão.")
+                # Limpar apenas dados relacionados à autenticação
+                auth_keys = [
+                    "supafit.access_token",
+                    "supafit.refresh_token",
+                    "supafit.user_id",
+                    "supafit.email",
+                    "supafit.profile_created",
+                    "supafit.level",
+                ]
+                for key in auth_keys:
+                    self.page.client_storage.remove(key)
+            logger.info("Sessão limpa com sucesso.")
+        except Exception as e:
+            logger.error(f"Erro ao limpar sessão: {e}")
+
+    def get_current_user(self):
+        """Retorna o usuário atual autenticado."""
+        try:
+            user = self.client.auth.get_user()
+            return user.user if user else None
+        except Exception as e:
+            logger.error(f"Erro ao obter usuário atual: {e}")
+            return None
+
+    def is_authenticated(self) -> bool:
+        """Verifica se há uma sessão válida."""
+        try:
+            user = self.get_current_user()
+            if user:
+                stored_user_id = (
+                    self.page.client_storage.get("supafit.user_id")
+                    if self.page
+                    else None
+                )
+                return stored_user_id == user.id
+            return False
+        except Exception as e:
+            logger.error(f"Erro ao verificar autenticação: {e}")
+            return False
+
+    def login(self, email: str, password: str):
+        """Login simplificado."""
+        logger.info(f"Tentando login para: {email}")
+
+        try:
+            self._clear_session()
+
+            # Fazer login
+            response = self.client.auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
+
+            if response.user and response.session:
+                self._update_client_storage(response)
+                logger.info("Login realizado com sucesso.")
+                return response
+            else:
+                raise Exception("Falha no login: resposta inválida")
+
+        except Exception as e:
+            logger.error(f"Erro no login: {e}")
+            raise
+
+    def refresh_session(self) -> bool:
+        """Renova a sessão atual."""
+        try:
+            session = self.client.auth.refresh_session()
+            if session and session.session:
+                self._update_client_storage(session)
+                logger.info("Sessão renovada com sucesso.")
+                return True
+            else:
+                logger.warning("Falha ao renovar sessão.")
+                self._clear_session()
+                return False
+        except Exception as e:
+            logger.error(f"Erro ao renovar sessão: {e}")
+            self._clear_session()
+            return False
+
+    def logout(self):
+        """Logout simplificado."""
+        try:
+            self._clear_session()
+
+            if self.page:
                 self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Sessão inválida. Faça login novamente."),
-                    bgcolor=ft.Colors.RED_700,
+                    content=ft.Text("Logout realizado com sucesso!"),
+                    bgcolor=ft.Colors.GREEN_700,
                 )
                 self.page.snack_bar.open = True
                 self.page.go("/login")
                 self.page.update()
+
+            logger.info("Logout concluído com sucesso.")
         except Exception as e:
-            logger.error(f"Falha ao limpar sessão: {str(e)}")
-
-    def refresh_session(self) -> bool:
-        """Tenta renovar a sessão do Supabase usando o token de atualização.
-
-        Returns:
-            bool: True se a renovação da sessão for bem-sucedida, False caso contrário.
-        """
-        try:
-            if not self.auth_data.get("refresh_token"):
-                logger.warning(
-                    "Nenhum token de atualização disponível para renovação de sessão."
-                )
-                self.handle_invalid_token()
-                return False
-
-            session = self.client.auth.refresh_session()
-            if session and hasattr(session, "session") and session.session:
-                self.auth_data.update(
-                    {
-                        "access_token": session.session.access_token,
-                        "refresh_token": session.session.refresh_token,
-                        "user_id": session.user.id,
-                        "email": session.user.email,
-                    }
-                )
-                self.save_auth_data(self.auth_data)
-                if self.page:
-                    self.page.client_storage.set(
-                        "supafit.access_token", session.session.access_token
-                    )
-                    self.page.client_storage.set(
-                        "supafit.refresh_token", session.session.refresh_token
-                    )
-                    self.page.client_storage.set("supafit.user_id", session.user.id)
-                    self.page.client_storage.set("supafit.email", session.user.email)
-                logger.info("Sessão renovada com sucesso.")
-                return True
-            else:
-                logger.error(
-                    "Falha na renovação da sessão: sessão inválida ou incompleta."
-                )
-                self.handle_invalid_token()
-                return False
-        except Exception as e:
-            logger.error(f"Falha na renovação da sessão: {str(e)}")
-            if "Invalid Refresh Token" in str(e):
-                self.handle_invalid_token()
-            return False
-
-    def load_auth_data(self) -> dict:
-        """Carrega dados de autenticação do arquivo auth_data.txt.
-
-        Returns:
-            dict: Dados de autenticação se carregados com sucesso, None caso contrário.
-        """
-        app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-        if not app_data_path:
-            logger.warning(
-                "FLET_APP_STORAGE_DATA não definido; incapaz de carregar auth_data.txt."
-            )
-            return None
-
-        file_path = os.path.join(app_data_path, "auth_data.txt")
-        try:
-            if os.path.exists(file_path):
-                with open(file_path, "r") as f:
-                    data = json.load(f)
-                logger.info(
-                    "Dados de autenticação carregados com sucesso de auth_data.txt."
-                )
-                return data
-            else:
-                logger.warning(f"auth_data.txt não encontrado em {file_path}.")
-                return None
-        except Exception as e:
-            logger.error(f"Falha ao carregar auth_data.txt: {str(e)}")
-            return None
-
-    def save_auth_data(self, auth_data: dict):
-        """Salva dados de autenticação no arquivo auth_data.txt.
-
-        Args:
-            auth_data (dict): Dados de autenticação a serem salvos.
-        """
-        app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-        if not app_data_path:
-            logger.warning(
-                "FLET_APP_STORAGE_DATA não definido; incapaz de salvar auth_data.txt."
-            )
-            return
-
-        file_path = os.path.join(app_data_path, "auth_data.txt")
-        try:
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                logger.info(
-                    "auth_data.txt anterior removido antes de salvar novos dados."
-                )
-            with open(file_path, "w") as f:
-                json.dump(auth_data, f, indent=4)
-            logger.info(f"Dados de autenticação salvos com sucesso em {file_path}.")
-        except Exception as e:
-            logger.error(f"Falha ao salvar auth_data.txt: {str(e)}")
-
-    def login(self, email: str, password: str):
-        """Realiza login do usuário e configura a sessão.
-
-        Args:
-            email (str): Email do usuário.
-            password (str): Senha do usuário.
-
-        Returns:
-            Objeto de resposta do Supabase Auth.
-
-        Raises:
-            Exception: Se o login falhar ou nenhum usuário for retornado.
-        """
-        logger.info(f"Tentando login para o email: {email}")
-        try:
-            # Limpa dados residuais antes do login
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                for file in ["auth_data.txt", "user_data.txt"]:
-                    file_path = os.path.join(app_data_path, file)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        logger.info(f"Arquivo {file} removido antes do login.")
-            if self.page:
-                self.page.client_storage.clear()
-                logger.info("Armazenamento do cliente limpo antes do login.")
-
-            response = self.client.auth.sign_in_with_password(
-                {"email": email, "password": password}
-            )
-            if response.user:
-                logger.info("Login bem-sucedido.")
-                auth_data = {
-                    "user_id": response.user.id,
-                    "email": response.user.email,
-                    "access_token": response.session.access_token,
-                    "refresh_token": response.session.refresh_token,
-                    "created_at": response.user.created_at.isoformat(),
-                    "confirmed_at": (
-                        response.user.confirmed_at.isoformat()
-                        if response.user.confirmed_at
-                        else None
-                    ),
-                }
-                self.save_auth_data(auth_data)
-                if self.page:
-                    self.page.client_storage.set(
-                        "supafit.access_token", response.session.access_token
-                    )
-                    self.page.client_storage.set(
-                        "supafit.refresh_token", response.session.refresh_token
-                    )
-                    self.page.client_storage.set("supafit.user_id", response.user.id)
-                    self.page.client_storage.set("supafit.email", response.user.email)
-                    profile_response = self.get_profile(response.user.id)
-                    profile_exists = bool(
-                        profile_response.data and len(profile_response.data) > 0
-                    )
-                    self.page.client_storage.set(
-                        "supafit.profile_created", profile_exists
-                    )
-                    if profile_exists:
-                        self.page.client_storage.set(
-                            "supafit.level",
-                            profile_response.data[0].get("level", "iniciante"),
-                        )
-                    logger.info(
-                        f"Perfil {'encontrado' if profile_exists else 'não encontrado'} para user_id: {response.user.id}, definido profile_created como {profile_exists}."
-                    )
-                self.auth_data = auth_data
-                self.client.auth.set_session(
-                    response.session.access_token, response.session.refresh_token
-                )
-                logger.info("Sessão configurada com sucesso após login.")
-                return response
-            else:
-                logger.error("Falha no login: nenhum usuário retornado.")
-                raise Exception("Falha no login: nenhum usuário retornado.")
-        except Exception as e:
-            logger.error(f"Falha no login: {str(e)}")
+            logger.error(f"Erro no logout: {e}")
             raise
 
-    def validate_user_id(self, user_id: str, is_new_user: bool = False) -> None:
-        """Valida se o user_id corresponde aos dados de autenticação armazenados.
-
-        Args:
-            user_id (str): ID do usuário a validar.
-            is_new_user (bool, optional): Se True, ignora validação para novos usuários.
-
-        Raises:
-            ValueError: Se a validação do user_id falhar.
-        """
-        if is_new_user:
-            logger.info(
-                f"Usuário novo detectado; ignorando validação de user_id para {user_id}."
-            )
-            return
-
-        try:
-            user = self.client.auth.get_user()
-            if not user or not user.user or user.user.id != user_id:
-                logger.error(
-                    f"Validação de user_id falhou: esperado {user_id}, recebido {user.user.id if user and user.user else 'Nenhum'}."
-                )
-                raise ValueError(
-                    "ID do usuário inválido ou não corresponde aos dados do Supabase."
-                )
-            logger.info(f"Validação de user_id bem-sucedida para {user_id}.")
-        except Exception as e:
-            logger.error(f"Erro ao validar user_id: {str(e)}")
-            self.handle_invalid_token()
-            raise ValueError("ID do usuário inválido ou sessão expirada.")
-
     def create_profile(self, user_id: str, profile_data: dict):
-        """Cria um perfil de usuário na tabela user_profiles.
-
-        Args:
-            user_id (str): ID do usuário.
-            profile_data (dict): Dados do perfil a inserir.
-
-        Returns:
-            Dados de resposta do Supabase.
-
-        Raises:
-            Exception: Se a criação do perfil falhar.
-        """
+        """Cria perfil do usuário."""
         logger.info(f"Criando perfil para user_id: {user_id}")
         try:
+            # Garantir que user_id está nos dados
+            profile_data["user_id"] = user_id
+
             response = self.client.table("user_profiles").insert(profile_data).execute()
+
+            # Atualizar client_storage após criar perfil
+            if self.page:
+                self.page.client_storage.set("supafit.profile_created", True)
+                self.page.client_storage.set(
+                    "supafit.level", profile_data.get("level", "iniciante")
+                )
+
             logger.info("Perfil criado com sucesso.")
             return response.data
         except Exception as e:
-            logger.error(f"Falha ao criar perfil para user_id {user_id}: {str(e)}")
-            if "permission denied" in str(e).lower():
-                logger.error(
-                    "Permissão negada para inserção em user_profiles. Verifique políticas RLS."
-                )
-            raise e
+            logger.error(f"Erro ao criar perfil: {e}")
+            raise
 
     def get_profile(self, user_id: str):
-        """Recupera o perfil do usuário da tabela user_profiles.
-
-        Args:
-            user_id (str): ID do usuário.
-
-        Returns:
-            Objeto de resposta do Supabase.
-
-        Raises:
-            Exception: Se a recuperação do perfil falhar.
-        """
+        """Recupera perfil do usuário."""
         logger.info(f"Recuperando perfil para user_id: {user_id}")
         try:
             response = (
@@ -384,24 +223,13 @@ class SupabaseService:
                 .eq("user_id", user_id)
                 .execute()
             )
-            logger.info("Perfil recuperado com sucesso.")
             return response
         except Exception as e:
-            logger.error(f"Falha ao recuperar perfil para user_id {user_id}: {str(e)}")
+            logger.error(f"Erro ao recuperar perfil: {e}")
             raise
 
     def get_workouts(self, user_id: str):
-        """Recupera treinos do usuário da tabela daily_workouts.
-
-        Args:
-            user_id (str): ID do usuário.
-
-        Returns:
-            Objeto de resposta do Supabase.
-
-        Raises:
-            Exception: Se a recuperação dos treinos falhar.
-        """
+        """Recupera treinos do usuário."""
         logger.info(f"Recuperando treinos para user_id: {user_id}")
         try:
             response = (
@@ -410,55 +238,9 @@ class SupabaseService:
                 .eq("user_id", user_id)
                 .execute()
             )
-            if response.data:
-                logger.info("Treinos recuperados com sucesso.")
-            else:
-                logger.info(f"Nenhum treino encontrado para user_id: {user_id}.")
             return response
         except Exception as e:
-            logger.error(f"Falha ao recuperar treinos para user_id {user_id}: {str(e)}")
-            raise
-
-    async def logout(self, page: ft.Page = None):
-        """Realiza logout do usuário e limpa dados de autenticação.
-
-        Args:
-            page (ft.Page, optional): Instância da página Flet para acesso ao sistema.
-
-        Raises:
-            Exception: Se o logout falhar.
-        """
-        try:
-            self.client.auth.sign_out()
-            logger.info("Sign-out realizado no Supabase.")
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                for file in ["auth_data.txt", "user_data.txt"]:
-                    file_path = os.path.join(app_data_path, file)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        logger.info(f"Arquivo {file} removido durante o logout.")
-            if page:
-                page.client_storage.clear()
-                logger.info("Armazenamento do cliente limpo durante o logout.")
-                page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Logout realizado com sucesso!"),
-                    bgcolor=ft.Colors.GREEN_700,
-                )
-                page.snack_bar.open = True
-                page.go("/login")
-                page.update()
-            self.auth_data = {}
-            logger.info("Logout concluído com sucesso.")
-        except Exception as e:
-            logger.error(f"Falha no logout: {str(e)}")
-            if page:
-                page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Erro ao fazer logout. Tente novamente."),
-                    bgcolor=ft.Colors.RED_700,
-                )
-                page.snack_bar.open = True
-                page.update()
+            logger.error(f"Erro ao recuperar treinos: {e}")
             raise
 
 

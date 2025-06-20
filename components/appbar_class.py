@@ -16,7 +16,9 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
             e.page.go("/login")
             return
 
-        if e.control.content.controls[1].value == "Perfil":
+        if e.control.content.controls[1].value == "Início":
+            e.page.go("/home")
+        elif e.control.content.controls[1].value == "Perfil":
             e.page.go("/profile_settings")
         elif e.control.content.controls[1].value == "Histórico":
             e.page.go("/history")
@@ -28,9 +30,7 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
 
             def confirm_logout(e):
                 if e.control.text == "Sim":
-                    e.page.client_storage.remove(
-                        "supafit.user_id"
-                    ) 
+                    e.page.client_storage.remove("supafit.user_id")
                     e.page.go("/login")
                 e.page.close(confirm_dialog)
 
@@ -45,6 +45,7 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
                 actions_alignment=ft.MainAxisAlignment.END,
             )
             e.page.open(confirm_dialog)
+
 
     avatar = AvatarComponent(
         user_id=user_id if user_id else None,
