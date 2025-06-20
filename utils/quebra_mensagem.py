@@ -27,7 +27,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(
     logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
-handler.addFilter(UnicodeFilter())  # Adiciona o filtro
+handler.addFilter(UnicodeFilter())  
 logger.addHandler(handler)
 
 """

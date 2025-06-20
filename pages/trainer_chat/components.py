@@ -44,7 +44,7 @@ def create_ask_button(page: ft.Page, on_click_callback) -> ft.ElevatedButton:
             color=ft.Colors.WHITE,
         ),
     )
-    button.on_click = on_click_callback  # Passa a função assíncrona diretamente
+    button.on_click = on_click_callback
     return button
 
 
@@ -59,5 +59,5 @@ def create_clear_button(page: ft.Page, clear_callback) -> ft.ElevatedButton:
             shape=ft.RoundedRectangleBorder(radius=5),
         ),
     )
-    button.on_click = clear_callback  # Passa a função assíncrona diretamente
+    button.on_click = clear_callback
     return button

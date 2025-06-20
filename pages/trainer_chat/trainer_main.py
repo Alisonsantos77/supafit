@@ -60,7 +60,7 @@ def TrainerTab(
             last_question_time,
         )
 
-    async def clear_button_callback(e):  # Adicionado argumento 'e'
+    async def clear_button_callback(e):
         await clear_chat(supabase_service, user_id, chat_container, page)
 
     ask_button = create_ask_button(page, ask_button_callback)

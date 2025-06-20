@@ -14,7 +14,7 @@ logger.addHandler(handler)
 
 
 def LoginPage(page: ft.Page):
-    supabase_service = SupabaseService()
+    supabase_service = SupabaseService(page)
     lottie_url = os.getenv("LOTTIE_LOGIN")
 
     login_lottie = fl.Lottie(
@@ -168,7 +168,6 @@ def LoginPage(page: ft.Page):
         page.update()
         logger.info(f"Redirecionando para a rota: {route}")
 
-    # Função para salvar dados localmente
     def save_user_data(user_id, email, level=None):
         try:
             # Salvar no client_storage
@@ -184,6 +183,7 @@ def LoginPage(page: ft.Page):
             app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
             if app_data_path:
                 file_path = os.path.join(app_data_path, "user_data.txt")
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 with open(file_path, "w") as f:
                     content = f"user_id={user_id}\nemail={email}\n"
                     if level:
@@ -208,34 +208,44 @@ def LoginPage(page: ft.Page):
         loading_dialog = show_loading()
 
         try:
+            # Limpa dados residuais antes do login
+            page.client_storage.clear()
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                for file in ["auth_data.txt", "user_data.txt"]:
+                    file_path = os.path.join(app_data_path, file)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        logger.info(f"Arquivo {file} removido antes do login.")
+
             response = supabase_service.login(email, password)
 
             if response and response.user:
                 logger.info(f"Login bem-sucedido para o email: {email}")
-                # Validar user_id com dados armazenados
-                if not supabase_service.validate_user_id(response.user.id):
-                    raise Exception(
-                        "ID de usuário inválido ou não corresponde aos dados armazenados."
-                    )
+                # Validar user_id contra Supabase Auth
+                supabase_service.validate_user_id(response.user.id)
 
                 # Verificar se o perfil já existe
-                profile_response = (
-                    supabase_service.client.table("user_profiles")
-                    .select("*")
-                    .eq("user_id", response.user.id)
-                    .execute()
+                profile_response = supabase_service.get_profile(response.user.id)
+                profile_exists = bool(
+                    profile_response.data and len(profile_response.data) > 0
                 )
                 logger.info(
-                    f"Verificando perfil para user_id: {response.user.id}, resposta: {profile_response.data}"
+                    f"Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}."
                 )
 
-                level = page.client_storage.get("supafit.level")
+                # Define nível padrão ou do perfil
+                level = (
+                    profile_response.data[0].get("level", "iniciante")
+                    if profile_exists
+                    else None
+                )
                 # Salvar dados localmente
                 save_user_data(response.user.id, response.user.email, level)
 
                 hide_loading(loading_dialog)
 
-                if not profile_response.data:
+                if not profile_exists:
                     logger.info(
                         f"Perfil não encontrado para user_id: {response.user.id}. Redirecionando para /create_profile."
                     )
