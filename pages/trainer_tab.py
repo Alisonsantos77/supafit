@@ -1,3 +1,4 @@
+# Código completo atualizado de trainer_tab.py
 import flet as ft
 import asyncio
 from components.message import ChatMessage, Message
@@ -6,6 +7,16 @@ import httpx
 import time
 from datetime import datetime
 from postgrest.exceptions import APIError
+from utils.quebra_mensagem import integrate_with_chat
+import uuid
+import logging
+
+logger = logging.getLogger("supafit.trainer")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
@@ -24,7 +35,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
     user_id = page.client_storage.get("supafit.user_id")
 
     if not user_id or user_id == "default_user":
-        print("Nenhum user_id válido encontrado. Usuário não autenticado.")
+        logger.error("Nenhum user_id válido encontrado. Usuário não autenticado.")
         return ft.Column(
             [
                 ft.Text(
@@ -37,6 +48,27 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                 ),
             ]
         )
+
+    # Carregar dados do perfil do usuário
+    user_profile = (
+        supabase_service.client.table("user_profiles")
+        .select("name, age, weight, height, goal, level")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    user_data = (
+        user_profile[0]
+        if user_profile
+        else {
+            "name": "Usuário",
+            "age": "N/A",
+            "weight": "N/A",
+            "height": "N/A",
+            "goal": "N/A",
+            "level": "N/A",
+        }
+    )
 
     # Referências para controles
     chat_ref = ft.Ref[ft.ListView]()
@@ -104,9 +136,9 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         try:
             resp = (
                 supabase_service.client.table("trainer_qa")
-                .select("*")
+                .select("message")
                 .eq("user_id", user_id)
-                .order("created_at")
+                .order("updated_at")
                 .limit(50)
                 .execute()
             )
@@ -119,37 +151,30 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                         user_name="Treinador",
                         text="Olá! Como posso ajudar com seu treino hoje? 😄",
                         user_type="trainer",
+                        created_at=datetime.now().isoformat(),
                     ),
                     page,
                 )
             )
 
             for item in resp.data:
-                chat_ref.current.controls.append(
-                    ChatMessage(
-                        Message(
-                            user_name="Você",
-                            text=item["question"],
-                            user_type="user",
-                            created_at=item["created_at"],
-                        ),
-                        page,
-                    )
-                )
-                if item.get("answer"):
+                messages = item.get("message", [])
+                for msg in messages:
                     chat_ref.current.controls.append(
                         ChatMessage(
                             Message(
-                                user_name="Treinador",
-                                text=item["answer"],
-                                user_type="trainer",
-                                created_at=item["created_at"],
+                                user_name=(
+                                    "Você" if msg["role"] == "user" else "Treinador"
+                                ),
+                                text=msg["content"],
+                                user_type=msg["role"],
+                                created_at=msg["timestamp"],
                             ),
                             page,
                         )
                     )
 
-            print("Rolar para o final da coluna principal")
+            logger.info("Rolar para o final da coluna principal")
             main_column_ref.current.scroll_to(
                 offset=-1, duration=1000, curve=ft.AnimationCurve.EASE_OUT
             )
@@ -172,6 +197,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                     page.go("/login")
                     return []
             else:
+                logger.error(f"Erro ao carregar chat: {str(e)}")
                 page.open(ft.SnackBar(ft.Text(f"Erro ao carregar chat: {str(e)}")))
                 return []
 
@@ -190,6 +216,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                                 user_name="Treinador",
                                 text="Olá! Como posso ajudar com seu treino hoje? 😄",
                                 user_type="trainer",
+                                created_at=datetime.now().isoformat(),
                             ),
                             page,
                         )
@@ -210,6 +237,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                             )
                             page.go("/login")
                     else:
+                        logger.error(f"Erro ao limpar chat: {str(ex)}")
                         page.open(
                             ft.SnackBar(ft.Text(f"Erro ao limpar chat: {str(ex)}"))
                         )
@@ -266,7 +294,20 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         page.update()
 
         try:
-            history = await load_chat()
+            # Carregar histórico
+            history = []
+            resp = (
+                supabase_service.client.table("trainer_qa")
+                .select("message")
+                .eq("user_id", user_id)
+                .order("updated_at")
+                .execute()
+            )
+            for item in resp.data:
+                history.extend(item["message"])
+
+            # Adicionar pergunta ao chat
+            question_id = str(uuid.uuid4())
             chat_ref.current.controls.append(
                 ChatMessage(
                     Message(
@@ -296,39 +337,75 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             page.update()
             await asyncio.sleep(1)
 
-            answer = anthropic.answer_question(question, history)
+            # Gerar resposta com contexto do usuário
+            system_prompt = f"""
+            Você é um treinador virtual do SupaFit, motivado e amigável. Use emojis 💪🏋️.
+            Informações do usuário:
+            - Nome: {user_data.get('name', 'Usuário')}
+            - Idade: {user_data.get('age', 'N/A')} anos
+            - Peso: {user_data.get('weight', 'N/A')} kg
+            - Altura: {user_data.get('height', 'N/A')} cm
+            - Objetivo: {user_data.get('goal', 'N/A')}
+            - Nível: {user_data.get('level', 'N/A')}
+            Responda considerando essas informações e o histórico da conversa.
+            Data e hora atual: {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
+            """
+            answer = anthropic.answer_question(question, history, system_prompt)
             if not answer or "desculpe" in answer.lower():
                 raise ValueError("Resposta inválida do Anthropic")
 
             chat_ref.current.controls.remove(typing_indicator)
-            answer_message = ChatMessage(
-                Message(
-                    user_name="Treinador",
-                    text="",
-                    user_type="trainer",
-                    created_at=datetime.now().isoformat(),
-                ),
-                page,
-            )
-            chat_ref.current.controls.append(answer_message)
-            if len(chat_ref.current.controls) > 50:
-                chat_ref.current.controls.pop(0)
+            messages_with_delays = integrate_with_chat(answer)
 
-            streamed_text = ""
-            for char in answer:
-                streamed_text += char
-                answer_message.update_text(streamed_text)
-                await asyncio.sleep(0.03)
+            # Salvar mensagens no JSON
+            message_json = [
+                {
+                    "role": "user",
+                    "content": question,
+                    "message_id": question_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+            for msg, delay in messages_with_delays:
+                response_id = str(uuid.uuid4())
+                message_json.append(
+                    {
+                        "role": "assistant",
+                        "content": msg,
+                        "message_id": response_id,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+                chat_ref.current.controls.append(
+                    ChatMessage(
+                        Message(
+                            user_name="Treinador",
+                            text=msg,
+                            user_type="assistant",
+                            created_at=datetime.now().isoformat(),
+                        ),
+                        page,
+                    )
+                )
+                if len(chat_ref.current.controls) > 50:
+                    chat_ref.current.controls.pop(0)
+                await asyncio.sleep(delay)
                 page.update()
 
-            await supabase_service.client.table("trainer_qa").insert(
-                {
-                    "user_id": user_id,
-                    "question": question,
-                    "answer": answer,
-                    "created_at": datetime.now().isoformat(),
-                }
-            ).execute()
+            # Inserir no Supabase
+            response = (
+                await supabase_service.client.table("trainer_qa")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "message": message_json,
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat(),
+                    }
+                )
+                .execute()
+            )
+            logger.info(f"Inserção bem-sucedida: {response.data}")
 
             question_field_ref.current.value = ""  # Limpa o input após envio
             page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
@@ -340,10 +417,10 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
             page.update()
 
         except httpx.HTTPStatusError as ex:
-            detail = ex.response.text or str(ex)
+            logger.error(f"Erro na API Anthropic: {ex.response.text or str(ex)}")
             page.open(
                 ft.SnackBar(
-                    ft.Text(f"Erro na API Anthropic: {detail}"),
+                    ft.Text(f"Erro na API Anthropic: {ex.response.text or str(ex)}"),
                     bgcolor=ft.Colors.RED_700,
                 )
             )
@@ -362,6 +439,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                     )
                     page.go("/login")
             else:
+                logger.error(f"Erro ao obter resposta: {str(ex)}")
                 page.open(
                     ft.SnackBar(
                         ft.Text(f"Erro ao obter resposta: {str(ex)}"),
@@ -369,6 +447,7 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
                     )
                 )
         except Exception as ex:
+            logger.error(f"Erro ao obter resposta: {str(ex)}")
             page.open(
                 ft.SnackBar(
                     ft.Text(f"Erro ao obter resposta: {str(ex)}"),

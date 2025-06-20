@@ -101,25 +101,23 @@ class SupabaseService:
                 return False
 
             session = self.client.auth.refresh_session()
-            if session:
+            if session and hasattr(session, 'session') and session.session:
                 self.auth_data.update(
                     {
-                        "access_token": session.access_token,
-                        "refresh_token": session.refresh_token,
+                        "access_token": session.session.access_token,
+                        "refresh_token": session.session.refresh_token,
                     }
                 )
                 self.save_auth_data(self.auth_data)
                 if self.page:
-                    self.page.client_storage.set(
-                        "supafit.access_token", session.access_token
-                    )
-                    self.page.client_storage.set(
-                        "supafit.refresh_token", session.refresh_token
-                    )
+                    self.page.client_storage.set("supafit.access_token", session.session.access_token)
+                    self.page.client_storage.set("supafit.refresh_token", session.session.refresh_token)
                 logger.info("Sessão renovada com sucesso.")
                 return True
             else:
-                logger.error("Falha na renovação da sessão: nenhuma sessão retornada.")
+                logger.error(
+                    "Falha na renovação da sessão: sessão inválida ou incompleta."
+                )
                 return False
         except Exception as e:
             logger.error(f"Falha na renovação da sessão: {str(e)}")
@@ -339,7 +337,7 @@ class SupabaseService:
             raise
 
     async def logout(self, page: ft.Page = None):
-            """
+        """
             Realiza logout do usuário e limpa dados de autenticação.
 
             Args:
@@ -348,22 +346,23 @@ class SupabaseService:
             Raises:
                 Exception: Se o logout falhar.
             """
-            try:
-                await self.client.auth.sign_out()  # Alterado para await
-                app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-                if app_data_path:
-                    for file in ["auth_data.txt", "user_data.txt"]:
-                        file_path = os.path.join(app_data_path, file)
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                            logger.info(f"Arquivo {file} removido durante logout.")
-                if page:
-                    page.client_storage.clear()
-                    logger.info("Armazenamento do cliente limpo durante logout.")
-                logger.info("Logout concluído com sucesso.")
-            except Exception as e:
-                logger.error(f"Falha no logout: {str(e)}")
-                raise
+        try:
+            await self.client.auth.sign_out()
+            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
+            if app_data_path:
+                for file in ["auth_data.txt", "user_data.txt"]:
+                    file_path = os.path.join(app_data_path, file)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        logger.info(f"Arquivo {file} removido durante logout.")
+            if page:
+                page.client_storage.clear()
+                logger.info("Armazenamento do cliente limpo durante logout.")
+            logger.info("Logout concluído com sucesso.")
+        except Exception as e:
+            logger.error(f"Falha no logout: {str(e)}")
+            raise
+
 
 class AnthropicService:
     def __init__(self):
@@ -414,14 +413,17 @@ class AnthropicService:
             logger.error(f"Erro ao gerar plano de treino com Anthropic: {str(e)}")
             raise e
 
-    def answer_question(self, question: str, history: list) -> str:
+    def answer_question(
+        self, question: str, history: list, system_prompt: str = None
+    ) -> str:
         """
-        Envia a pergunta e o histórico para a API da Anthropic e retorna o texto da resposta.
+        Envia a pergunta, histórico e prompt do sistema para a API da Anthropic e retorna a resposta.
         Usa modelo 'claude-3-5-sonnet-latest' para maior qualidade.
 
         Args:
             question (str): Pergunta do usuário.
-            history (list): Histórico de perguntas e respostas.
+            history (list): Histórico de mensagens no formato [{"role": "user/assistant", "content": "..."}].
+            system_prompt (str, optional): Prompt do sistema para personalizar a resposta.
 
         Returns:
             str: Resposta gerada pela API.
@@ -434,8 +436,8 @@ class AnthropicService:
             # Monta o payload com histórico + nova pergunta
             messages = []
             for item in history:
-                messages.append({"role": "user", "content": item.get("question", "")})
-                messages.append({"role": "assistant", "content": item.get("answer", "")})
+                if item.get("role") in ["user", "assistant"] and item.get("content"):
+                    messages.append({"role": item["role"], "content": item["content"]})
             messages.append({"role": "user", "content": question})
 
             payload = {
@@ -444,6 +446,10 @@ class AnthropicService:
                 "temperature": 0.7,
                 "messages": messages,
             }
+            if system_prompt:
+                payload["system"] = system_prompt
+                logger.info("Prompt do sistema incluído: %s", system_prompt[:50])
+
             headers = {
                 "x-api-key": self.api_key,
                 "anthropic-version": "2023-06-01",
@@ -483,7 +489,6 @@ class AnthropicService:
             logger.error(f"Erro inesperado em answer_question: {ex}")
             return "Desculpe, não consegui responder agora."
 
-
     def is_sensitive_question(self, question: str) -> bool:
         """
         Verifica se a pergunta contém conteúdo sensível ou inadequado usando o Claude.
@@ -511,7 +516,9 @@ class AnthropicService:
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             }
-            response = httpx.post(self.base_url, json=payload, headers=headers, timeout=30)
+            response = httpx.post(
+                self.base_url, json=payload, headers=headers, timeout=30
+            )
             response.raise_for_status()
             data = response.json()
             if "content" in data and isinstance(data["content"], list):
