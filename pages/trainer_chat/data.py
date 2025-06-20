@@ -4,7 +4,8 @@ import time
 from datetime import datetime
 import uuid
 from components.message import ChatMessage, Message
-from services.services import AnthropicService, SupabaseService
+from services.supabase import SupabaseService
+from services.anthropic import AnthropicService
 from postgrest.exceptions import APIError
 from utils.quebra_mensagem import integrate_with_chat
 from utils.logger import get_logger

@@ -6,7 +6,7 @@ from pages.history import HistoryPage
 from components.appbar_class import create_appbar
 from pages.login import LoginPage
 from pages.register import RegisterPage
-from pages.community_tab import CommunityTab
+from pages.community.community_tab import CommunityTab
 from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
 from pages.profile_user.create_profile import CreateProfilePage

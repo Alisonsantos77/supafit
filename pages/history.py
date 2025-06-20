@@ -1,5 +1,5 @@
 import flet as ft
-from services.services import SupabaseService
+from services.supabase import SupabaseService
 from utils.helpers import format_date
 
 

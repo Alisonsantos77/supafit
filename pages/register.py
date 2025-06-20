@@ -4,7 +4,7 @@ import flet_lottie as fl
 import re
 import os
 from time import sleep
-from services.services import SupabaseService
+from services.supabase import SupabaseService
 
 from utils.logger import get_logger
 
@@ -15,7 +15,7 @@ LOTTIE_REGISTER = os.getenv("LOTTIE_REGISTER")
 
 def RegisterPage(page: ft.Page):
     supabase_service = SupabaseService()
-    page.scroll = ft.ScrollMode.AUTO  
+    page.scroll = ft.ScrollMode.AUTO
     register_btn = ft.Ref[ft.ElevatedButton]()
 
     email_field = ft.TextField(
@@ -264,7 +264,9 @@ def RegisterPage(page: ft.Page):
                 ),
             }
             supabase_service.save_auth_data(auth_data)
-            logger.info(f"Dados de autenticação salvos:\n%s", json.dumps(auth_data, indent=2))
+            logger.info(
+                f"Dados de autenticação salvos:\n%s", json.dumps(auth_data, indent=2)
+            )
 
             # Configurar a sessão para requisições autenticadas
             if response.session:

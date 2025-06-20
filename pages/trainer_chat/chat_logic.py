@@ -5,7 +5,7 @@ from datetime import datetime
 import uuid
 import logging
 from components.message import ChatMessage, Message
-from services.services import AnthropicService
+from services.anthropic import AnthropicService
 from postgrest.exceptions import APIError
 from utils.quebra_mensagem import integrate_with_chat
 

@@ -1,5 +1,5 @@
 import flet as ft
-from services.services import SupabaseService
+from services.supabase import SupabaseService
 import logging
 
 logger = logging.getLogger("supafit.profile_settings")
@@ -49,7 +49,11 @@ def ProfileSettingsPage(page: ft.Page):
     # Recupera email do Supabase Auth
     try:
         user = supabase_service.client.auth.get_user()
-        email = user.user.email if user and user.user else page.client_storage.get("supafit.email", "")
+        email = (
+            user.user.email
+            if user and user.user
+            else page.client_storage.get("supafit.email", "")
+        )
     except Exception as e:
         logger.error(f"Erro ao recuperar email do Supabase Auth: {str(e)}")
         email = page.client_storage.get("supafit.email", "")
@@ -170,21 +174,45 @@ def ProfileSettingsPage(page: ft.Page):
             # Validações
             if not name_field.value.strip():
                 raise ValueError("O nome é obrigatório.")
-            if not age_field.value.strip() or not age_field.value.isdigit() or int(age_field.value) <= 0 or int(age_field.value) > 150:
+            if (
+                not age_field.value.strip()
+                or not age_field.value.isdigit()
+                or int(age_field.value) <= 0
+                or int(age_field.value) > 150
+            ):
                 raise ValueError("Idade inválida (deve ser entre 1 e 150).")
-            if not weight_field.value.strip() or not weight_field.value.replace(".", "").isdigit() or float(weight_field.value) <= 30 or float(weight_field.value) > 300:
+            if (
+                not weight_field.value.strip()
+                or not weight_field.value.replace(".", "").isdigit()
+                or float(weight_field.value) <= 30
+                or float(weight_field.value) > 300
+            ):
                 raise ValueError("Peso inválido (deve ser entre 30 e 300 kg).")
-            if not height_field.value.strip() or not height_field.value.isdigit() or int(height_field.value) <= 100 or int(height_field.value) > 250:
+            if (
+                not height_field.value.strip()
+                or not height_field.value.isdigit()
+                or int(height_field.value) <= 100
+                or int(height_field.value) > 250
+            ):
                 raise ValueError("Altura inválida (deve ser entre 100 e 250 cm).")
             if not goal_dropdown.value:
                 raise ValueError("Selecione um objetivo.")
             if not level_dropdown.value:
                 raise ValueError("Selecione um nível.")
-            if not rest_duration.value.strip() or not rest_duration.value.isdigit() or int(rest_duration.value) <= 0 or int(rest_duration.value) > 3600:
-                raise ValueError("Duração do intervalo inválida (máximo 3600 segundos).")
+            if (
+                not rest_duration.value.strip()
+                or not rest_duration.value.isdigit()
+                or int(rest_duration.value) <= 0
+                or int(rest_duration.value) > 3600
+            ):
+                raise ValueError(
+                    "Duração do intervalo inválida (máximo 3600 segundos)."
+                )
 
             # Aplica tema
-            page.theme_mode = ft.ThemeMode.DARK if theme_switch.value else ft.ThemeMode.LIGHT
+            page.theme_mode = (
+                ft.ThemeMode.DARK if theme_switch.value else ft.ThemeMode.LIGHT
+            )
 
             # Monta dados do perfil
             profile_data = {
@@ -200,7 +228,9 @@ def ProfileSettingsPage(page: ft.Page):
             }
 
             # Salva no Supabase
-            supabase_service.client.table("user_profiles").upsert(profile_data).execute()
+            supabase_service.client.table("user_profiles").upsert(
+                profile_data
+            ).execute()
             logger.info(f"Perfil salvo com sucesso para user_id: {user_id}")
             page.snack_bar = ft.SnackBar(
                 content=ft.Text("Perfil salvo com sucesso!"),

@@ -2,7 +2,7 @@ import flet as ft
 import flet_lottie as fl
 import os
 from time import sleep
-from services.services import SupabaseService
+from services.supabase import SupabaseService
 import logging
 
 logger = logging.getLogger("supafit.forgot_password")

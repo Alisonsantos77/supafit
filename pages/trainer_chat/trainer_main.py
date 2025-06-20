@@ -7,7 +7,7 @@ from pages.trainer_chat.components import (
 )
 from pages.trainer_chat.chat_logic import load_chat_history, clear_chat, ask_question
 from pages.trainer_chat.data import get_user_profile
-from services.services import AnthropicService
+from services.anthropic import AnthropicService
 from utils.logger import get_logger
 
 logger = get_logger("supabafit.trainer_chat.trainer_main")

@@ -1,6 +1,6 @@
 import flet as ft
 
-from services.services import SupabaseService
+from services.supabase import SupabaseService
 import logging
 
 logger = logging.getLogger("supafit.terms")
@@ -9,6 +9,7 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
 
 def TermsPage(page: ft.Page, supabase, anthropic):
     # Conteúdo dos Termos de Uso em Markdown
