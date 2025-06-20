@@ -3,8 +3,12 @@ from datetime import datetime, timezone
 import logging
 from components.components import AvatarComponent
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("supafit.community")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def CommunityTab(page: ft.Page, supabase_service):

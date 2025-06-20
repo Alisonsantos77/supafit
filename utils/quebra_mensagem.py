@@ -3,11 +3,31 @@ import random
 import time
 import logging
 
+
+# Filtro para substituir caracteres Unicode problemáticos
+class UnicodeFilter(logging.Filter):
+    def filter(self, record):
+        if record.msg and isinstance(record.msg, str):
+            record.msg = record.msg.encode("ascii", "replace").decode("ascii")
+        if record.args:
+            record.args = tuple(
+                (
+                    arg.encode("ascii", "replace").decode("ascii")
+                    if isinstance(arg, str)
+                    else arg
+                )
+                for arg in record.args
+            )
+        return True
+
+
 logger = logging.getLogger("supafit.quebra_mensagem")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
+handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+handler.addFilter(UnicodeFilter())  # Adiciona o filtro
 logger.addHandler(handler)
 
 """

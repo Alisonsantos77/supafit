@@ -7,7 +7,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import flet as ft
 
-logger = logging.getLogger("services.supabase")
+logger = logging.getLogger("supabafit.services")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -448,7 +448,7 @@ class AnthropicService:
             }
             if system_prompt:
                 payload["system"] = system_prompt
-                logger.info("Prompt do sistema incluído: %s", system_prompt[:50])
+                # logger.info("Prompt do sistema incluído: %s", system_prompt[:50])
 
             headers = {
                 "x-api-key": self.api_key,

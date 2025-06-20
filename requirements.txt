@@ -1,6 +1,4 @@
 flet
-flet-permission-handler
-pyjnius
 httpx
 python-dotenv
 requests

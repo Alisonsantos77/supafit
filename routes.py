@@ -7,7 +7,7 @@ from components.appbar_class import create_appbar
 from pages.login import LoginPage
 from pages.register import RegisterPage
 from pages.community_tab import CommunityTab
-from pages.trainer_tab import TrainerTab
+from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
 from pages.create_profile import CreateProfilePage
 import logging

@@ -281,7 +281,9 @@ def TrainerTab(page: ft.Page, supabase_service, anthropic: AnthropicService):
         if anthropic.is_sensitive_question(question):
             page.open(
                 ft.SnackBar(
-                    ft.Text("Conversa sensível detectada."), bgcolor=ft.Colors.RED
+                    ft.Text("Conversa sensível detectada.", color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.RED,
+                    
                 )
             )
             return
