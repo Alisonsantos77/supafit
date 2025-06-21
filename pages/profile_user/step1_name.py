@@ -1,12 +1,8 @@
 import flet as ft
 from .base_step import BaseStep, logger
 
-
 class Step1Name(BaseStep):
-    """Etapa 1: Coleta do nome do usuário.
-
-    Herda de BaseStep e implementa a interface e validação para o campo de nome.
-    """
+    """Etapa 1: Coleta do nome do usuário."""
 
     def __init__(
         self,
@@ -16,15 +12,6 @@ class Step1Name(BaseStep):
         on_next,
         on_previous,
     ):
-        """Inicializa a etapa de coleta de nome.
-
-        Args:
-            page (ft.Page): Página Flet para interação com o usuário.
-            profile_data (dict): Dados do perfil coletados.
-            current_step (list): Lista com a etapa atual.
-            on_next (callable): Função para avançar para a próxima etapa.
-            on_previous (callable): Função para voltar para a etapa anterior.
-        """
         self.name_input = ft.TextField(
             label="Nome",
             width=320,
@@ -40,31 +27,32 @@ class Step1Name(BaseStep):
         logger.info("Step1Name inicializado com sucesso.")
 
     def build_view(self) -> ft.Control:
-        """Constrói a interface para a etapa de nome.
-
-        Returns:
-            ft.Column: Coluna com título, imagem, campo de entrada e botão.
-        """
         return ft.Column(
             [
                 ft.Text("Etapa 1 de 5: Nome", size=20, weight=ft.FontWeight.BOLD),
-                ft.Image(src="mascote_supafit/step1.png", width=100, height=100),
+                ft.Container(
+                    content=ft.Image(
+                        src="mascote_supafit/step1.png",
+                        width=150,
+                        height=150,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    alignment=ft.alignment.center,
+                    padding=20,
+                ),
                 self.name_input,
                 ft.Row(
                     [ft.ElevatedButton("Próximo", on_click=self.on_next)],
                     alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10,
                 ),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=15,
         )
 
     def validate(self) -> bool:
-        """Valida o campo de nome.
-
-        Returns:
-            bool: True se o nome é válido, False caso contrário.
-        """
         name = self.name_input.value.strip()
         if not name:
             self.name_input.error_text = "Por favor, insira seu nome."

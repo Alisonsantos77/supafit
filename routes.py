@@ -1,7 +1,7 @@
 import flet as ft
 from pages.home import Homepage
 from pages.treino import Treinopage
-from pages.profile_settings import ProfileSettingsPage
+from pages.profile_settings.profile_settings import ProfileSettingsPage
 from pages.history import HistoryPage
 from components.appbar_class import create_appbar
 from pages.login import LoginPage
@@ -104,7 +104,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 controls=[CreateProfilePage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
                 padding=20,
             )
         )
@@ -242,7 +241,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 controls=[CreateProfilePage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
                 padding=20,
             )
         )

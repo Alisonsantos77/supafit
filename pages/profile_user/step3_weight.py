@@ -3,10 +3,7 @@ from .base_step import BaseStep, logger
 
 
 class Step3Weight(BaseStep):
-    """Etapa 3: Coleta do peso do usuário.
-
-    Herda de BaseStep e implementa a interface e validação para o campo de peso.
-    """
+    """Etapa 3: Coleta do peso do usuário."""
 
     def __init__(
         self,
@@ -16,15 +13,6 @@ class Step3Weight(BaseStep):
         on_next,
         on_previous,
     ):
-        """Inicializa a etapa de coleta de peso.
-
-        Args:
-            page (ft.Page): Página Flet para interação com o usuário.
-            profile_data (dict): Dados do perfil coletados.
-            current_step (list): Lista com a etapa atual.
-            on_next (callable): Função para avançar para a próxima etapa.
-            on_previous (callable): Função para voltar para a etapa anterior.
-        """
         self.weight_input = ft.TextField(
             label="Peso (kg)",
             width=320,
@@ -41,15 +29,19 @@ class Step3Weight(BaseStep):
         logger.info("Step3Weight inicializado com sucesso.")
 
     def build_view(self) -> ft.Control:
-        """Constrói a interface para a etapa de peso.
-
-        Returns:
-            ft.Column: Coluna com título, imagem, campo de entrada e botões.
-        """
         return ft.Column(
             [
                 ft.Text("Etapa 3 de 5: Peso", size=20, weight=ft.FontWeight.BOLD),
-                ft.Image(src="mascote_supafit/step3.png", width=100, height=100),
+                ft.Container(
+                    content=ft.Image(
+                        src="mascote_supafit/step3.png",
+                        width=150,
+                        height=150,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    alignment=ft.alignment.center,
+                    padding=20,
+                ),
                 self.weight_input,
                 ft.Row(
                     [
@@ -57,18 +49,15 @@ class Step3Weight(BaseStep):
                         ft.ElevatedButton("Próximo", on_click=self.on_next),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10,
                 ),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=15,
         )
 
     def validate(self) -> bool:
-        """Valida o campo de peso.
-
-        Returns:
-            bool: True se o peso é válido, False caso contrário.
-        """
         weight = self.weight_input.value.strip()
         try:
             weight = float(weight)

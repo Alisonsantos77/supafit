@@ -169,6 +169,38 @@ def ProfileSettingsPage(page: ft.Page):
         text_size=14,
         keyboard_type=ft.KeyboardType.NUMBER,
     )
+    font_dropdown = ft.Dropdown(
+        label="Fonte",
+        value=profile.get("font_family", "Roboto"),
+        options=[
+            ft.dropdown.Option("Roboto"),
+            ft.dropdown.Option("Open Sans"),
+            ft.dropdown.Option("Montserrat"),
+            ft.dropdown.Option("Lato"),
+        ],
+        border_color=ft.Colors.GREY_600,
+        filled=True,
+        bgcolor=ft.Colors.GREY_800,
+        color=ft.Colors.WHITE,
+        border_radius=5,
+        text_size=14,
+    )
+    primary_color_dropdown = ft.Dropdown(
+        label="Cor Primária",
+        value=profile.get("primary_color", "GREEN"),
+        options=[
+            ft.dropdown.Option("GREEN", text="Verde"),
+            ft.dropdown.Option("BLUE", text="Azul"),
+            ft.dropdown.Option("RED", text="Vermelho"),
+            ft.dropdown.Option("PURPLE", text="Roxo"),
+        ],
+        border_color=ft.Colors.GREY_600,
+        filled=True,
+        bgcolor=ft.Colors.GREY_800,
+        color=ft.Colors.WHITE,
+        border_radius=5,
+        text_size=14,
+    )
 
     def validate_and_save(e):
         """Valida e salva as configurações do perfil no Supabase."""
@@ -213,6 +245,15 @@ def ProfileSettingsPage(page: ft.Page):
             page.theme_mode = (
                 ft.ThemeMode.DARK if theme_switch.value else ft.ThemeMode.LIGHT
             )
+            page.theme = ft.Theme(
+                color_scheme=ft.ColorScheme(
+                    primary=getattr(ft.Colors, primary_color_dropdown.value),
+                    secondary=ft.Colors.BLUE_700,
+                    on_primary=ft.Colors.WHITE,
+                    on_secondary=ft.Colors.WHITE,
+                ),
+                font_family=font_dropdown.value,
+            )
 
             profile_data = {
                 "user_id": user_id,
@@ -224,6 +265,8 @@ def ProfileSettingsPage(page: ft.Page):
                 "level": level_dropdown.value,
                 "theme": "dark" if theme_switch.value else "light",
                 "rest_duration": int(rest_duration.value),
+                "font_family": font_dropdown.value,
+                "primary_color": primary_color_dropdown.value,
             }
 
             supabase_service.client.table("user_profiles").upsert(
@@ -239,7 +282,7 @@ def ProfileSettingsPage(page: ft.Page):
                     weight=ft.FontWeight.BOLD,
                     text_align=ft.TextAlign.CENTER,
                 ),
-                bgcolor=ft.Colors.GREEN_700,
+                bgcolor=getattr(ft.Colors, primary_color_dropdown.value),
                 duration=3000,
                 padding=10,
                 shape=ft.RoundedRectangleBorder(radius=5),
@@ -330,6 +373,14 @@ def ProfileSettingsPage(page: ft.Page):
                     ),
                     ft.Container(
                         content=rest_duration,
+                        margin=ft.margin.only(bottom=10),
+                    ),
+                    ft.Container(
+                        content=font_dropdown,
+                        margin=ft.margin.only(bottom=10),
+                    ),
+                    ft.Container(
+                        content=primary_color_dropdown,
                         margin=ft.margin.only(bottom=20),
                     ),
                     ft.Row(

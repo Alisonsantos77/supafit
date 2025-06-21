@@ -6,10 +6,7 @@ logger = get_logger("supabafit.profile_user.step6_review")
 
 
 class Step6Review(BaseStep):
-    """Etapa 6: Revisão dos dados do perfil.
-
-    Herda de BaseStep e implementa a interface para revisão e criação do perfil.
-    """
+    """Etapa 6: Revisão dos dados do perfil."""
 
     def __init__(
         self,
@@ -21,17 +18,6 @@ class Step6Review(BaseStep):
         supabase_service,
         on_create,
     ):
-        """Inicializa a etapa de revisão do perfil.
-
-        Args:
-            page (ft.Page): Página Flet para interação com o usuário.
-            profile_data (dict): Dados do perfil coletados.
-            current_step (list): Lista com a etapa atual.
-            on_next (callable): Função para avançar para a próxima etapa.
-            on_previous (callable): Função para voltar para a etapa anterior.
-            supabase_service: Serviço Supabase para operações de banco de dados.
-            on_create (callable): Função para criar o perfil.
-        """
         self.supabase_service = supabase_service
         self.on_create = on_create
         self.review_text = ft.Markdown("")
@@ -39,38 +25,42 @@ class Step6Review(BaseStep):
         logger.info("Step6Review inicializado com sucesso.")
 
     def build_view(self) -> ft.Control:
-        """Constrói a interface para a etapa de revisão.
-
-        Returns:
-            ft.Column: Coluna com título, imagem, texto de revisão e botões.
-        """
         return ft.Column(
             [
                 ft.Text("Revisão", size=20, weight=ft.FontWeight.BOLD),
-                ft.Image(src="mascote_supafit/step6.png", width=100, height=100),
-                self.review_text,
+                ft.Container(
+                    content=ft.Image(
+                        src="mascote_supafit/step6.png",
+                        width=150,
+                        height=150,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    alignment=ft.alignment.center,
+                    padding=20,
+                ),
+                ft.Container(
+                    content=self.review_text,
+                    alignment=ft.alignment.center,
+                    padding=10,
+                ),
                 ft.Row(
                     [
                         ft.ElevatedButton("Voltar", on_click=self.on_previous),
                         ft.ElevatedButton("Criar Perfil", on_click=self.on_create),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10,
                 ),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=15,
         )
 
     def validate(self) -> bool:
-        """Valida os dados revisados (sempre válido, pois é apenas revisão).
-
-        Returns:
-            bool: True, pois a revisão não requer validação adicional.
-        """
         return True
 
     def update_review(self):
-        """Atualiza o texto de revisão com os dados do perfil."""
         review_content = f"""
         **Revise seus dados:**  
         **Nome:** {self.profile_data.get("name", "Não informado")}  

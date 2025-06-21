@@ -3,10 +3,7 @@ from .base_step import BaseStep, logger
 
 
 class Step4Height(BaseStep):
-    """Etapa 4: Coleta da altura do usuário.
-
-    Herda de BaseStep e implementa a interface e validação para o campo de altura.
-    """
+    """Etapa 4: Coleta da altura do usuário."""
 
     def __init__(
         self,
@@ -16,15 +13,6 @@ class Step4Height(BaseStep):
         on_next,
         on_previous,
     ):
-        """Inicializa a etapa de coleta de altura.
-
-        Args:
-            page (ft.Page): Página Flet para interação com o usuário.
-            profile_data (dict): Dados do perfil coletados.
-            current_step (list): Lista com a etapa atual.
-            on_next (callable): Função para avançar para a próxima etapa.
-            on_previous (callable): Função para voltar para a etapa anterior.
-        """
         self.height_input = ft.TextField(
             label="Altura (cm)",
             width=320,
@@ -41,15 +29,19 @@ class Step4Height(BaseStep):
         logger.info("Step4Height inicializado com sucesso.")
 
     def build_view(self) -> ft.Control:
-        """Constrói a interface para a etapa de altura.
-
-        Returns:
-            ft.Column: Coluna com título, imagem, campo de entrada e botões.
-        """
         return ft.Column(
             [
                 ft.Text("Etapa 4 de 5: Altura", size=20, weight=ft.FontWeight.BOLD),
-                ft.Image(src="mascote_supafit/step4.png", width=100, height=100),
+                ft.Container(
+                    content=ft.Image(
+                        src="mascote_supafit/step4.png",
+                        width=150,
+                        height=150,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                    alignment=ft.alignment.center,
+                    padding=20,
+                ),
                 self.height_input,
                 ft.Row(
                     [
@@ -57,18 +49,15 @@ class Step4Height(BaseStep):
                         ft.ElevatedButton("Próximo", on_click=self.on_next),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10,
                 ),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=15,
         )
 
     def validate(self) -> bool:
-        """Valida o campo de altura.
-
-        Returns:
-            bool: True se a altura é válida, False caso contrário.
-        """
         height = self.height_input.value.strip()
         try:
             height = float(height)
