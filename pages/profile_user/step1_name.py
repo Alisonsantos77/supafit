@@ -17,10 +17,6 @@ class Step1Name(BaseStep):
             width=320,
             border="underline",
             filled=True,
-            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_GREY),
-            border_color=ft.Colors.BLUE_600,
-            focused_border_color=ft.Colors.BLUE_400,
-            cursor_color=ft.Colors.BLUE_400,
             text_size=16,
         )
         super().__init__(page, profile_data, current_step, on_next, on_previous)

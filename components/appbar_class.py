@@ -34,7 +34,9 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
         )
 
         if not user_id:
-            show_snackbar(page, "Usuário não autenticado. Faça login.", ft.Colors.BLUE_400)
+            show_snackbar(
+                page, "Usuário não autenticado. Faça login.", ft.Colors.BLUE_400
+            )
             page.go("/login")
             return
 
@@ -49,10 +51,11 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
         if e.control.content.controls[1].value in menu_actions:
             page.go(menu_actions[e.control.content.controls[1].value])
         elif e.control.content.controls[1].value == "Sair":
+
             def confirm_logout(e):
                 if e.control.text == "Sim":
                     try:
-                        supabase_service = SupabaseService(page)
+                        supabase_service = SupabaseService.get_instance(page)
                         supabase_service.logout()
                     except Exception as ex:
                         logger.error(f"Erro ao realizar logout: {str(ex)}")

@@ -22,7 +22,7 @@ class CommunityService:
 
             resp_victories = query.order("created_at", desc=True).execute()
             victories_data = resp_victories.data or []
-
+            logger.info(f"Vitórias carregadas do Supabase: {len(victories_data)} itens para categoria {category}")
             if not victories_data:
                 logger.info("Nenhuma vitória encontrada.")
                 return []

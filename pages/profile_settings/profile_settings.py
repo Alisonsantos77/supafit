@@ -36,7 +36,7 @@ class ProfileSettingsController:
     def initialize(self) -> bool:
         """Inicializa o controlador com dados necessários."""
         try:
-            self.supabase_service = SupabaseService(self.page)
+            self.supabase_service = SupabaseService.get_instance(self.page)
         except Exception as e:
             logger.error(f"Falha ao inicializar SupabaseService: {str(e)}")
             self._handle_auth_error("Erro de autenticação. Redirecionando para login.")

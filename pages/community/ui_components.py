@@ -2,10 +2,25 @@ import flet as ft
 from datetime import datetime
 from .models import Victory
 from components.components import AvatarComponent
+from utils.alerts import CustomSnackBar
+
+category_colors = {
+    "Força": ft.Colors.RED_100,
+    "Resistência": ft.Colors.BLUE_100,
+    "Disciplina": ft.Colors.PURPLE_100,
+    "Nutrição": ft.Colors.GREEN_100,
+}
+
+category_text_colors = {
+    "Força": ft.Colors.RED_800,
+    "Resistência": ft.Colors.BLUE_800,
+    "Disciplina": ft.Colors.PURPLE_800,
+    "Nutrição": ft.Colors.GREEN_800,
+}
 
 
 class VictoryCard:
-    """Componente para exibir um card de vitória"""
+    """Card de vitória com visual profissional tipo Twitter/X."""
 
     def __init__(
         self,
@@ -14,66 +29,20 @@ class VictoryCard:
         on_like_click,
         on_delete_click,
         on_details_click,
+        page: ft.Page,
     ):
         self.victory = victory
         self.user_id = user_id
         self.on_like_click = on_like_click
         self.on_delete_click = on_delete_click
         self.on_details_click = on_details_click
+        self.page = page
+        self.ref = ft.Ref[ft.Dismissible]()
+        self.opacity = 1
+        self.scale = 1
 
-    def build(self) -> ft.Card:
-        """Constrói o card da vitória"""
-        delete_button = self._create_delete_button()
-        like_button = self._create_like_button()
-        card_container = self._create_card_container(delete_button, like_button)
-
-        return ft.Card(
-            elevation=5,
-            content=card_container,
-            margin=ft.margin.symmetric(vertical=5, horizontal=10),
-        )
-
-    def _create_delete_button(self):
-        """Cria o botão de deletar se o usuário for o autor"""
-        if (
-            self.victory.id
-            and self.victory.user_id == self.user_id
-            and self.user_id != "supafit_user"
-        ):
-            return ft.IconButton(
-                icon=ft.Icons.DELETE_OUTLINE,
-                icon_color=ft.Colors.RED_400,
-                tooltip="Excluir sua vitória",
-                on_click=lambda e: self.on_delete_click(self.victory.id),
-            )
-        return None
-
-    def _create_like_button(self):
-        """Cria o botão de curtir"""
-        return ft.Row(
-            [
-                ft.IconButton(
-                    icon=(
-                        ft.Icons.FAVORITE
-                        if self.victory.liked
-                        else ft.Icons.FAVORITE_BORDER
-                    ),
-                    icon_color=ft.Colors.RED_400,
-                    tooltip="Curtir",
-                    on_click=lambda e: (
-                        self.on_like_click(self.victory.id, self.victory.liked)
-                        if self.victory.id
-                        else None
-                    ),
-                ),
-                ft.Text(f"{self.victory.likes}", color=ft.Colors.PRIMARY),
-            ],
-            spacing=5,
-        )
-
-    def _create_card_container(self, delete_button, like_button):
-        """Cria o container principal do card"""
-        card_container = ft.Container(
+    def build(self) -> ft.Dismissible:
+        content = ft.Container(
             content=ft.Column(
                 [
                     ft.ListTile(
@@ -82,248 +51,343 @@ class VictoryCard:
                         ),
                         title=ft.Text(
                             self.victory.author_name,
-                            weight=ft.FontWeight.BOLD,
-                            overflow=ft.TextOverflow.ELLIPSIS,
+                            size=14,
+                            weight=ft.FontWeight.W_500,
                         ),
                         subtitle=ft.Text(
                             self.victory.get_formatted_date(),
                             size=12,
                         ),
-                        trailing=delete_button,
+                        trailing=ft.Chip(
+                            label=ft.Text(
+                                self.victory.category,
+                                size=12,
+                                color=ft.Colors.PRIMARY                               
+                            ),
+                            padding=ft.padding.symmetric(horizontal=8),
+                        ),
                     ),
                     ft.Container(
                         content=ft.Text(
                             self.victory.content,
-                            size=16,
-                            overflow=ft.TextOverflow.ELLIPSIS,
+                            size=14,
                             max_lines=3,
+                            overflow=ft.TextOverflow.ELLIPSIS,
                         ),
-                        padding=ft.padding.symmetric(horizontal=15),
+                        padding=ft.padding.only(left=16, right=16, bottom=8),
                     ),
-                    ft.Row(
-                        [
-                            ft.Chip(
-                                label=ft.Text(self.victory.category),
-                                shape=ft.StadiumBorder(),
-                            ),
-                            like_button,
-                        ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                        spacing=10,
+                    ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.IconButton(
+                                    icon=(
+                                        ft.Icons.FAVORITE
+                                        if self.victory.liked
+                                        else ft.Icons.FAVORITE_BORDER
+                                    ),
+                                    icon_color=(
+                                        ft.Colors.RED_500
+                                        if self.victory.liked
+                                        else ft.Colors.GREY_500
+                                    ),
+                                    icon_size=20,
+                                    on_click=lambda e: self.on_like_click(
+                                        self.victory.id, self.victory.liked
+                                    ),
+                                    animate_scale=ft.Animation(
+                                        200, ft.AnimationCurve.EASE_OUT
+                                    ),
+                                ),
+                                ft.Text(
+                                    str(self.victory.likes),
+                                    size=12,
+                                ),
+                                ft.Container(width=16),
+                                ft.IconButton(
+                                    icon=ft.Icons.COMMENT,
+                                    icon_size=20,
+                                    on_click=lambda e: self.on_details_click(
+                                        self.victory
+                                    ),
+                                ),
+                                ft.Text("Ver mais", size=12),
+                            ],
+                            alignment=ft.MainAxisAlignment.START,
+                        ),
+                        padding=ft.padding.only(left=16, right=16, bottom=8),
                     ),
                 ],
-                spacing=10,
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                spacing=0,
             ),
-            padding=15,
-            border_radius=10,
+            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT),
+            animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
             on_click=lambda e: self.on_details_click(self.victory),
-            alignment=ft.alignment.center,
             on_hover=lambda e: setattr(
-                card_container, "elevation", 10 if e.data == "true" else 5
+                content,
+                "shadow",
+                (
+                    ft.BoxShadow(4, color=ft.Colors.GREY_300)
+                    if e.data == "true"
+                    else ft.BoxShadow(0)
+                ),
             ),
         )
-        return card_container
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Confirmar Exclusão"),
+            content=ft.Text("Deseja excluir esta vitória?"),
+            actions=[
+                ft.TextButton(
+                    "Sim",
+                    on_click=lambda e: (
+                        self.on_delete_click(self.victory.id),
+                        self.page.close(dialog),
+                    ),
+                ),
+                ft.TextButton("Não", on_click=lambda e: self.page.close(dialog)),
+            ],
+        )
+
+        def handle_confirm_dismiss(e: ft.DismissibleDismissEvent):
+            if (
+                e.direction == ft.DismissDirection.END_TO_START
+                and self.victory.user_id == self.user_id
+            ):
+                self.page.open(dialog)
+                return False
+            return True
+
+        return ft.Dismissible(
+            ref=self.ref,
+            content=content,
+            dismiss_direction=(
+                ft.DismissDirection.END_TO_START
+                if self.victory.user_id == self.user_id
+                else None
+            ),
+            background=ft.Container(bgcolor=ft.Colors.RED_100),
+            on_confirm_dismiss=handle_confirm_dismiss,
+            dismiss_thresholds={ft.DismissDirection.END_TO_START: 0.2},
+        )
 
 
 class VictoryDetailsDialog:
-    """Dialog para exibir detalhes de uma vitória"""
+    """Dialog profissional para detalhes da vitória."""
 
     def __init__(self, victory: Victory, page: ft.Page):
         self.victory = victory
         self.page = page
 
     def show(self):
-        """Exibe o dialog com os detalhes da vitória"""
         dialog = ft.AlertDialog(
-            modal=True,
+            icon=ft.Icon(
+                name=ft.Icons.CELEBRATION,
+                size=40,
+            ),
+            icon_padding=ft.padding.all(10),
             title=ft.Text(
-                f"Vitória de {self.victory.author_name}",
-                color=ft.Colors.PRIMARY,
-                overflow=ft.TextOverflow.ELLIPSIS,
+                self.victory.author_name,
+                size=18,
+                weight=ft.FontWeight.W_600,
             ),
-            content=ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text(
-                            f"Categoria: {self.victory.category}",
-                            size=14,
-                        ),
-                        ft.Container(
-                            content=ft.ListView(
-                                controls=[
-                                    ft.Text(
-                                        self.victory.content,
-                                        size=16,
-                                        color=ft.Colors.PRIMARY,
-                                    )
-                                ],
-                                auto_scroll=True,
-                            ),
-                        ),
-                        ft.Text(
-                            f"Data: {self.victory.get_formatted_date()}",
-                            size=12,
-                        ),
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                ),
+            content=ft.Column(
+                [
+                    ft.Text(
+                        self.victory.get_formatted_date(),
+                        size=12,
+                    ),
+                    ft.Text(
+                        self.victory.content,
+                        size=14,
+                        selectable=True,
+                    ),
+                ],
+                spacing=10,
+                alignment=ft.MainAxisAlignment.START,
             ),
+            content_padding=ft.padding.symmetric(horizontal=24, vertical=16),
             actions=[
-                ft.TextButton(
-                    "Fechar",
-                    on_click=lambda e: self.page.close(dialog),
-                ),
+                ft.TextButton("Fechar", on_click=lambda e: self.page.close(dialog))
             ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
         )
+
         self.page.open(dialog)
 
 
 class CategoryFilter:
-    """Componente para filtros de categoria"""
+    """Filtros de categoria com chips profissionais."""
 
     def __init__(self, categories: list, selected_category: str, on_category_select):
         self.categories = categories
         self.selected_category = selected_category
         self.on_category_select = on_category_select
 
-    def build(self) -> ft.ResponsiveRow:
-        """Constrói o componente de filtro"""
-        filter_chips = ft.ResponsiveRow(
-            spacing=10, alignment=ft.MainAxisAlignment.CENTER
-        )
-
-        for category in self.categories:
-            filter_chips.controls.append(
-                ft.Chip(
-                    label=ft.Text(category, overflow=ft.TextOverflow.ELLIPSIS),
-                    selected=category == self.selected_category,
-                    on_select=self.on_category_select,
-                    show_checkmark=True,
-                    shape=ft.StadiumBorder(),
-                    col={"xs": 4, "sm": 3, "md": 2},
-                )
+    def build(self) -> ft.Container:
+        chips = [
+            ft.Chip(
+                label=ft.Text(
+                    category,
+                    size=12,
+                    color=(
+                        ft.Colors.WHITE
+                        if category == self.selected_category
+                        else category_text_colors.get(category, ft.Colors.GREY_800)
+                    ),
+                ),
+                selected=category == self.selected_category,
+                on_select=self.on_category_select,
+                bgcolor=(
+                    ft.Colors.GREY_900
+                    if category == self.selected_category
+                    else category_colors.get(category, ft.Colors.GREY_200)
+                ),
+                padding=ft.padding.symmetric(horizontal=12),
+                animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
             )
-
-        return filter_chips
+            for category in self.categories
+        ]
+        return ft.Container(
+            content=ft.Row(
+                controls=chips,
+                wrap=True,
+                spacing=8,
+                run_spacing=8,
+                alignment=ft.MainAxisAlignment.CENTER,
+            )
+        )
 
 
 class VictoryForm:
-    """Formulário para criar novas vitórias"""
+    """Formulário profissional para postar vitórias."""
 
-    def __init__(self, categories: list, on_post_victory):
-        self.categories = categories[:-1]  # Remove "Todas"
+    def __init__(self, categories: list, on_post_victory, page: ft.Page):
+        self.categories = categories[:-1]
         self.on_post_victory = on_post_victory
-        self.victory_input = self._create_victory_input()
-        self.category_dropdown = self._create_category_dropdown()
-        self.post_button = self._create_post_button()
-
-    def _create_victory_input(self):
-        """Cria o campo de texto para a vitória"""
-        return ft.TextField(
-            label="Compartilhe sua vitória!",
-            multiline=True,
-            max_lines=3,
-            max_length=200,
-        )
-
-    def _create_category_dropdown(self):
-        """Cria o dropdown de categorias"""
-        return ft.Dropdown(
-            label="Categoria",
-            options=[ft.dropdown.Option(cat) for cat in self.categories],
-        )
-
-    def _create_post_button(self):
-        """Cria o botão de postar"""
-        return ft.ElevatedButton(
-            text="Postar",
-            icon=ft.Icons.SEND,
-            on_click=self.on_post_victory,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=5),
-            ),
-        )
-
-    def get_form_data(self) -> tuple[str, str]:
-        """Retorna os dados do formulário"""
-        return self.victory_input.value.strip(), self.category_dropdown.value
-
-    def clear_form(self):
-        """Limpa o formulário"""
-        self.victory_input.value = ""
-        self.category_dropdown.value = None
+        self.page = page
+        self.victory_input = ft.Ref[ft.TextField]()
+        self.category_dropdown = ft.Ref[ft.Dropdown]()
+        self.post_button = ft.Ref[ft.ElevatedButton]()
 
     def build_form_layout(self) -> list:
-        """Constrói o layout do formulário"""
-        return [
-            ft.Container(
-                content=ft.Text(
-                    "Compartilhe sua vitória!",
-                    size=24,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.PRIMARY,
-                ),
-                padding=5,
-                col=12,
-                alignment=ft.alignment.center,
+        def update_button_state(e=None):
+            """Atualiza o estado do botão com base no conteúdo e autenticação."""
+            if not self.post_button.current:  # Verifica se o botão foi adicionado
+                return
+            is_authenticated = self.page.client_storage.get("supafit.user_id")
+            has_content = (
+                self.victory_input.current.value.strip()
+                if self.victory_input.current
+                else False
+            )
+            self.post_button.current.disabled = not (is_authenticated and has_content)
+            self.victory_input.current.disabled = not is_authenticated
+            self.category_dropdown.current.disabled = not is_authenticated
+            self.post_button.current.update()
+            self.victory_input.current.update()
+            self.category_dropdown.current.update()
+
+        form = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Text(
+                        "Compartilhe sua vitória",
+                        size=16,
+                        weight=ft.FontWeight.W_500,
+                    ),
+                    ft.ResponsiveRow(
+                        [
+                            ft.TextField(
+                                ref=self.victory_input,
+                                label="Conte sobre sua conquista... (máx. 200 caracteres)",
+                                multiline=True,
+                                max_lines=3,
+                                max_length=200,
+                                border_radius=8,
+                                filled=True,
+                                on_change=update_button_state,
+                                animate_opacity=ft.Animation(
+                                    300, ft.AnimationCurve.EASE_IN_OUT
+                                ),
+                                disabled=not self.page.client_storage.get(
+                                    "supafit.user_id"
+                                ),
+                                col={"sm": 12, "md": 8, "lg": 6},
+                            ),
+                            ft.Container(
+                                content=ft.Row(
+                                    [
+                                        ft.Dropdown(
+                                            ref=self.category_dropdown,
+                                            label="Categoria",
+                                            options=[
+                                                ft.dropdown.Option(cat)
+                                                for cat in self.categories
+                                            ],
+                                            border_radius=8,
+                                            filled=True,
+                                            width=150,
+                                            disabled=not self.page.client_storage.get(
+                                                "supafit.user_id"
+                                            ),
+                                        ),
+                                        ft.ElevatedButton(
+                                            ref=self.post_button,
+                                            text="Publicar",
+                                            icon=ft.Icons.SEND,
+                                            on_click=self.on_post_victory,
+                                            animate_scale=ft.Animation(
+                                                200, ft.AnimationCurve.EASE_OUT
+                                            ),
+                                            disabled=not self.page.client_storage.get(
+                                                "supafit.user_id"
+                                            ),
+                                        ),
+                                    ],
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                ),
+                                padding=ft.padding.only(top=8),
+                                col={"sm": 12, "md": 4, "lg": 6},
+                            ),
+                        ]
+                    ),
+                    ft.Text(
+                        "Faça login para compartilhar suas vitórias.",
+                        size=12,
+                        visible=not self.page.client_storage.get("supafit.user_id"),
+                    ),
+                ],
+                spacing=8,
             ),
-            ft.Container(
-                content=self.victory_input,
-                padding=5,
-                col={"xs": 8, "sm": 8, "md": 6},
-                alignment=ft.alignment.center,
-            ),
-            ft.Container(
-                content=self.category_dropdown,
-                padding=5,
-                col={"xs": 4, "sm": 6, "md": 4},
-                alignment=ft.alignment.center,
-            ),
-            ft.Container(
-                content=self.post_button,
-                padding=5,
-                col=8,
-                alignment=ft.alignment.center,
-            ),
-        ]
+            col=12,
+            padding=ft.padding.all(16),
+        )
+
+        return [form]
+
+    def get_form_data(self) -> tuple[str, str]:
+        return (
+            self.victory_input.current.value.strip(),
+            self.category_dropdown.current.value,
+        )
+
+    def clear_form(self):
+        self.victory_input.current.value = ""
+        self.category_dropdown.current.value = None
+        self.victory_input.current.update()
 
 
 class SnackBarHelper:
-    """Classe auxiliar para exibir mensagens"""
+    """Helper para notificações."""
 
     @staticmethod
     def show_success(page: ft.Page, message: str):
-        """Exibe uma mensagem de sucesso"""
-        page.open(
-            ft.SnackBar(
-                content=ft.Text(message, color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.GREEN_400,
-                action="OK",
-                action_color=ft.Colors.WHITE,
-            )
-        )
+        CustomSnackBar(message, bgcolor=ft.Colors.GREEN_600).show(page)
 
     @staticmethod
     def show_error(page: ft.Page, message: str):
-        """Exibe uma mensagem de erro"""
-        page.open(
-            ft.SnackBar(
-                content=ft.Text(message, color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED_400,
-                action="OK",
-                action_color=ft.Colors.WHITE,
-            )
-        )
+        CustomSnackBar(message, bgcolor=ft.Colors.RED_600).show(page)
 
     @staticmethod
     def show_warning(page: ft.Page, message: str):
-        """Exibe uma mensagem de aviso"""
-        page.open(
-            ft.SnackBar(
-                content=ft.Text(message, color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.ORANGE_400,
-                action="OK",
-                action_color=ft.Colors.WHITE,
-            )
-        )
+        CustomSnackBar(message, bgcolor=ft.Colors.BLUE_600).show(page)

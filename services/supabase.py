@@ -11,7 +11,21 @@ logger = get_logger("services.supabase")
 class SupabaseService:
     """Versão melhorada do serviço Supabase com autenticação simplificada."""
 
+    _instance = None
+
+    @classmethod
+    def get_instance(cls, page: ft.Page = None):
+        if cls._instance is None:
+            cls._instance = cls(page)
+        elif page is not None:
+            cls._instance.page = page
+        return cls._instance
+
     def __init__(self, page: ft.Page = None):
+        if self._instance is not None:
+            raise Exception(
+                "Use get_instance() para obter a instância do SupabaseService"
+            )
         load_dotenv()
         self.url = os.getenv("SUPABASE_URL")
         self.key = os.getenv("SUPABASE_KEY")
@@ -28,30 +42,47 @@ class SupabaseService:
             access_token = self.page.client_storage.get("supafit.access_token")
             refresh_token = self.page.client_storage.get("supafit.refresh_token")
             if access_token and refresh_token:
-                response = self.client.auth.set_session(access_token, refresh_token)
-                if response.session:
-                    logger.info("Sessão restaurada com sucesso.")
-                    self._update_client_storage(response)
-                else:
-                    logger.warning("Sessão inválida ou expirada. Tentando renovar.")
-                    if self.refresh_session():
-                        logger.info("Sessão renovada com sucesso.")
+                try:
+                    response = self.client.auth.set_session(access_token, refresh_token)
+                    if response.session:
+                        logger.info("Sessão restaurada com sucesso.")
+                        self._update_client_storage(response)
                     else:
-                        self._clear_session()
-                        self.page.open(
-                            ft.SnackBar(
-                                ft.Text("Sessão expirada. Faça login novamente.")
+                        logger.warning("Sessão inválida ou expirada. Tentando renovar.")
+                        if self.refresh_session():
+                            logger.info("Sessão renovada com sucesso.")
+                        else:
+                            self._clear_session()
+                            self._safe_show_snackbar(
+                                "Sessão expirada. Faça login novamente."
                             )
+                except Exception as e:
+                    if "Invalid Refresh Token" in str(e):
+                        logger.warning(
+                            "Token de atualização inválido. Limpando sessão."
                         )
-                        self.page.update()
+                        self._clear_session()
+                        self._safe_show_snackbar(
+                            "Sessão expirada. Faça login novamente."
+                        )
+                    else:
+                        raise e
             else:
                 logger.info("Nenhum token de sessão encontrado.")
                 self._clear_session()
         except Exception as e:
             logger.error(f"Erro ao restaurar sessão: {str(e)}")
             self._clear_session()
-            self.page.open(ft.SnackBar(ft.Text(f"Erro ao restaurar sessão: {str(e)}")))
-            self.page.update()
+            self._safe_show_snackbar(f"Erro ao restaurar sessão: {str(e)}")
+
+    def _safe_show_snackbar(self, message: str) -> None:
+        """Exibe snackbar apenas se a página estiver pronta."""
+        if self.page and hasattr(self.page, "open"):
+            try:
+                self.page.open(ft.SnackBar(ft.Text(message)))
+                self.page.update()
+            except Exception as e:
+                logger.error(f"Erro ao exibir snackbar: {str(e)}")
 
     def _update_client_storage(self, response) -> None:
         """Atualiza dados de autenticação no client_storage."""

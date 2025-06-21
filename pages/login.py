@@ -10,7 +10,7 @@ logger = get_logger("supabafit.login")
 
 
 def LoginPage(page: ft.Page):
-    supabase_service = SupabaseService(page)
+    supabase_service = SupabaseService.get_instance(page)
     lottie_url = os.getenv("LOTTIE_LOGIN")
 
     login_lottie = fl.Lottie(
