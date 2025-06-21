@@ -111,12 +111,13 @@ def LoginPage(page: ft.Page):
     def show_loading():
         loading_dialog = ft.AlertDialog(
             content=ft.Container(
-                content=ft.ProgressRing(color=ft.Colors.BLUE_400),
+                content=ft.ProgressRing(color=ft.Colors.BLUE_400, width=50, height=50),
                 alignment=ft.alignment.center,
+                padding=20,
             ),
-            bgcolor=ft.Colors.TRANSPARENT,
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
-            disabled=True,
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = loading_dialog
         page.open(loading_dialog)
@@ -139,19 +140,22 @@ def LoginPage(page: ft.Page):
                         ),
                         ft.Text(
                             message,
-                            size=18,
+                            size=16,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREEN_400,
+                            color=ft.Colors.WHITE,
+                            text_align=ft.TextAlign.CENTER,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=10,
                 ),
                 alignment=ft.alignment.center,
+                padding=20,
             ),
-            bgcolor=ft.Colors.TRANSPARENT,
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
-            disabled=True,
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = success_dialog
         page.open(success_dialog)
@@ -165,7 +169,6 @@ def LoginPage(page: ft.Page):
 
     def save_user_data(user_id, email, level=None):
         try:
-            # Salvar no client_storage
             page.client_storage.set("supafit.user_id", user_id)
             page.client_storage.set("supafit.email", email)
             if level:
@@ -173,22 +176,8 @@ def LoginPage(page: ft.Page):
             logger.info(
                 f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
             )
-
-            # Salvar em arquivo user_data.txt
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                file_path = os.path.join(app_data_path, "user_data.txt")
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "w") as f:
-                    content = f"user_id={user_id}\nemail={email}\n"
-                    if level:
-                        content += f"level={level}\n"
-                    f.write(content)
-                logger.info(f"Dados salvos em arquivo: {file_path}")
-            else:
-                logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
         except Exception as ex:
-            logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
+            logger.error(f"Erro ao salvar dados no client_storage: {str(ex)}")
 
     def login(e):
         email = email_field.value.strip()
@@ -205,21 +194,11 @@ def LoginPage(page: ft.Page):
         try:
             # Limpa dados residuais antes do login
             page.client_storage.clear()
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                for file in ["auth_data.txt", "user_data.txt"]:
-                    file_path = os.path.join(app_data_path, file)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        logger.info(f"Arquivo {file} removido antes do login.")
 
             response = supabase_service.login(email, password)
 
             if response and response.user:
                 logger.info(f"Login bem-sucedido para o email: {email}")
-                # Validar user_id contra Supabase Auth
-                supabase_service.validate_user_id(response.user.id)
-
                 # Verificar se o perfil já existe
                 profile_response = supabase_service.get_profile(response.user.id)
                 profile_exists = bool(

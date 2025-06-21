@@ -44,11 +44,12 @@ class Step4Height(BaseStep):
         """Constrói a interface para a etapa de altura.
 
         Returns:
-            ft.Column: Coluna com título, campo de entrada e botões.
+            ft.Column: Coluna com título, imagem, campo de entrada e botões.
         """
         return ft.Column(
             [
                 ft.Text("Etapa 4 de 5: Altura", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step4.png", width=100, height=100),
                 self.height_input,
                 ft.Row(
                     [

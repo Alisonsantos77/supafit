@@ -5,7 +5,6 @@ import re
 import os
 from time import sleep
 from services.supabase import SupabaseService
-
 from utils.logger import get_logger
 
 logger = get_logger("supabafit.register")
@@ -127,15 +126,16 @@ def RegisterPage(page: ft.Page):
 
     terms_checkbox.on_change = update_form_state
 
-    # Função para exibir diálogo de carregamento
     def show_loading():
         loading_dialog = ft.AlertDialog(
             content=ft.Container(
-                content=ft.ProgressRing(color=ft.Colors.BLUE_400),
+                content=ft.ProgressRing(color=ft.Colors.BLUE_400, width=50, height=50),
                 alignment=ft.alignment.center,
+                padding=20,
             ),
-            bgcolor=ft.Colors.TRANSPARENT,
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = loading_dialog
         page.open(loading_dialog)
@@ -143,13 +143,11 @@ def RegisterPage(page: ft.Page):
         logger.info("Diálogo de carregamento exibido")
         return loading_dialog
 
-    # Função para fechar diálogo de carregamento
     def hide_loading(dialog):
         page.close(dialog)
         page.update()
         logger.info("Diálogo de carregamento fechado")
 
-    # Função para exibir diálogo de sucesso
     def show_success_and_redirect(route, message="Sucesso!"):
         success_dialog = ft.AlertDialog(
             content=ft.Container(
@@ -162,17 +160,20 @@ def RegisterPage(page: ft.Page):
                             message,
                             size=16,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.GREEN_400,
+                            color=ft.Colors.WHITE,
                             text_align=ft.TextAlign.CENTER,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=10,
                 ),
                 alignment=ft.alignment.center,
+                padding=20,
             ),
-            bgcolor=ft.Colors.TRANSPARENT,
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = success_dialog
         page.open(success_dialog)
@@ -182,7 +183,6 @@ def RegisterPage(page: ft.Page):
         page.close(success_dialog)
         page.go(route)
 
-    # Função para salvar dados localmente
     def save_user_data(user_id, email, level):
         try:
             page.client_storage.set("supafit.user_id", user_id)
@@ -191,18 +191,8 @@ def RegisterPage(page: ft.Page):
             logger.info(
                 f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
             )
-
-            # Salvar em arquivo user_data.txt
-            app_data_path = os.getenv("FLET_APP_STORAGE_DATA")
-            if app_data_path:
-                file_path = os.path.join(app_data_path, "user_data.txt")
-                with open(file_path, "w") as f:
-                    f.write(f"user_id={user_id}\nemail={email}\nlevel={level}\n")
-                logger.info(f"Dados salvos em arquivo: {file_path}")
-            else:
-                logger.warning("FLET_APP_STORAGE_DATA não definido, arquivo não salvo")
         except Exception as ex:
-            logger.error(f"Erro ao salvar dados localmente: {str(ex)}")
+            logger.error(f"Erro ao salvar dados no client_storage: {str(ex)}")
 
     def register(e):
         if not terms_checkbox.value:
@@ -246,48 +236,7 @@ def RegisterPage(page: ft.Page):
             if response.user is None:
                 raise Exception("Nenhum usuário retornado pelo Supabase Auth")
 
-            # Salvar dados de autenticação
-            auth_data = {
-                "user_id": response.user.id,
-                "email": response.user.email,
-                "access_token": (
-                    response.session.access_token if response.session else None
-                ),
-                "refresh_token": (
-                    response.session.refresh_token if response.session else None
-                ),
-                "created_at": response.user.created_at.isoformat(),
-                "confirmed_at": (
-                    response.user.confirmed_at.isoformat()
-                    if response.user.confirmed_at
-                    else None
-                ),
-            }
-            supabase_service.save_auth_data(auth_data)
-            logger.info(
-                f"Dados de autenticação salvos:\n%s", json.dumps(auth_data, indent=2)
-            )
-
-            # Configurar a sessão para requisições autenticadas
-            if response.session:
-                supabase_service.client.auth.set_session(
-                    response.session.access_token, response.session.refresh_token
-                )
-                logger.info("Sessão configurada com sucesso.")
-            else:
-                logger.warning(
-                    "Nenhuma sessão retornada no sign_up. Perfil será criado após o login."
-                )
-
-            # Validar user_id (ignorar validação para novo usuário)
-            if not supabase_service.validate_user_id(
-                response.user.id, is_new_user=True
-            ):
-                raise Exception(
-                    "ID de usuário inválido ou não corresponde aos dados armazenados."
-                )
-
-            # Salvar dados localmente, mas não criar o perfil ainda
+            # Salvar dados localmente
             save_user_data(response.user.id, response.user.email, level)
 
             hide_loading(loading_dialog)

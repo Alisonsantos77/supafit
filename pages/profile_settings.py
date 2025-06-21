@@ -1,52 +1,56 @@
 import flet as ft
 from services.supabase import SupabaseService
-import logging
+from utils.logger import get_logger
 
-logger = logging.getLogger("supafit.profile_settings")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = get_logger("supafit.profile_settings")
 
 
 def ProfileSettingsPage(page: ft.Page):
-    """Cria a interface de Configurações de Perfil para edição de dados do usuário.
-
-    Exibe email do Supabase Auth e campos do perfil como nome, idade, peso, altura, objetivo, nível, tema e duração de intervalo.
-
-    Args:
-        page (ft.Page): Instância da página Flet para renderização UI.
-
-    Returns:
-        ft.Control: Interface renderizada da página de configurações de perfil.
-    """
-    # Inicializa SupabaseService com o page passado
+    """Cria a interface de Configurações de Perfil para edição de dados do usuário."""
     try:
         supabase_service = SupabaseService(page)
     except Exception as e:
         logger.error(f"Falha ao inicializar SupabaseService: {str(e)}")
         page.client_storage.clear()
         page.snack_bar = ft.SnackBar(
-            content=ft.Text("Erro de autenticação. Redirecionando para login."),
+            content=ft.Text(
+                "Erro de autenticação. Redirecionando para login.",
+                color=ft.Colors.WHITE,
+                size=14,
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.CENTER,
+            ),
             bgcolor=ft.Colors.RED_700,
+            duration=3000,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=5),
         )
         page.snack_bar.open = True
         page.go("/login")
+        page.update()
         return ft.Container()
 
     user_id = page.client_storage.get("supafit.user_id")
     if not user_id:
         logger.warning("Nenhum user_id encontrado no client_storage.")
         page.snack_bar = ft.SnackBar(
-            content=ft.Text("Usuário não autenticado. Faça login novamente."),
+            content=ft.Text(
+                "Usuário não autenticado. Faça login novamente.",
+                color=ft.Colors.WHITE,
+                size=14,
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.CENTER,
+            ),
             bgcolor=ft.Colors.RED_700,
+            duration=3000,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=5),
         )
         page.snack_bar.open = True
         page.go("/login")
+        page.update()
         return ft.Container()
 
-    # Recupera email do Supabase Auth
     try:
         user = supabase_service.client.auth.get_user()
         email = (
@@ -58,14 +62,12 @@ def ProfileSettingsPage(page: ft.Page):
         logger.error(f"Erro ao recuperar email do Supabase Auth: {str(e)}")
         email = page.client_storage.get("supafit.email", "")
 
-    # Recupera perfil do Supabase
     profile = (
         supabase_service.get_profile(user_id).data[0]
         if supabase_service.get_profile(user_id).data
         else {}
     )
 
-    # Componentes de formulário com estilo consistente
     email_field = ft.TextField(
         label="Email",
         value=email,
@@ -75,7 +77,7 @@ def ProfileSettingsPage(page: ft.Page):
         color=ft.Colors.WHITE,
         border_radius=5,
         text_size=14,
-        read_only=True,  # Email não editável
+        read_only=True,
     )
     name_field = ft.TextField(
         label="Nome",
@@ -171,7 +173,6 @@ def ProfileSettingsPage(page: ft.Page):
     def validate_and_save(e):
         """Valida e salva as configurações do perfil no Supabase."""
         try:
-            # Validações
             if not name_field.value.strip():
                 raise ValueError("O nome é obrigatório.")
             if (
@@ -209,12 +210,10 @@ def ProfileSettingsPage(page: ft.Page):
                     "Duração do intervalo inválida (máximo 3600 segundos)."
                 )
 
-            # Aplica tema
             page.theme_mode = (
                 ft.ThemeMode.DARK if theme_switch.value else ft.ThemeMode.LIGHT
             )
 
-            # Monta dados do perfil
             profile_data = {
                 "user_id": user_id,
                 "name": name_field.value.strip(),
@@ -227,14 +226,23 @@ def ProfileSettingsPage(page: ft.Page):
                 "rest_duration": int(rest_duration.value),
             }
 
-            # Salva no Supabase
             supabase_service.client.table("user_profiles").upsert(
                 profile_data
             ).execute()
+            page.client_storage.set("supafit.level", profile_data["level"])
             logger.info(f"Perfil salvo com sucesso para user_id: {user_id}")
             page.snack_bar = ft.SnackBar(
-                content=ft.Text("Perfil salvo com sucesso!"),
+                content=ft.Text(
+                    "Perfil salvo com sucesso!",
+                    color=ft.Colors.WHITE,
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
                 bgcolor=ft.Colors.GREEN_700,
+                duration=3000,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=5),
             )
             page.snack_bar.open = True
             page.go("/home")
@@ -242,16 +250,34 @@ def ProfileSettingsPage(page: ft.Page):
         except ValueError as ve:
             logger.warning(f"Validação falhou: {str(ve)}")
             page.snack_bar = ft.SnackBar(
-                content=ft.Text(str(ve)),
+                content=ft.Text(
+                    str(ve),
+                    color=ft.Colors.WHITE,
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
                 bgcolor=ft.Colors.RED_700,
+                duration=3000,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=5),
             )
             page.snack_bar.open = True
             page.update()
         except Exception as e:
             logger.error(f"Erro ao salvar perfil: {str(e)}")
             page.snack_bar = ft.SnackBar(
-                content=ft.Text("Erro ao salvar perfil. Tente novamente."),
+                content=ft.Text(
+                    "Erro ao salvar perfil. Tente novamente.",
+                    color=ft.Colors.WHITE,
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
                 bgcolor=ft.Colors.RED_700,
+                duration=3000,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=5),
             )
             page.snack_bar.open = True
             page.update()
@@ -260,7 +286,6 @@ def ProfileSettingsPage(page: ft.Page):
         """Retorna à página inicial sem salvar alterações."""
         page.go("/home")
 
-    # Layout com design profissional e responsivo
     return ft.Card(
         content=ft.Container(
             content=ft.Column(

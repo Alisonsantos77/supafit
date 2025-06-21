@@ -1,10 +1,11 @@
 import os
-import flet as ft 
+import flet as ft
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from utils.logger import get_logger
 
 logger = get_logger("services.supabase")
+
 
 class SupabaseService:
     """Versão melhorada do serviço Supabase com autenticação simplificada."""
@@ -20,8 +21,8 @@ class SupabaseService:
         # Tentar restaurar sessão automaticamente
         self._restore_session()
 
-    def _restore_session(self):
-        """Restaura sessão do client_storage se disponível."""
+    def _restore_session(self) -> None:
+        """Restaura a sessão do Supabase a partir do client_storage."""
         if not self.page:
             return
 
@@ -35,20 +36,26 @@ class SupabaseService:
                     logger.info("Sessão restaurada com sucesso.")
                     self._update_client_storage(response)
                 else:
-                    logger.warning("Falha ao restaurar sessão.")
-                    self._clear_session()
+                    logger.warning("Sessão inválida ou expirada. Tentando renovar.")
+                    if self.refresh_session():
+                        logger.info("Sessão renovada com sucesso.")
+                    else:
+                        self._clear_session()
+            else:
+                logger.info("Nenhum token de sessão encontrado.")
+                self._clear_session()
         except Exception as e:
-            logger.error(f"Erro ao restaurar sessão: {e}")
+            logger.error(f"Erro ao restaurar sessão: {str(e)}")
             self._clear_session()
 
-    def _update_client_storage(self, auth_response):
+    def _update_client_storage(self, response) -> None:
         """Atualiza dados de autenticação no client_storage."""
-        if not self.page or not auth_response.session:
+        if not self.page or not response.session:
             return
 
         try:
-            session = auth_response.session
-            user = auth_response.user
+            session = response.session
+            user = response.user
 
             # Salvar dados essenciais
             self.page.client_storage.set("supafit.access_token", session.access_token)
@@ -57,13 +64,13 @@ class SupabaseService:
             self.page.client_storage.set("supafit.email", user.email)
 
             # Verificar e salvar perfil
-            self._check_and_save_profile(user.id)
+            self._check_and_save_user(user.id)
 
             logger.info(f"Client storage atualizado para user: {user.email}")
         except Exception as e:
-            logger.error(f"Erro ao atualizar client storage: {e}")
+            logger.error(f"Erro ao atualizar client_storage: {str(e)}")
 
-    def _check_and_save_profile(self, user_id: str):
+    def _check_and_save_user(self, user_id: str) -> None:
         """Verifica e salva informações do perfil no client_storage."""
         try:
             profile_response = self.get_profile(user_id)
@@ -76,19 +83,17 @@ class SupabaseService:
             if profile_exists:
                 level = profile_response.data[0].get("level", "iniciante")
                 self.page.client_storage.set("supafit.level", level)
-                logger.info(f"Perfil encontrado - Nível: {level}")
+                logger.info(f"Perfil encontrado - nível: {level}")
             else:
-                logger.info("Perfil não encontrado - redirecionamento necessário")
-
+                logger.info("Perfil não encontrado - necessário criar perfil")
         except Exception as e:
-            logger.error(f"Erro ao verificar perfil: {e}")
+            logger.error(f"Erro ao verificar perfil: {str(e)}")
 
-    def _clear_session(self):
-        """Limpa dados de sessão."""
+    def _clear_session(self) -> None:
+        """Limpa dados de sessão no Supabase."""
         try:
             self.client.auth.sign_out()
             if self.page:
-                # Limpar apenas dados relacionados à autenticação
                 auth_keys = [
                     "supafit.access_token",
                     "supafit.refresh_token",
@@ -99,17 +104,17 @@ class SupabaseService:
                 ]
                 for key in auth_keys:
                     self.page.client_storage.remove(key)
-            logger.info("Sessão limpa com sucesso.")
+            logger.info("Sessão concluída com sucesso.")
         except Exception as e:
-            logger.error(f"Erro ao limpar sessão: {e}")
+            logger.error(f"Erro ao concluir sessão: {str(e)}")
 
-    def get_current_user(self):
+    def get_current_user(self) -> str:
         """Retorna o usuário atual autenticado."""
         try:
             user = self.client.auth.get_user()
             return user.user if user else None
         except Exception as e:
-            logger.error(f"Erro ao obter usuário atual: {e}")
+            logger.error(f"Erro ao obter usuário atual: {str(e)}")
             return None
 
     def is_authenticated(self) -> bool:
@@ -125,11 +130,11 @@ class SupabaseService:
                 return stored_user_id == user.id
             return False
         except Exception as e:
-            logger.error(f"Erro ao verificar autenticação: {e}")
+            logger.error(f"Erro ao verificar autenticação: {str(e)}")
             return False
 
     def login(self, email: str, password: str):
-        """Login simplificado."""
+        """Realiza login com email e senha."""
         logger.info(f"Tentando login para: {email}")
 
         try:
@@ -148,7 +153,7 @@ class SupabaseService:
                 raise Exception("Falha no login: resposta inválida")
 
         except Exception as e:
-            logger.error(f"Erro no login: {e}")
+            logger.error(f"Erro no login: {str(e)}")
             raise
 
     def refresh_session(self) -> bool:
@@ -164,19 +169,28 @@ class SupabaseService:
                 self._clear_session()
                 return False
         except Exception as e:
-            logger.error(f"Erro ao renovar sessão: {e}")
+            logger.error(f"Erro ao renovar sessão: {str(e)}")
             self._clear_session()
             return False
 
     def logout(self):
-        """Logout simplificado."""
+        """Realiza logout do usuário."""
         try:
             self._clear_session()
 
             if self.page:
                 self.page.snack_bar = ft.SnackBar(
-                    content=ft.Text("Logout realizado com sucesso!"),
+                    content=ft.Text(
+                        "Logout realizado com sucesso!",
+                        color=ft.Colors.WHITE,
+                        size=14,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
                     bgcolor=ft.Colors.GREEN_700,
+                    duration=3000,
+                    padding=10,
+                    shape=ft.RoundedRectangleBorder(radius=5),
                 )
                 self.page.snack_bar.open = True
                 self.page.go("/login")
@@ -184,7 +198,23 @@ class SupabaseService:
 
             logger.info("Logout concluído com sucesso.")
         except Exception as e:
-            logger.error(f"Erro no logout: {e}")
+            logger.error(f"Erro no logout: {str(e)}")
+            if self.page:
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text(
+                        "Erro ao realizar logout. Tente novamente.",
+                        color=ft.Colors.WHITE,
+                        size=14,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    bgcolor=ft.Colors.RED_700,
+                    duration=3000,
+                    padding=10,
+                    shape=ft.RoundedRectangleBorder(radius=5),
+                )
+                self.page.snack_bar.open = True
+                self.page.update()
             raise
 
     def create_profile(self, user_id: str, profile_data: dict):
@@ -206,7 +236,7 @@ class SupabaseService:
             logger.info("Perfil criado com sucesso.")
             return response.data
         except Exception as e:
-            logger.error(f"Erro ao criar perfil: {e}")
+            logger.error(f"Erro ao criar perfil: {str(e)}")
             raise
 
     def get_profile(self, user_id: str):
@@ -221,7 +251,7 @@ class SupabaseService:
             )
             return response
         except Exception as e:
-            logger.error(f"Erro ao recuperar perfil: {e}")
+            logger.error(f"Erro ao recuperar perfil: {str(e)}")
             raise
 
     def get_workouts(self, user_id: str):
@@ -236,5 +266,5 @@ class SupabaseService:
             )
             return response
         except Exception as e:
-            logger.error(f"Erro ao recuperar treinos: {e}")
+            logger.error(f"Erro ao recuperar treinos: {str(e)}")
             raise

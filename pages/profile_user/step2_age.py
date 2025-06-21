@@ -44,11 +44,12 @@ class Step2Age(BaseStep):
         """Constrói a interface para a etapa de idade.
 
         Returns:
-            ft.Column: Coluna com título, campo de entrada e botões.
+            ft.Column: Coluna com título, imagem, campo de entrada e botões.
         """
         return ft.Column(
             [
                 ft.Text("Etapa 2 de 5: Idade", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step2.png", width=100, height=100),
                 self.age_input,
                 ft.Row(
                     [

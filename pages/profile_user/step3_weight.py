@@ -44,11 +44,12 @@ class Step3Weight(BaseStep):
         """Constrói a interface para a etapa de peso.
 
         Returns:
-            ft.Column: Coluna com título, campo de entrada e botões.
+            ft.Column: Coluna com título, imagem, campo de entrada e botões.
         """
         return ft.Column(
             [
                 ft.Text("Etapa 3 de 5: Peso", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step3.png", width=100, height=100),
                 self.weight_input,
                 ft.Row(
                     [

@@ -1,9 +1,9 @@
 import flet as ft
 from .base_step import BaseStep
-
 from utils.logger import get_logger
 
 logger = get_logger("supabafit.profile_user.step6_review")
+
 
 class Step6Review(BaseStep):
     """Etapa 6: Revisão dos dados do perfil.
@@ -42,11 +42,12 @@ class Step6Review(BaseStep):
         """Constrói a interface para a etapa de revisão.
 
         Returns:
-            ft.Column: Coluna com título, texto de revisão e botões.
+            ft.Column: Coluna com título, imagem, texto de revisão e botões.
         """
         return ft.Column(
             [
                 ft.Text("Revisão", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step6.png", width=100, height=100),
                 self.review_text,
                 ft.Row(
                     [

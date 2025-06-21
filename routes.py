@@ -18,19 +18,34 @@ logger = get_logger("supafit.routes")
 
 def setup_routes(page: ft.Page, supabase, anthropic):
     """Sistema de rotas melhorado com autenticação simplificada."""
-    
+
     # Rotas públicas (não precisam de autenticação)
     PUBLIC_ROUTES = ["/login", "/register", "/terms", "/forgot_password"]
-    
+
     # Rotas que precisam de perfil criado
-    PROFILE_REQUIRED_ROUTES = ["/home", "/", "/community", "/trainer", "/profile_settings", "/history"]
+    PROFILE_REQUIRED_ROUTES = [
+        "/home",
+        "/",
+        "/community",
+        "/trainer",
+        "/profile_settings",
+        "/history",
+    ]
 
     def show_snackbar(message: str, color: str = ft.Colors.RED_700):
-        """Exibe feedback para o usuário."""
+        """Exibe feedback para o usuário com estilo consistente."""
         page.snack_bar = ft.SnackBar(
-            content=ft.Text(message, color=ft.Colors.WHITE),
+            content=ft.Text(
+                message,
+                color=ft.Colors.WHITE,
+                size=14,
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.CENTER,
+            ),
             bgcolor=color,
             duration=3000,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=5),
         )
         page.snack_bar.open = True
         page.update()
@@ -38,23 +53,31 @@ def setup_routes(page: ft.Page, supabase, anthropic):
 
     def require_auth(func):
         """Decorator para rotas que precisam de autenticação."""
+
         def wrapper():
             if not supabase.is_authenticated():
                 logger.info("Usuário não autenticado - redirecionando para login")
-                show_snackbar("Por favor, faça login para continuar.", ft.Colors.BLUE_400)
+                show_snackbar(
+                    "Por favor, faça login para continuar.", ft.Colors.BLUE_400
+                )
                 return redirect_to_login()
             return func()
+
         return wrapper
 
     def require_profile(func):
-        """Decorator for routes that require a profile."""
+        """Decorator para rotas que requerem perfil criado."""
+
         def wrapper():
-            profile_created = page.client_storage.get("supafit.profile_created") or False
+            profile_created = (
+                page.client_storage.get("supafit.profile_created") or False
+            )
             if not profile_created:
-                logger.info("Profile not created - redirecting")
-                show_snackbar("Complete your profile to continue.", ft.Colors.BLUE_400)
+                logger.info("Perfil não criado - redirecionando para criação de perfil")
+                show_snackbar("Complete seu perfil para continuar.", ft.Colors.BLUE_400)
                 return redirect_to_create_profile()
             return func()
+
         return wrapper
 
     def redirect_to_login():
@@ -136,7 +159,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 scroll=ft.ScrollMode.AUTO,
             ),
         }
-        
+
         handler = route_handlers.get(page.route)
         if handler:
             page.views.append(handler())
@@ -189,7 +212,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 padding=20,
             ),
         }
-        
+
         if page.route == "/" or page.route == "/home":
             page.views.append(route_handlers["/home"]())
             if page.route == "/":
@@ -228,24 +251,26 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Manipulador principal de mudanças de rota."""
         page.views.clear()
         logger.info(f"Navegando para: {page.route}")
-        
+
         try:
             # Rotas públicas
             if page.route in PUBLIC_ROUTES:
                 handle_public_routes()
-            
+
             # Rota de criação de perfil
             elif page.route == "/create_profile":
                 handle_create_profile()
-            
+
             # Rotas protegidas
-            elif page.route in PROFILE_REQUIRED_ROUTES or page.route.startswith("/treino/"):
+            elif page.route in PROFILE_REQUIRED_ROUTES or page.route.startswith(
+                "/treino/"
+            ):
                 handle_protected_routes()
-            
+
             else:
                 logger.warning(f"Rota não encontrada: {page.route}")
                 redirect_to_login()
-                
+
         except Exception as e:
             logger.error(f"Erro ao processar rota {page.route}: {e}")
             show_snackbar("Erro ao carregar página.", ft.Colors.RED_700)
@@ -265,7 +290,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         else:
             page.go("/login")
 
-    # manipuladores de evento
+    # Manipuladores de evento
     page.on_route_change = route_change
     page.on_view_pop = view_pop
     page.go(page.route)

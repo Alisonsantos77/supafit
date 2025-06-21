@@ -43,11 +43,12 @@ class Step5Goal(BaseStep):
         """Constrói a interface para a etapa de objetivo.
 
         Returns:
-            ft.Column: Coluna com título, grupo de opções e botões.
+            ft.Column: Coluna com título, imagem, grupo de opções e botões.
         """
         return ft.Column(
             [
                 ft.Text("Etapa 5 de 5: Objetivo", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step5.png", width=100, height=100),
                 self.goal_radio_group,
                 ft.Row(
                     [

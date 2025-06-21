@@ -43,11 +43,12 @@ class Step1Name(BaseStep):
         """Constrói a interface para a etapa de nome.
 
         Returns:
-            ft.Column: Coluna com título, campo de entrada e botão.
+            ft.Column: Coluna com título, imagem, campo de entrada e botão.
         """
         return ft.Column(
             [
                 ft.Text("Etapa 1 de 5: Nome", size=20, weight=ft.FontWeight.BOLD),
+                ft.Image(src="mascote_supafit/step1.png", width=100, height=100),
                 self.name_input,
                 ft.Row(
                     [ft.ElevatedButton("Próximo", on_click=self.on_next)],
