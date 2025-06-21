@@ -1,38 +1,68 @@
 import flet as ft
-from flet import Icons
 from components.components import AvatarComponent
+from services.supabase import SupabaseService
+from utils.logger import get_logger
+
+logger = get_logger("supafit.appbar_class")
 
 
 def create_appbar(title: str, user_id=None) -> ft.AppBar:
-    def handle_menu_item(e):
-        user_id = e.page.client_storage.get(
-            "supafit.user_id"
+    def show_snackbar(page, message: str, color: str = ft.Colors.RED_700):
+        """Exibe feedback para o usuário com estilo consistente."""
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(
+                message,
+                color=ft.Colors.WHITE,
+                size=14,
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            bgcolor=color,
+            duration=3000,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=5),
         )
-        print(
+        page.snack_bar.open = True
+        page.update()
+        logger.info(f"SnackBar: {message}")
+
+    def handle_menu_item(e):
+        page = e.page
+        user_id = page.client_storage.get("supafit.user_id")
+        logger.info(
             f"Opção clicada: {e.control.content.controls[1].value}, user_id: {user_id}"
         )
 
         if not user_id:
-            e.page.go("/login")
+            show_snackbar(page, "Usuário não autenticado. Faça login.", ft.Colors.BLUE_400)
+            page.go("/login")
             return
 
-        if e.control.content.controls[1].value == "Início":
-            e.page.go("/home")
-        elif e.control.content.controls[1].value == "Perfil":
-            e.page.go("/profile_settings")
-        elif e.control.content.controls[1].value == "Histórico":
-            e.page.go("/history")
-        elif e.control.content.controls[1].value == "Pergunte ao Treinador":
-            e.page.go("/trainer")
-        elif e.control.content.controls[1].value == "Galeria de Vitórias":
-            e.page.go("/community")
-        elif e.control.content.controls[1].value == "Sair":
+        menu_actions = {
+            "Início": "/home",
+            "Perfil": "/profile_settings",
+            "Histórico": "/history",
+            "Pergunte ao Treinador": "/trainer",
+            "Galeria de Vitórias": "/community",
+        }
 
+        if e.control.content.controls[1].value in menu_actions:
+            page.go(menu_actions[e.control.content.controls[1].value])
+        elif e.control.content.controls[1].value == "Sair":
             def confirm_logout(e):
                 if e.control.text == "Sim":
-                    e.page.client_storage.remove("supafit.user_id")
-                    e.page.go("/login")
-                e.page.close(confirm_dialog)
+                    try:
+                        supabase_service = SupabaseService(page)
+                        supabase_service.logout()
+                    except Exception as ex:
+                        logger.error(f"Erro ao realizar logout: {str(ex)}")
+                        show_snackbar(
+                            page,
+                            "Erro ao realizar logout. Tente novamente.",
+                            ft.Colors.RED_700,
+                        )
+                page.close(confirm_dialog)
+                page.update()
 
             confirm_dialog = ft.AlertDialog(
                 modal=True,
@@ -43,9 +73,9 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
                     ft.TextButton("Não", on_click=confirm_logout),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
+                shape=ft.RoundedRectangleBorder(radius=10),
             )
-            e.page.open(confirm_dialog)
-
+            page.open(confirm_dialog)
 
     avatar = AvatarComponent(
         user_id=user_id if user_id else None,
@@ -63,6 +93,15 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
                 icon=ft.Icons.PERSON,
                 tooltip="Perfil",
                 items=[
+                    ft.PopupMenuItem(
+                        content=ft.Row(
+                            [
+                                ft.Icon(ft.Icons.HOME, size=20),
+                                ft.Text("Início", size=14),
+                            ]
+                        ),
+                        on_click=handle_menu_item,
+                    ),
                     ft.PopupMenuItem(
                         content=ft.Row(
                             [
