@@ -49,9 +49,7 @@ class CustomAppBar(ft.AppBar):
 
     def _handle_logout(self, page: ft.Page, user_id: str):
         if user_id:
-            supabase_service = page.get_control(
-                "supabase_service"
-            )
+            supabase_service = page.get_control("supabase_service")
             supabase_service.logout(page)
         page.go("/login")
 
@@ -169,7 +167,7 @@ class ExerciseCard(ft.Stack):
         self.is_favorited = initially_favorited
 
         self.favorite_icon = ft.IconButton(
-            icon=ft.icons.STAR if self.is_favorited else ft.icons.STAR_BORDER,
+            icon=ft.Icons.STAR if self.is_favorited else ft.Icons.STAR_BORDER,
             icon_color=ft.Colors.YELLOW_500 if self.is_favorited else ft.Colors.WHITE,
             icon_size=30,
             tooltip="Favoritar",
@@ -193,7 +191,7 @@ class ExerciseCard(ft.Stack):
                 border_radius=ft.border_radius.only(top_left=20, top_right=20),
             ),
             ft.IconButton(
-                icon=ft.icons.PLAY_ARROW,
+                icon=ft.Icons.PLAY_ARROW,
                 icon_color=ft.Colors.WHITE,
                 tooltip="Assistir",
                 bottom=self.height / 4,
@@ -254,7 +252,7 @@ class ExerciseCard(ft.Stack):
     def default_favorite_click(self, e):
         self.is_favorited = not self.is_favorited
         self.favorite_icon.icon = (
-            ft.icons.STAR if self.is_favorited else ft.icons.STAR_BORDER
+            ft.Icons.STAR if self.is_favorited else ft.Icons.STAR_BORDER
         )
         self.favorite_icon.icon_color = (
             ft.Colors.YELLOW_500 if self.is_favorited else ft.Colors.WHITE
@@ -320,9 +318,7 @@ class LoadEditor(ft.Row):
             if e.control.text == "Sim":
                 try:
                     load = float(self.load_field.value) if self.load_field.value else 0
-                    self.supabase.client.table(
-                        "progress"
-                    ).insert( 
+                    self.supabase.client.table("progress").insert(
                         {
                             "exercise_id": self.exercise_id,
                             "load": load,
