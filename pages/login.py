@@ -4,6 +4,7 @@ import os
 from time import sleep
 from services.supabase import SupabaseService
 from utils.logger import get_logger
+from utils.alerts import CustomAlertDialog
 
 logger = get_logger("supabafit.login")
 
@@ -91,7 +92,7 @@ def LoginPage(page: ft.Page):
     )
 
     forgot_password_row = ft.Row(
-        [
+        controls=[
             ft.Text("Esqueceu sua senha?", size=14, color=ft.Colors.BLUE_GREY_600),
             ft.TextButton(
                 "Recuperar",
@@ -109,7 +110,7 @@ def LoginPage(page: ft.Page):
     )
 
     def show_loading():
-        loading_dialog = ft.AlertDialog(
+        loading_dialog = CustomAlertDialog(
             content=ft.Container(
                 content=ft.ProgressRing(color=ft.Colors.BLUE_400, width=50, height=50),
                 alignment=ft.alignment.center,
@@ -117,7 +118,6 @@ def LoginPage(page: ft.Page):
             ),
             bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
-            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = loading_dialog
         page.open(loading_dialog)
@@ -131,7 +131,7 @@ def LoginPage(page: ft.Page):
         logger.info("Diálogo de carregamento fechado")
 
     def show_success_and_redirect(route, message="Sucesso!"):
-        success_dialog = ft.AlertDialog(
+        success_dialog = CustomAlertDialog(
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -155,7 +155,6 @@ def LoginPage(page: ft.Page):
             ),
             bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
             modal=True,
-            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.dialog = success_dialog
         page.open(success_dialog)
@@ -164,8 +163,6 @@ def LoginPage(page: ft.Page):
         sleep(2)
         page.close(success_dialog)
         page.go(route)
-        page.update()
-        logger.info(f"Redirecionando para a rota: {route}")
 
     def save_user_data(user_id, email, level=None):
         try:
@@ -185,6 +182,7 @@ def LoginPage(page: ft.Page):
 
         if not email or not password:
             status_text.value = "Preencha email e senha!"
+            page.open(ft.SnackBar(ft.Text("Preencha email e senha!")))
             page.update()
             logger.warning("Tentativa de login com campos vazios")
             return
@@ -192,14 +190,10 @@ def LoginPage(page: ft.Page):
         loading_dialog = show_loading()
 
         try:
-            # Limpa dados residuais antes do login
-            page.client_storage.clear()
-
             response = supabase_service.login(email, password)
 
             if response and response.user:
                 logger.info(f"Login bem-sucedido para o email: {email}")
-                # Verificar se o perfil já existe
                 profile_response = supabase_service.get_profile(response.user.id)
                 profile_exists = bool(
                     profile_response.data and len(profile_response.data) > 0
@@ -208,13 +202,11 @@ def LoginPage(page: ft.Page):
                     f"Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}."
                 )
 
-                # Define nível padrão ou do perfil
                 level = (
                     profile_response.data[0].get("level", "iniciante")
                     if profile_exists
                     else None
                 )
-                # Salvar dados localmente
                 save_user_data(response.user.id, response.user.email, level)
 
                 hide_loading(loading_dialog)
@@ -241,6 +233,7 @@ def LoginPage(page: ft.Page):
                 else str(ex)
             )
             status_text.value = error_message
+            page.open(ft.SnackBar(ft.Text(f"Erro ao fazer login: {error_message}")))
             page.update()
             logger.error(f"Erro no login: {str(ex)}")
 

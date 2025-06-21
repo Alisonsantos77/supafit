@@ -21,7 +21,17 @@ class ProfileSettingsController:
         self.user_id = None
         self.email = ""
         self.profile = {}
-        self.form_fields = {}
+        self.email_field = ft.Ref[ft.TextField]()
+        self.name_field = ft.Ref[ft.TextField]()
+        self.age_field = ft.Ref[ft.TextField]()
+        self.weight_field = ft.Ref[ft.TextField]()
+        self.height_field = ft.Ref[ft.TextField]()
+        self.goal_dropdown = ft.Ref[ft.Dropdown]()
+        self.level_dropdown = ft.Ref[ft.Dropdown]()
+        self.rest_field = ft.Ref[ft.TextField]()
+        self.theme_switch = ft.Ref[ft.Switch]()
+        self.font_dropdown = ft.Ref[ft.Dropdown]()
+        self.color_dropdown = ft.Ref[ft.Dropdown]()
 
     def initialize(self) -> bool:
         """Inicializa o controlador com dados necessários."""
@@ -60,53 +70,41 @@ class ProfileSettingsController:
         NotificationHelper.show_error(self.page, message)
         self.page.go("/login")
 
-    def _collect_form_data(
-        self, personal_section, fitness_section, appearance_section
-    ) -> Dict[str, Any]:
+    def _collect_form_data(self) -> Dict[str, Any]:
         """Coleta dados dos formulários."""
-        # Extrai campos das seções
-        email_field = personal_section.content.controls[1]  
-        name_field = personal_section.content.controls[3]  
-        age_field = personal_section.content.controls[5].controls[0]  
-        weight_field = personal_section.content.controls[5].controls[2]  
-        height_field = personal_section.content.controls[7]  
-
-        goal_dropdown = fitness_section.content.controls[1]  
-        level_dropdown = fitness_section.content.controls[3]  
-        rest_field = fitness_section.content.controls[5]  
-
-        theme_switch = appearance_section.content.controls[1].content.controls[
-            1
-        ]  
-        font_dropdown = appearance_section.content.controls[3]  
-        color_dropdown = appearance_section.content.controls[5]  
-
-        return {
-            "name": name_field.value,
-            "age": age_field.value,
-            "weight": weight_field.value,
-            "height": height_field.value,
-            "goal": goal_dropdown.value,
-            "level": level_dropdown.value,
-            "rest_duration": rest_field.value,
-            "theme": theme_switch.value,
-            "font_family": font_dropdown.value,
-            "primary_color": color_dropdown.value,
+        fields = {
+            "name": self.name_field,
+            "age": self.age_field,
+            "weight": self.weight_field,
+            "height": self.height_field,
+            "goal": self.goal_dropdown,
+            "level": self.level_dropdown,
+            "rest_duration": self.rest_field,
+            "theme": self.theme_switch,
+            "font_family": self.font_dropdown,
+            "primary_color": self.color_dropdown,
         }
+        form_data = {}
+        for field_name, field_ref in fields.items():
+            if field_ref.current is None:
+                logger.error(f"Campo {field_name} não inicializado.")
+                NotificationHelper.show_error(
+                    self.page, f"Erro: Campo {field_name} não foi carregado."
+                )
+                raise ValueError(f"Campo {field_name} não inicializado.")
+            form_data[field_name] = field_ref.current.value
+        form_data["email"] = (
+            self.email_field.current.value if self.email_field.current else self.email
+        )
+        return form_data
 
     def validate_and_save(
         self, e, personal_section, fitness_section, appearance_section
     ):
         """Valida e salva as configurações do perfil."""
         try:
-            form_data = self._collect_form_data(
-                personal_section, fitness_section, appearance_section
-            )
-
-            # Valida os dados
+            form_data = self._collect_form_data()
             ProfileValidation.validate_profile_data(form_data)
-
-            # Aplica tema na página
             self.page.theme_mode = (
                 ft.ThemeMode.DARK if form_data["theme"] else ft.ThemeMode.LIGHT
             )
@@ -119,7 +117,6 @@ class ProfileSettingsController:
                 ),
                 font_family=form_data["font_family"],
             )
-
             profile_data = {
                 "user_id": self.user_id,
                 "name": form_data["name"].strip(),
@@ -133,20 +130,15 @@ class ProfileSettingsController:
                 "font_family": form_data["font_family"],
                 "primary_color": form_data["primary_color"],
             }
-
-            # Salva no banco
             self.supabase_service.client.table("user_profiles").upsert(
                 profile_data
             ).execute()
-
             self.page.client_storage.set("supafit.level", profile_data["level"])
-
             logger.info(f"Perfil salvo com sucesso para user_id: {self.user_id}")
             NotificationHelper.show_success(
                 self.page, "Perfil salvo com sucesso!", form_data["primary_color"]
             )
             self.page.go("/home")
-
         except ValueError as ve:
             logger.warning(f"Validação falhou: {str(ve)}")
             NotificationHelper.show_error(self.page, str(ve))
@@ -164,26 +156,23 @@ class ProfileSettingsController:
 def ProfileSettingsPage(page: ft.Page):
     """Cria a interface de Configurações de Perfil com design moderno e modular."""
     controller = ProfileSettingsController(page)
-
     if not controller.initialize():
         return ft.Container()
-
-    # Cria as seções do perfil
     personal_section = ProfileSections.create_personal_info_section(
-        controller.profile, controller.email
+        controller.profile, controller.email, controller
     )
-
-    fitness_section = ProfileSections.create_fitness_goals_section(controller.profile)
-
-    appearance_section = ProfileSections.create_appearance_section(controller.profile)
-
+    fitness_section = ProfileSections.create_fitness_goals_section(
+        controller.profile, controller
+    )
+    appearance_section = ProfileSections.create_appearance_section(
+        controller.profile, controller
+    )
     action_buttons = ProfileActions.create_action_buttons(
         lambda e: controller.validate_and_save(
             e, personal_section, fitness_section, appearance_section
         ),
         controller.go_back,
     )
-
     header = ft.Container(
         content=ft.Column(
             [
@@ -201,6 +190,7 @@ def ProfileSettingsPage(page: ft.Page):
             ],
             spacing=4,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
         ),
         padding=ft.padding.all(32),
         gradient=ft.LinearGradient(
@@ -216,7 +206,6 @@ def ProfileSettingsPage(page: ft.Page):
             bottom_right=24,
         ),
     )
-
     main_content = ft.Container(
         content=ft.Column(
             [
@@ -241,7 +230,6 @@ def ProfileSettingsPage(page: ft.Page):
         ),
         expand=True,
     )
-
     return ft.Container(
         content=ft.Column(
             [
@@ -251,11 +239,4 @@ def ProfileSettingsPage(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
         ),
         padding=ft.padding.all(0),
-        border_radius=16,
-        shadow=ft.BoxShadow(
-            spread_radius=0,
-            blur_radius=20,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-            offset=ft.Offset(0, 8),
-        ),
     )

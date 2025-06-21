@@ -2,6 +2,7 @@ import flet as ft
 from typing import Dict, Any, Callable
 from services.supabase import SupabaseService
 from utils.logger import get_logger
+from utils.alerts import CustomSnackBar
 
 logger = get_logger("supafit.profile_settings")
 
@@ -57,33 +58,14 @@ class ProfileFieldComponents:
         )
 
     @staticmethod
-    def create_switch(label: str, value: bool) -> ft.Container:
+    def create_switch(label: str, value: bool) -> ft.Switch:
         """Cria um switch com design moderno."""
-        switch = ft.Switch(
+        return ft.Switch(
             value=value,
             active_color=ft.Colors.BLUE_400,
             inactive_thumb_color=ft.Colors.ON_SURFACE_VARIANT,
             active_track_color=ft.Colors.with_opacity(0.3, ft.Colors.BLUE_400),
             inactive_track_color=ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE),
-        )
-
-        return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Text(
-                        label,
-                        size=14,
-                        color=ft.Colors.ON_SURFACE,
-                        weight=ft.FontWeight.W_500,
-                    ),
-                    switch,
-                ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.padding.all(16),
-            border=ft.border.all(1, ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE)),
-            border_radius=12,
         )
 
 
@@ -92,11 +74,33 @@ class ProfileSections:
 
     @staticmethod
     def create_personal_info_section(
-        profile: Dict[str, Any], email: str
+        profile: Dict[str, Any], email: str, controller
     ) -> ft.Container:
         """Cria a seção de informações pessoais."""
         fields = ProfileFieldComponents()
-
+        controller.email_field.current = fields.create_text_field(
+            "Email", email, read_only=True, disabled=True
+        )
+        controller.name_field.current = fields.create_text_field(
+            "Nome", profile.get("name", "")
+        )
+        controller.age_field.current = fields.create_text_field(
+            "Idade",
+            str(profile.get("age", "")),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            expand=True,
+        )
+        controller.weight_field.current = fields.create_text_field(
+            "Peso (kg)",
+            str(profile.get("weight", "")),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            expand=True,
+        )
+        controller.height_field.current = fields.create_text_field(
+            "Altura (cm)",
+            str(profile.get("height", "")),
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
         return ft.Container(
             content=ft.Column(
                 [
@@ -109,35 +113,19 @@ class ProfileSections:
                         ),
                         margin=ft.margin.only(bottom=16),
                     ),
-                    fields.create_text_field(
-                        "Email", email, read_only=True, disabled=True
-                    ),
+                    controller.email_field.current,
                     ft.Container(height=12),
-                    fields.create_text_field("Nome", profile.get("name", "")),
+                    controller.name_field.current,
                     ft.Container(height=12),
                     ft.Row(
                         [
-                            fields.create_text_field(
-                                "Idade",
-                                str(profile.get("age", "")),
-                                keyboard_type=ft.KeyboardType.NUMBER,
-                                expand=True,
-                            ),
+                            controller.age_field.current,
                             ft.Container(width=12),
-                            fields.create_text_field(
-                                "Peso (kg)",
-                                str(profile.get("weight", "")),
-                                keyboard_type=ft.KeyboardType.NUMBER,
-                                expand=True,
-                            ),
+                            controller.weight_field.current,
                         ]
                     ),
                     ft.Container(height=12),
-                    fields.create_text_field(
-                        "Altura (cm)",
-                        str(profile.get("height", "")),
-                        keyboard_type=ft.KeyboardType.NUMBER,
-                    ),
+                    controller.height_field.current,
                 ]
             ),
             padding=ft.padding.all(20),
@@ -146,22 +134,32 @@ class ProfileSections:
         )
 
     @staticmethod
-    def create_fitness_goals_section(profile: Dict[str, Any]) -> ft.Container:
+    def create_fitness_goals_section(
+        profile: Dict[str, Any], controller
+    ) -> ft.Container:
         """Cria a seção de objetivos fitness."""
         fields = ProfileFieldComponents()
-
         goal_options = [
             ft.dropdown.Option("Perder peso"),
             ft.dropdown.Option("Ganhar massa"),
             ft.dropdown.Option("Manter forma"),
         ]
-
         level_options = [
             ft.dropdown.Option("iniciante"),
             ft.dropdown.Option("intermediário"),
             ft.dropdown.Option("avançado"),
         ]
-
+        controller.goal_dropdown.current = fields.create_dropdown(
+            "Objetivo", profile.get("goal", "Manter forma"), goal_options
+        )
+        controller.level_dropdown.current = fields.create_dropdown(
+            "Nível", profile.get("level", "iniciante"), level_options
+        )
+        controller.rest_field.current = fields.create_text_field(
+            "Duração do Intervalo (segundos)",
+            str(profile.get("rest_duration", 60)),
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
         return ft.Container(
             content=ft.Column(
                 [
@@ -174,19 +172,11 @@ class ProfileSections:
                         ),
                         margin=ft.margin.only(bottom=16),
                     ),
-                    fields.create_dropdown(
-                        "Objetivo", profile.get("goal", "Manter forma"), goal_options
-                    ),
+                    controller.goal_dropdown.current,
                     ft.Container(height=12),
-                    fields.create_dropdown(
-                        "Nível", profile.get("level", "iniciante"), level_options
-                    ),
+                    controller.level_dropdown.current,
                     ft.Container(height=12),
-                    fields.create_text_field(
-                        "Duração do Intervalo (segundos)",
-                        str(profile.get("rest_duration", 60)),
-                        keyboard_type=ft.KeyboardType.NUMBER,
-                    ),
+                    controller.rest_field.current,
                 ]
             ),
             padding=ft.padding.all(20),
@@ -195,24 +185,30 @@ class ProfileSections:
         )
 
     @staticmethod
-    def create_appearance_section(profile: Dict[str, Any]) -> ft.Container:
+    def create_appearance_section(profile: Dict[str, Any], controller) -> ft.Container:
         """Cria a seção de aparência."""
         fields = ProfileFieldComponents()
-
         font_options = [
             ft.dropdown.Option("Roboto"),
             ft.dropdown.Option("Open Sans"),
             ft.dropdown.Option("Montserrat"),
             ft.dropdown.Option("Lato"),
         ]
-
         color_options = [
             ft.dropdown.Option("GREEN", text="Verde"),
             ft.dropdown.Option("BLUE", text="Azul"),
             ft.dropdown.Option("RED", text="Vermelho"),
             ft.dropdown.Option("PURPLE", text="Roxo"),
         ]
-
+        controller.theme_switch.current = fields.create_switch(
+            "Tema Escuro", profile.get("theme", "light") == "dark"
+        )
+        controller.font_dropdown.current = fields.create_dropdown(
+            "Fonte", profile.get("font_family", "Roboto"), font_options
+        )
+        controller.color_dropdown.current = fields.create_dropdown(
+            "Cor Primária", profile.get("primary_color", "GREEN"), color_options
+        )
         return ft.Container(
             content=ft.Column(
                 [
@@ -225,19 +221,30 @@ class ProfileSections:
                         ),
                         margin=ft.margin.only(bottom=16),
                     ),
-                    fields.create_switch(
-                        "Tema Escuro", profile.get("theme", "light") == "dark"
+                    ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.Text(
+                                    "Tema Escuro",
+                                    size=14,
+                                    color=ft.Colors.ON_SURFACE,
+                                    weight=ft.FontWeight.W_500,
+                                ),
+                                controller.theme_switch.current,
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        padding=ft.padding.all(16),
+                        border=ft.border.all(
+                            1, ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE)
+                        ),
+                        border_radius=12,
                     ),
                     ft.Container(height=12),
-                    fields.create_dropdown(
-                        "Fonte", profile.get("font_family", "Roboto"), font_options
-                    ),
+                    controller.font_dropdown.current,
                     ft.Container(height=12),
-                    fields.create_dropdown(
-                        "Cor Primária",
-                        profile.get("primary_color", "GREEN"),
-                        color_options,
-                    ),
+                    controller.color_dropdown.current,
                 ]
             ),
             padding=ft.padding.all(20),
@@ -255,7 +262,7 @@ class ProfileActions:
     ) -> ft.Container:
         """Cria os botões de ação com design moderno."""
         return ft.Container(
-            content=ft.Row(
+            content=ft.ResponsiveRow(
                 [
                     ft.ElevatedButton(
                         content=ft.Row(
@@ -270,10 +277,11 @@ class ProfileActions:
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             tight=True,
+                            col={"sm": 12, "md": 6},
                         ),
                         on_click=save_callback,
                         style=ft.ButtonStyle(
-                            color=ft.Colors.WHITE,
+                            # color=ft.Colors.WHITE,
                             overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
                             elevation=0,
                             shadow_color=ft.Colors.TRANSPARENT,
@@ -294,10 +302,11 @@ class ProfileActions:
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             tight=True,
+                            col={"sm": 12, "md": 6},
                         ),
                         on_click=back_callback,
                         style=ft.ButtonStyle(
-                            color=ft.Colors.ON_SURFACE,
+                            # color=ft.Colors.ON_SURFACE,
                             overlay_color=ft.Colors.with_opacity(
                                 0.08, ft.Colors.ON_SURFACE
                             ),
@@ -327,7 +336,6 @@ class ProfileValidation:
         """Valida os dados do perfil."""
         if not fields["name"].strip():
             raise ValueError("O nome é obrigatório.")
-
         if (
             not fields["age"].strip()
             or not fields["age"].isdigit()
@@ -335,7 +343,6 @@ class ProfileValidation:
             or int(fields["age"]) > 150
         ):
             raise ValueError("Idade inválida (deve ser entre 1 e 150).")
-
         if (
             not fields["weight"].strip()
             or not fields["weight"].replace(".", "").isdigit()
@@ -343,7 +350,6 @@ class ProfileValidation:
             or float(fields["weight"]) > 300
         ):
             raise ValueError("Peso inválido (deve ser entre 30 e 300 kg).")
-
         if (
             not fields["height"].strip()
             or not fields["height"].isdigit()
@@ -351,13 +357,10 @@ class ProfileValidation:
             or int(fields["height"]) > 250
         ):
             raise ValueError("Altura inválida (deve ser entre 100 e 250 cm).")
-
         if not fields["goal"]:
             raise ValueError("Selecione um objetivo.")
-
         if not fields["level"]:
             raise ValueError("Selecione um nível.")
-
         if (
             not fields["rest_duration"].strip()
             or not fields["rest_duration"].isdigit()
@@ -373,49 +376,15 @@ class NotificationHelper:
     @staticmethod
     def show_success(page: ft.Page, message: str, color: str = "GREEN") -> None:
         """Mostra notificação de sucesso."""
-        page.snack_bar = ft.SnackBar(
-            content=ft.Row(
-                [
-                    ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.WHITE, size=20),
-                    ft.Container(width=8),
-                    ft.Text(
-                        message,
-                        color=ft.Colors.WHITE,
-                        size=14,
-                        weight=ft.FontWeight.W_500,
-                    ),
-                ]
-            ),
-            elevation=6,
-            padding=ft.padding.symmetric(horizontal=16, vertical=12),
-            shape=ft.RoundedRectangleBorder(radius=12),
-            margin=ft.margin.all(16),
-            duration=3000,
+        snackbar = CustomSnackBar(
+            message=message, bgcolor=getattr(ft.Colors, color, ft.Colors.GREEN_700)
         )
-        page.snack_bar.open = True
-        page.update()
+        snackbar.show(page)
+        logger.info(f"Notificação de sucesso: {message}")
 
     @staticmethod
     def show_error(page: ft.Page, message: str) -> None:
         """Mostra notificação de erro."""
-        page.snack_bar = ft.SnackBar(
-            content=ft.Row(
-                [
-                    ft.Icon(ft.Icons.ERROR, color=ft.Colors.WHITE, size=20),
-                    ft.Container(width=8),
-                    ft.Text(
-                        message,
-                        color=ft.Colors.WHITE,
-                        size=14,
-                        weight=ft.FontWeight.W_500,
-                    ),
-                ]
-            ),
-            elevation=6,
-            padding=ft.padding.symmetric(horizontal=16, vertical=12),
-            shape=ft.RoundedRectangleBorder(radius=12),
-            margin=ft.margin.all(16),
-            duration=3000,
-        )
-        page.snack_bar.open = True
-        page.update()
+        snackbar = CustomSnackBar(message=message, bgcolor=ft.Colors.RED_700)
+        snackbar.show(page)
+        logger.info(f"Notificação de erro: {message}")
