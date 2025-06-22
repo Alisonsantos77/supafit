@@ -191,8 +191,8 @@ class ProfileSections:
         font_options = [
             ft.dropdown.Option("Roboto"),
             ft.dropdown.Option("Open Sans"),
-            ft.dropdown.Option("Montserrat"),
-            ft.dropdown.Option("Lato"),
+            ft.dropdown.Option("Barlow"),
+            ft.dropdown.Option("Manrope"),
         ]
         color_options = [
             ft.dropdown.Option("GREEN", text="Verde"),

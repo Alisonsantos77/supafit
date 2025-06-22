@@ -147,7 +147,6 @@ Estamos aqui para ajudar você a organizar suas finanças com segurança!
                             )
                         ),
                         padding=5,
-                        bgcolor=ft.Colors.YELLOW,
                         col=10,
                     ),
                     ft.Container(
@@ -158,7 +157,6 @@ Estamos aqui para ajudar você a organizar suas finanças com segurança!
                             on_tap_link=lambda e: page.launch_url(e.data),
                         ),
                         padding=5,
-                        bgcolor=ft.Colors.GREEN,
                         col=10,
                     ),
                     ft.Divider(),
@@ -170,7 +168,6 @@ Estamos aqui para ajudar você a organizar suas finanças com segurança!
                             on_tap_link=lambda e: page.launch_url(e.data),
                         ),
                         padding=5,
-                        bgcolor=ft.Colors.BLUE,
                         col=10,
                     ),
                 ],
@@ -178,6 +175,7 @@ Estamos aqui para ajudar você a organizar suas finanças com segurança!
         ],
         spacing=20,
         scroll=ft.ScrollMode.AUTO,
+        alignment=ft.MainAxisAlignment.CENTER,
     )
 
     return ft.Container(content=terms_content, padding=20)
