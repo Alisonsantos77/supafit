@@ -60,9 +60,16 @@ class VictoryCard:
                         ),
                         trailing=ft.Chip(
                             label=ft.Text(
-                                self.victory.category, size=12, color=ft.Colors.PRIMARY
+                                self.victory.category,
+                                size=12,
+                                color=category_text_Colors.get(
+                                    self.victory.category, ft.Colors.PRIMARY
+                                ),
                             ),
                             padding=ft.padding.symmetric(horizontal=8),
+                            bgcolor=category_Colors.get(
+                                self.victory.category, ft.Colors.GREY_200
+                            ),
                         ),
                     ),
                     ft.Container(
@@ -78,22 +85,27 @@ class VictoryCard:
                         content=ft.Row(
                             [
                                 ft.IconButton(
-                                    icon=(
-                                        ft.Icons.FAVORITE
-                                        if self.victory.liked
-                                        else ft.Icons.FAVORITE_BORDER
-                                    ),
-                                    icon_color=(
-                                        ft.Colors.RED_500
-                                        if self.victory.liked
-                                        else ft.Colors.GREY_500
+                                    icon=ft.Icons.FAVORITE_BORDER,
+                                    selected_icon=ft.Icons.FAVORITE,
+                                    selected=self.victory.liked,
+                                    style=ft.ButtonStyle(
+                                        color={
+                                            "selected": ft.Colors.RED_500,
+                                            "": ft.Colors.GREY_500,
+                                        },
+                                        animation_duration=200,
                                     ),
                                     icon_size=20,
-                                    on_click=lambda e: self.on_like_click(
-                                        self.victory.id, self.victory.liked
-                                    ),
-                                    animate_scale=ft.Animation(
-                                        200, ft.AnimationCurve.EASE_OUT
+                                    on_click=lambda e: (
+                                        setattr(
+                                            e.control,
+                                            "selected",
+                                            not e.control.selected,
+                                        ),
+                                        self.on_like_click(
+                                            self.victory.id, e.control.selected
+                                        ),
+                                        self.page.update(),
                                     ),
                                 ),
                                 ft.Text(
@@ -131,19 +143,39 @@ class VictoryCard:
             ),
         )
 
-        dialog = ft.AlertDialog(
-            title=ft.Text("Confirmar Exclusão"),
-            content=ft.Text("Deseja excluir esta vitória?"),
-            actions=[
-                ft.TextButton(
-                    "Sim",
-                    on_click=lambda e: (
-                        self.on_delete_click(self.victory.id),
-                        self.page.close(dialog),
+        def handle_close_modal(e):
+            self.on_delete_click(self.victory.id)
+            self.page.close(dialog)
+
+        def show_unauthorized_dialog():
+            unauthorized_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Ação Não Permitida"),
+                content=ft.Text("Você só pode excluir suas próprias vitórias."),
+                icon=ft.Icon(name=ft.Icons.WARNING, color=ft.Colors.RED, size=40),
+                icon_padding=ft.padding.all(10),
+                content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
+                actions=[
+                    ft.TextButton(
+                        "OK", on_click=lambda e: self.page.close(unauthorized_dialog)
                     ),
-                ),
+                ],
+                actions_alignment=ft.MainAxisAlignment.CENTER,
+            )
+            self.page.open(unauthorized_dialog)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Confirmar Exclusão"),
+            content=ft.Text("Deseja realmente excluir esta vitória?"),
+            icon=ft.Icon(name=ft.Icons.WARNING, color=ft.Colors.RED, size=40),
+            icon_padding=ft.padding.all(10),
+            content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
+            actions=[
+                ft.TextButton("Sim", on_click=handle_close_modal),
                 ft.TextButton("Não", on_click=lambda e: self.page.close(dialog)),
             ],
+            actions_alignment=ft.MainAxisAlignment.END,
         )
 
         def handle_confirm_dismiss(e: ft.DismissibleDismissEvent):
@@ -153,7 +185,9 @@ class VictoryCard:
             ):
                 self.page.open(dialog)
                 return False
-            return True
+            else:
+                show_unauthorized_dialog()
+                return False
 
         return ft.Dismissible(
             ref=self.ref,
@@ -163,14 +197,25 @@ class VictoryCard:
                 if self.victory.user_id == self.user_id
                 else None
             ),
-            background=ft.Container(bgcolor=ft.Colors.RED_100),
+            background=ft.Container(
+                bgcolor=ft.Colors.RED_100,
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.DELETE, color=ft.Colors.RED_800),
+                        ft.Text("Excluir", color=ft.Colors.RED_800),
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                    spacing=8,
+                ),
+                padding=ft.padding.all(16),
+            ),
             on_confirm_dismiss=handle_confirm_dismiss,
             dismiss_thresholds={ft.DismissDirection.END_TO_START: 0.2},
         )
 
 
 class VictoryDetailsDialog:
-    """Dialog profissional para detalhes da vitória."""
+    """Diálogo com estilo baseado no exemplo com ícone, usando avatar do autor."""
 
     def __init__(self, victory: Victory, page: ft.Page):
         self.victory = victory
@@ -178,34 +223,18 @@ class VictoryDetailsDialog:
 
     def show(self):
         dialog = ft.AlertDialog(
-            icon=ft.Icon(
-                name=ft.Icons.CELEBRATION,
-                size=40,
-            ),
+            modal=True,
+            title=ft.Text(self.victory.author_name),
+            icon=AvatarComponent(self.victory.user_id, radius=24, is_trainer=False),
             icon_padding=ft.padding.all(10),
-            title=ft.Text(
-                self.victory.author_name,
-                size=18,
-                weight=ft.FontWeight.W_600,
+            content=ft.Text(
+                self.victory.content,
+                size=14,
+                selectable=True,
             ),
-            content=ft.Column(
-                [
-                    ft.Text(
-                        self.victory.get_formatted_date(),
-                        size=12,
-                    ),
-                    ft.Text(
-                        self.victory.content,
-                        size=14,
-                        selectable=True,
-                    ),
-                ],
-                spacing=10,
-                alignment=ft.MainAxisAlignment.START,
-            ),
-            content_padding=ft.padding.symmetric(horizontal=24, vertical=16),
+            content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
             actions=[
-                ft.TextButton("Fechar", on_click=lambda e: self.page.close(dialog))
+                ft.TextButton("Fechar", on_click=lambda e: self.page.close(dialog)),
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
         )
@@ -333,6 +362,12 @@ class VictoryForm:
                                             ref=self.post_button,
                                             text="Publicar",
                                             icon=ft.Icons.SEND,
+                                            style=ft.ButtonStyle(
+                                                elevation=2,
+                                                shape=ft.RoundedRectangleBorder(
+                                                    radius=5
+                                                ),
+                                            ),
                                             on_click=self.on_post_victory,
                                             animate_scale=ft.Animation(
                                                 200, ft.AnimationCurve.EASE_OUT
