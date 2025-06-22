@@ -1,5 +1,8 @@
 import flet as ft
 from .base_step import BaseStep, logger
+from services.anthropic import AnthropicService
+import re
+
 
 class Step1Name(BaseStep):
     """Etapa 1: Coleta do nome do usuário."""
@@ -56,6 +59,32 @@ class Step1Name(BaseStep):
             self.show_snackbar("Por favor, insira seu nome.")
             logger.warning("Nome não preenchido.")
             return False
+
+        # Verificar comprimento do nome
+        if len(name) < 2 or len(name) > 20:
+            self.name_input.error_text = "Nome deve ter entre 2 e 20 caracteres."
+            self.name_input.update()
+            self.show_snackbar("Nome deve ter entre 2 e 20 caracteres.")
+            logger.warning(f"Comprimento inválido do nome: {name}")
+            return False
+
+        # Verificar caracteres permitidos
+        if not re.match(r"^[a-zA-Z0-9\s]+$", name):
+            self.name_input.error_text = "Use apenas letras, números e espaços."
+            self.name_input.update()
+            self.show_snackbar("Nome contém caracteres inválidos.")
+            logger.warning(f"Caracteres inválidos no nome: {name}")
+            return False
+
+        # Verificar conteúdo sensível
+        anthropic_service = AnthropicService()
+        if anthropic_service.is_sensitive_name(name):
+            self.name_input.error_text = "Nome contém conteúdo inadequado."
+            self.name_input.update()
+            self.show_snackbar("Escolha um nome apropriado.")
+            logger.warning(f"Nome sensível detectado: {name}")
+            return False
+
         self.name_input.error_text = None
         self.profile_data["name"] = name
         logger.info(f"Nome coletado: {name}")

@@ -10,7 +10,6 @@ from utils.logger import get_logger
 logger = get_logger("supabafit.services")
 
 
-
 class AnthropicService:
     def __init__(self):
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -175,4 +174,49 @@ class AnthropicService:
             return False
         except Exception as e:
             logger.error(f"Erro ao verificar pergunta sensível: {str(e)}")
+            return False
+
+
+    def is_sensitive_name(self, name: str) -> bool:
+        """Verifica se o nome contém conteúdo sensível ou inadequado usando o Claude.
+
+        Args:
+            name (str): Nome a ser verificado.
+
+        Returns:
+            bool: True se for sensível, False caso contrário.
+        """
+        try:
+            moderation_prompt = f"""Determine se o seguinte nome é sensível ou inadequado.
+                Se for, responda com 'sensitive', caso contrário, responda com 'safe'.
+
+                Nome: {name}
+
+                Resposta:"""
+            payload = {
+                "model": "claude-3-5-sonnet-latest",
+                "max_tokens": 10,
+                "messages": [{"role": "user", "content": moderation_prompt}],
+            }
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            response = httpx.post(self.base_url, json=payload, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            if "content" in data and isinstance(data["content"], list):
+                text_response = data["content"][0].get("text", "").strip()
+                return text_response.lower() == "sensitive"
+            logger.warning(f"Resposta inesperada da API Anthropic: {data}")
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Erro HTTP ao verificar nome sensível: {e.response.text}")
+            return False
+        except json.JSONDecodeError as e:
+            logger.error(f"Erro de decodificação JSON: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Erro ao verificar nome sensível: {str(e)}")
             return False
