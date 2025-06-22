@@ -3,52 +3,27 @@ import asyncio
 import time
 from datetime import datetime
 import uuid
-import logging
 from components.message import ChatMessage, Message
+from services.supabase import SupabaseService
 from services.anthropic import AnthropicService
 from postgrest.exceptions import APIError
-from utils.quebra_mensagem import integrate_with_chat
-
-
-# Filtro para substituir caracteres Unicode problemáticos
-class UnicodeFilter(logging.Filter):
-    def filter(self, record):
-        if record.msg and isinstance(record.msg, str):
-            record.msg = record.msg.encode("ascii", "replace").decode("ascii")
-        if record.args:
-            record.args = tuple(
-                (
-                    arg.encode("ascii", "replace").decode("ascii")
-                    if isinstance(arg, str)
-                    else arg
-                )
-                for arg in record.args
-            )
-        return True
-
-
 from utils.logger import get_logger
+from utils.quebra_mensagem import integrate_with_chat
+from utils.alerts import CustomSnackBar, CustomAlertDialog
 
-logger = get_logger("supabafit.trainer.chat_logic")
-
+logger = get_logger("supafit.trainer_chat.chat_logic")
 COOLDOWN_SECONDS = 2
 
 
 async def load_chat_history(
-    supabase_service, user_id: str, chat_container: ft.ListView, page: ft.Page
+    supabase_service: SupabaseService,
+    user_id: str,
+    chat_container: ft.ListView,
+    page: ft.Page,
 ) -> list:
-    """Carrega o histórico de conversa do Supabase e atualiza o contêiner do chat."""
+    """Carrega o histórico de conversa do Supabase com animação de entrada."""
     try:
-        resp = (
-            supabase_service.client.table("trainer_qa")
-            .select("message")
-            .eq("user_id", user_id)
-            .order("updated_at")
-            .limit(50)
-            .execute()
-        )
         chat_container.controls.clear()
-
         chat_container.controls.append(
             ChatMessage(
                 Message(
@@ -60,9 +35,18 @@ async def load_chat_history(
                 page,
             )
         )
-
+        resp = (
+            supabase_service.client.table("trainer_qa")
+            .select("message")
+            .eq("user_id", user_id)
+            .order("updated_at")
+            .limit(50)
+            .execute()
+        )
+        history = []
         for item in resp.data:
             messages = item.get("message", [])
+            history.extend(messages)
             for msg in messages:
                 chat_container.controls.append(
                     ChatMessage(
@@ -76,30 +60,34 @@ async def load_chat_history(
                     )
                 )
         page.update()
-        return resp.data
+        logger.info(f"Histórico carregado para user_id: {user_id}")
+        return history
     except APIError as e:
         if e.code == "42501":
             if supabase_service.refresh_session():
                 page.go(page.route)
                 return []
             else:
-                page.open(
-                    ft.SnackBar(
-                        ft.Text("Sessão expirada. Por favor, faça login novamente."),
-                        bgcolor=ft.Colors.RED_700,
-                    )
-                )
+                CustomSnackBar(
+                    message="Sessão expirada. Faça login novamente.",
+                    bgcolor=ft.Colors.RED_700,
+                ).show(page)
                 page.go("/login")
                 return []
-        logger.error(f"Erro ao carregar histórico de chat: {str(e)}")
-        page.open(ft.SnackBar(ft.Text(f"Erro ao carregar chat: {str(e)}")))
+        logger.error(f"Erro ao carregar histórico: {str(e)}")
+        CustomSnackBar(
+            message="Erro ao carregar chat.", bgcolor=ft.Colors.RED_700
+        ).show(page)
         return []
 
 
 async def clear_chat(
-    supabase_service, user_id: str, chat_container: ft.ListView, page: ft.Page
+    supabase_service: SupabaseService,
+    user_id: str,
+    chat_container: ft.ListView,
+    page: ft.Page,
 ):
-    """Limpa o histórico de conversa após confirmação do usuário."""
+    """Limpa o histórico de conversa com confirmação visual."""
 
     async def confirm_clear(e):
         if e.control.text == "Sim":
@@ -118,44 +106,42 @@ async def clear_chat(
                         page,
                     )
                 ]
-                page.open(ft.SnackBar(ft.Text("Chat limpo com sucesso!")))
+                CustomSnackBar(message="Chat limpo com sucesso!").show(page)
+                logger.info(f"Chat limpo para user_id: {user_id}")
             except APIError as ex:
                 if ex.code == "42501":
                     if supabase_service.refresh_session():
                         page.go(page.route)
                     else:
-                        page.open(
-                            ft.SnackBar(
-                                ft.Text(
-                                    "Sessão expirada. Por favor, faça login novamente."
-                                ),
-                                bgcolor=ft.Colors.RED_700,
-                            )
-                        )
+                        CustomSnackBar(
+                            message="Sessão expirada. Faça login novamente.",
+                            bgcolor=ft.Colors.RED_700,
+                        ).show(page)
                         page.go("/login")
                 else:
                     logger.error(f"Erro ao limpar chat: {str(ex)}")
-                    page.open(ft.SnackBar(ft.Text(f"Erro ao limpar chat: {str(ex)}")))
+                    CustomSnackBar(
+                        message=f"Erro ao limpar chat: {str(ex)}",
+                        bgcolor=ft.Colors.RED_700,
+                    ).show(page)
         page.close(confirm_dialog)
         page.update()
 
-    confirm_dialog = ft.AlertDialog(
-        modal=True,
-        title=ft.Text("Limpar Chat"),
+    confirm_dialog = CustomAlertDialog(
         content=ft.Text("Tem certeza que deseja limpar todo o histórico de mensagens?"),
-        actions=[
-            ft.TextButton("Sim", on_click=confirm_clear),
-            ft.TextButton("Não", on_click=lambda e: page.close(confirm_dialog)),
-        ],
-        actions_alignment=ft.MainAxisAlignment.END,
+        bgcolor=ft.Colors.GREY_900,
     )
-    page.open(confirm_dialog)
+    confirm_dialog.actions = [
+        ft.TextButton("Sim", on_click=confirm_clear),
+        ft.TextButton("Não", on_click=lambda e: page.close(confirm_dialog)),
+    ]
+    confirm_dialog.show(page)
 
 
 async def ask_question(
     e,
     page: ft.Page,
-    supabase_service,
+    supabase_service: SupabaseService,
     anthropic: AnthropicService,
     question_field: ft.TextField,
     ask_button: ft.ElevatedButton,
@@ -163,29 +149,27 @@ async def ask_question(
     user_data: dict,
     user_id: str,
     last_question_time: list,
+    history_cache: list,
 ):
-    """Processa a submissão de uma pergunta e obtém a resposta da IA."""
+    """Processa a pergunta do usuário com validações e animações."""
     current_time = time.time()
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
-        page.open(
-            ft.SnackBar(ft.Text("Aguarde um momento antes de enviar outra pergunta!"))
-        )
+        CustomSnackBar(message="Aguarde antes de enviar outra pergunta!").show(page)
         return
 
     question = question_field.value.strip()
     if not question:
-        page.open(ft.SnackBar(ft.Text("Digite uma pergunta!")))
+        question_field.error_text = "Digite uma pergunta!"
+        page.update()
         return
     if len(question) > 500:
-        page.open(ft.SnackBar(ft.Text("Pergunta muito longa (máximo 500 caracteres).")))
+        question_field.error_text = "Pergunta muito longa (máximo 500 caracteres)."
+        page.update()
         return
     if anthropic.is_sensitive_question(question):
-        page.open(
-            ft.SnackBar(
-                ft.Text("Conversa sensível detectada.", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED,
-            )
-        )
+        CustomSnackBar(
+            message="Conversa sensível detectada.", bgcolor=ft.Colors.RED_700
+        ).show(page)
         return
 
     ask_button.disabled = True
@@ -196,17 +180,6 @@ async def ask_question(
     page.update()
 
     try:
-        history = []
-        resp = (
-            supabase_service.client.table("trainer_qa")
-            .select("message")
-            .eq("user_id", user_id)
-            .order("updated_at")
-            .execute()
-        )
-        for item in resp.data:
-            history.extend(item["message"])
-
         question_id = str(uuid.uuid4())
         chat_container.controls.append(
             ChatMessage(
@@ -231,7 +204,6 @@ async def ask_question(
             ),
             transition=ft.AnimatedSwitcherTransition.FADE,
             duration=500,
-            reverse_duration=500,
         )
         chat_container.controls.append(typing_indicator)
         page.update()
@@ -249,7 +221,7 @@ async def ask_question(
         Responda considerando essas informações e o histórico da conversa.
         Data e hora atual: {datetime.now().strftime('%d/%m/%Y às %H:%M')}.
         """
-        answer = anthropic.answer_question(question, history, system_prompt)
+        answer = anthropic.answer_question(question, history_cache, system_prompt)
         if not answer or "desculpe" in answer.lower():
             raise ValueError("Resposta inválida do Anthropic")
 
@@ -274,6 +246,7 @@ async def ask_question(
                     "timestamp": datetime.now().isoformat(),
                 }
             )
+            history_cache.append(message_json[-1])
             chat_container.controls.append(
                 ChatMessage(
                     Message(
@@ -290,33 +263,26 @@ async def ask_question(
             await asyncio.sleep(delay)
             page.update()
 
-        response = (
-            supabase_service.client.table("trainer_qa")
-            .insert(
-                {
-                    "user_id": user_id,
-                    "message": message_json,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat(),
-                }
-            )
-            .execute()
-        )
-        logger.info(f"Inserção bem-sucedida: {response.data}")
-
+        supabase_service.client.table("trainer_qa").insert(
+            {
+                "user_id": user_id,
+                "message": message_json,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+            }
+        ).execute()
         question_field.value = ""
-        page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
+        question_field.error_text = None
+        CustomSnackBar(message="Pergunta enviada com sucesso!").show(page)
         last_question_time[0] = current_time
-        page.update()
+        logger.info(f"Pergunta processada com sucesso para user_id: {user_id}")
 
     except Exception as ex:
         logger.error(f"Erro ao processar pergunta: {str(ex)}")
-        page.open(
-            ft.SnackBar(
-                ft.Text(f"Erro ao obter resposta: {str(ex)}"), bgcolor=ft.Colors.RED_700
-            )
-        )
+        CustomSnackBar(
+            message=f"Erro ao obter resposta: {str(ex)}", bgcolor=ft.Colors.RED_700
+        ).show(page)
     finally:
         ask_button.disabled = False
-        ask_button.content = ft.Text("Enviar")
+        ask_button.content = ft.Text("Enviar", size=14, weight=ft.FontWeight.W_600)
         page.update()
