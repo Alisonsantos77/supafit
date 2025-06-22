@@ -3,41 +3,58 @@ from components.components import AvatarComponent
 from services.supabase import SupabaseService
 from utils.logger import get_logger
 
-logger = get_logger("supafit.appbar_class")
+logger = get_logger("supafit.mobile_appbar")
 
 
-def create_appbar(title: str, user_id=None) -> ft.AppBar:
-    def show_snackbar(page, message: str, color: str = ft.Colors.RED_700):
-        """Exibe feedback para o usuário com estilo consistente."""
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text(
-                message,
-                color=ft.Colors.WHITE,
-                size=14,
-                weight=ft.FontWeight.BOLD,
-                text_align=ft.TextAlign.CENTER,
-            ),
+class MobileAppBar:
+    def __init__(self, page: ft.Page):
+        self.page = page
+
+    def show_snackbar(
+        self, message: str, color: str = ft.Colors.RED_700, icon: str = None
+    ):
+        """Exibe SnackBar com ícone opcional e estilo moderno."""
+        content = ft.Row(
+            [
+                (
+                    ft.Icon(icon, color=ft.Colors.WHITE, size=20)
+                    if icon
+                    else ft.Container()
+                ),
+                ft.Text(
+                    message,
+                    color=ft.Colors.WHITE,
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                ),
+            ],
+            spacing=8,
+            alignment=ft.MainAxisAlignment.CENTER,
+        )
+        self.page.snack_bar = ft.SnackBar(
+            content=content,
             bgcolor=color,
             duration=3000,
-            padding=10,
-            shape=ft.RoundedRectangleBorder(radius=5),
+            padding=12,
+            shape=ft.RoundedRectangleBorder(radius=8),
+            elevation=0,
         )
-        page.snack_bar.open = True
-        page.update()
+        self.page.snack_bar.open = True
+        self.page.update()
         logger.info(f"SnackBar: {message}")
 
-    def handle_menu_item(e):
-        page = e.page
-        user_id = page.client_storage.get("supafit.user_id")
+    def handle_menu_item(self, e):
+        """Manipula ações do menu com navegação e logout."""
+        user_id = self.page.client_storage.get("supafit.user_id")
         logger.info(
             f"Opção clicada: {e.control.content.controls[1].value}, user_id: {user_id}"
         )
 
         if not user_id:
-            show_snackbar(
-                page, "Usuário não autenticado. Faça login.", ft.Colors.BLUE_400
+            self.show_snackbar(
+                "Faça login para continuar.", ft.Colors.BLUE_400, ft.Icons.LOGIN
             )
-            page.go("/login")
+            self.page.go("/login")
             return
 
         menu_actions = {
@@ -48,112 +65,196 @@ def create_appbar(title: str, user_id=None) -> ft.AppBar:
             "Galeria de Vitórias": "/community",
         }
 
-        if e.control.content.controls[1].value in menu_actions:
-            page.go(menu_actions[e.control.content.controls[1].value])
-        elif e.control.content.controls[1].value == "Sair":
+        option = e.control.content.controls[1].value
+        if option in menu_actions:
+            self.page.go(menu_actions[option])
+        elif option == "Sair":
 
             def confirm_logout(e):
                 if e.control.text == "Sim":
                     try:
-                        supabase_service = SupabaseService.get_instance(page)
+                        supabase_service = SupabaseService.get_instance(self.page)
                         supabase_service.logout()
+                        self.show_snackbar(
+                            "Logout realizado com sucesso.",
+                            ft.Colors.GREEN_600,
+                            ft.Icons.CHECK,
+                        )
+                        self.page.go("/login")
                     except Exception as ex:
                         logger.error(f"Erro ao realizar logout: {str(ex)}")
-                        show_snackbar(
-                            page,
-                            "Erro ao realizar logout. Tente novamente.",
+                        self.show_snackbar(
+                            "Erro ao realizar logout.",
                             ft.Colors.RED_700,
+                            ft.Icons.ERROR,
                         )
-                page.close(confirm_dialog)
-                page.update()
+                self.page.close(confirm_dialog)
+                self.page.update()
 
             confirm_dialog = ft.AlertDialog(
                 modal=True,
-                title=ft.Text("Confirmar Saída"),
-                content=ft.Text("Tem certeza que deseja sair?"),
+                title=ft.Text("Confirmar Saída", size=18, weight=ft.FontWeight.BOLD),
+                content=ft.Text("Deseja realmente sair?"),
                 actions=[
-                    ft.TextButton("Sim", on_click=confirm_logout),
+                    ft.TextButton(
+                        "Sim",
+                        on_click=confirm_logout,
+                        style=ft.ButtonStyle(color=ft.Colors.RED),
+                    ),
                     ft.TextButton("Não", on_click=confirm_logout),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
-                shape=ft.RoundedRectangleBorder(radius=10),
+                shape=ft.RoundedRectangleBorder(radius=12),
+                elevation=2,
             )
-            page.open(confirm_dialog)
+            self.page.open(confirm_dialog)
 
-    avatar = AvatarComponent(
-        user_id=user_id if user_id else None,
-        image_url=(user_id if user_id else "https://picsum.photos/200"),
-        radius=10,
-        is_trainer=False,
-    )
+    def create_appbar(self, title: str, show_back_button: bool = False) -> ft.AppBar:
+        """Cria AppBar otimizado para mobile com design moderno."""
+        user_id = self.page.client_storage.get("supafit.user_id")
+        avatar = AvatarComponent(
+            user_id=user_id,
+            image_url=user_id if user_id else "https://picsum.photos/200",
+            radius=16,
+            is_trainer=False,
+        )
 
-    return ft.AppBar(
-        title=ft.Text(f"{title}", size=20, weight=ft.FontWeight.BOLD),
-        center_title=True,
-        actions=[
-            ft.PopupMenuButton(
-                content=avatar,
-                icon=ft.Icons.PERSON,
-                tooltip="Perfil",
-                items=[
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.HOME, size=20),
-                                ft.Text("Início", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.PERSON, size=20),
-                                ft.Text("Perfil", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.CALENDAR_MONTH_ROUNDED, size=20),
-                                ft.Text("Histórico", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.TIMER, size=20),
-                                ft.Text("Pergunte ao Treinador", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.GROUP, size=20),
-                                ft.Text("Galeria de Vitórias", size=14),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                    ft.PopupMenuItem(),
-                    ft.PopupMenuItem(
-                        content=ft.Row(
-                            [
-                                ft.Icon(
-                                    ft.Icons.LOGOUT_SHARP, size=20, color=ft.Colors.RED
-                                ),
-                                ft.Text("Sair", size=14, color=ft.Colors.RED),
-                            ]
-                        ),
-                        on_click=handle_menu_item,
-                    ),
-                ],
+        leading = (
+            ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                on_click=lambda _: self.page.go(
+                    self.page.views[-2].route if len(self.page.views) > 1 else "/home"
+                ),
+                tooltip="Voltar",
+                icon_size=24,
+                style=ft.ButtonStyle(color=ft.Colors.PRIMARY),
+            )
+            if show_back_button
+            else None
+        )
+
+        return ft.AppBar(
+            title=ft.Text(
+                title,
+                size=18,
+                weight=ft.FontWeight.W_600,
+                color=ft.Colors.PRIMARY,
             ),
-        ],
-    )
+            center_title=True,
+            leading=leading,
+            elevation=0,
+            bgcolor=ft.Colors.SURFACE,
+            actions=[
+                ft.PopupMenuButton(
+                    content=avatar,
+                    tooltip="Menu",
+                    items=[
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.HOME, color=ft.Colors.BLUE_600, size=20
+                                    ),
+                                    ft.Text(
+                                        "Início", size=14, weight=ft.FontWeight.W_500
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.PERSON,
+                                        color=ft.Colors.GREEN_600,
+                                        size=20,
+                                    ),
+                                    ft.Text(
+                                        "Perfil", size=14, weight=ft.FontWeight.W_500
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.CALENDAR_MONTH,
+                                        color=ft.Colors.PURPLE_600,
+                                        size=20,
+                                    ),
+                                    ft.Text(
+                                        "Histórico", size=14, weight=ft.FontWeight.W_500
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.TIMER,
+                                        color=ft.Colors.ORANGE_600,
+                                        size=20,
+                                    ),
+                                    ft.Text(
+                                        "Pergunte ao Treinador",
+                                        size=14,
+                                        weight=ft.FontWeight.W_500,
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.GROUP,
+                                        color=ft.Colors.TEAL_600,
+                                        size=20,
+                                    ),
+                                    ft.Text(
+                                        "Galeria de Vitórias",
+                                        size=14,
+                                        weight=ft.FontWeight.W_500,
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                        ft.PopupMenuItem(),
+                        ft.PopupMenuItem(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.LOGOUT,
+                                        color=ft.Colors.RED_600,
+                                        size=20,
+                                    ),
+                                    ft.Text(
+                                        "Sair",
+                                        size=14,
+                                        weight=ft.FontWeight.W_500,
+                                        color=ft.Colors.RED_600,
+                                    ),
+                                ],
+                                spacing=12,
+                            ),
+                            on_click=self.handle_menu_item,
+                        ),
+                    ],
+                    menu_position=ft.PopupMenuPosition.UNDER,
+                    elevation=2,
+                    shape=ft.RoundedRectangleBorder(radius=12),
+                ),
+            ],
+        )

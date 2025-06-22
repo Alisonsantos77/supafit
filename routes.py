@@ -3,7 +3,7 @@ from pages.home import Homepage
 from pages.treino import Treinopage
 from pages.profile_settings.profile_settings import ProfileSettingsPage
 from pages.history import HistoryPage
-from components.appbar_class import create_appbar
+from components.appbar_class import MobileAppBar
 from pages.login import LoginPage
 from pages.register import RegisterPage
 from pages.community.community_tab import CommunityTab
@@ -65,11 +65,15 @@ def setup_routes(page: ft.Page, supabase, anthropic):
 
         return wrapper
 
+    mobile_appbar = MobileAppBar(page)
+
     def redirect_to_login():
         """Redireciona para página de login."""
         page.views.append(
             ft.View(
-                appbar=create_appbar("Login - Supafit"),
+                appbar=mobile_appbar.create_appbar(
+                    "Login - SupaFit", show_back_button=False
+                ),
                 padding=20,
                 route="/login",
                 controls=[LoginPage(page)],
@@ -84,7 +88,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Redireciona para criação de perfil."""
         page.views.append(
             ft.View(
-                appbar=create_appbar("Criar Perfil"),
+                appbar=mobile_appbar.create_appbar(
+                    "Criar Perfil", show_back_button=True
+                ),
                 route="/create_profile",
                 controls=[CreateProfilePage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -98,7 +104,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Manipula rotas públicas."""
         route_handlers = {
             "/login": lambda: ft.View(
-                appbar=create_appbar("Login - Supafit"),
+                appbar=mobile_appbar.create_appbar(
+                    "Login - SupaFit", show_back_button=False
+                ),
                 padding=20,
                 route="/login",
                 controls=[LoginPage(page)],
@@ -107,7 +115,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 scroll=ft.ScrollMode.AUTO,
             ),
             "/register": lambda: ft.View(
-                appbar=create_appbar("Registrar - Supafit"),
+                appbar=mobile_appbar.create_appbar(
+                    "Registrar - SupaFit", show_back_button=True
+                ),
                 route="/register",
                 controls=[RegisterPage(page)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -115,16 +125,8 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 scroll=ft.ScrollMode.AUTO,
             ),
             "/terms": lambda: ft.View(
-                appbar=ft.AppBar(
-                    title=ft.Text("Termos de Uso e Política de Privacidade"),
-                    center_title=True,
-                    actions=[
-                        ft.IconButton(
-                            icon=ft.Icons.CLOSE,
-                            tooltip="Fechar",
-                            on_click=lambda _: page.go("/"),
-                        )
-                    ],
+                appbar=mobile_appbar.create_appbar(
+                    "Termos de Uso", show_back_button=True
                 ),
                 route="/terms",
                 controls=[TermsPage(page, supabase, anthropic)],
@@ -134,7 +136,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 padding=20,
             ),
             "/forgot_password": lambda: ft.View(
-                appbar=create_appbar("Recuperar Senha - Supafit"),
+                appbar=mobile_appbar.create_appbar(
+                    "Recuperar Senha", show_back_button=True
+                ),
                 padding=20,
                 route="/forgot_password",
                 controls=[ForgotPasswordPage(page)],
@@ -154,7 +158,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         route_handlers = {
             "/home": lambda: ft.View(
                 route="/home",
-                appbar=create_appbar("Supafit"),
+                appbar=mobile_appbar.create_appbar("SupaFit", show_back_button=False),
                 controls=[Homepage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -162,14 +166,14 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 padding=20,
             ),
             "/community": lambda: ft.View(
-                appbar=create_appbar("Comunidade"),
+                appbar=mobile_appbar.create_appbar("Comunidade", show_back_button=True),
                 route="/community",
                 controls=[CommunityTab(page, supabase)],
                 padding=20,
                 scroll=ft.ScrollMode.AUTO,
             ),
             "/trainer": lambda: ft.View(
-                appbar=create_appbar("Treinador"),
+                appbar=mobile_appbar.create_appbar("Treinador", show_back_button=True),
                 route="/trainer",
                 controls=[TrainerTab(page, supabase, anthropic)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -177,7 +181,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 padding=20,
             ),
             "/profile_settings": lambda: ft.View(
-                appbar=create_appbar("Perfil e Configurações"),
+                appbar=mobile_appbar.create_appbar("Perfil", show_back_button=True),
                 route="/profile_settings",
                 controls=[ProfileSettingsPage(page)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -186,7 +190,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 padding=20,
             ),
             "/history": lambda: ft.View(
-                appbar=create_appbar("Histórico"),
+                appbar=mobile_appbar.create_appbar("Histórico", show_back_button=True),
                 route="/history",
                 controls=[HistoryPage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -205,7 +209,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
             day = page.route.split("/")[-1]
             page.views.append(
                 ft.View(
-                    appbar=create_appbar(f"Treino - {day.capitalize()}"),
+                    appbar=mobile_appbar.create_appbar(
+                        f"Treino - {day.capitalize()}", show_back_button=True
+                    ),
                     route=f"/treino/{day}",
                     controls=[Treinopage(page, supabase, day)],
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -219,7 +225,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Manipula a rota de criação de perfil."""
         page.views.append(
             ft.View(
-                appbar=create_appbar("Criar Perfil"),
+                appbar=mobile_appbar.create_appbar(
+                    "Criar Perfil", show_back_button=True
+                ),
                 route="/create_profile",
                 controls=[CreateProfilePage(page, supabase)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
