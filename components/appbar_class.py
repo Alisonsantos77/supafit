@@ -1,5 +1,4 @@
 import flet as ft
-from components.components import AvatarComponent
 from services.supabase import SupabaseService
 from utils.logger import get_logger
 
@@ -112,12 +111,6 @@ class MobileAppBar:
     def create_appbar(self, title: str, show_back_button: bool = False) -> ft.AppBar:
         """Cria AppBar otimizado para mobile com design moderno."""
         user_id = self.page.client_storage.get("supafit.user_id")
-        avatar = AvatarComponent(
-            user_id=user_id,
-            image_url=user_id if user_id else "https://picsum.photos/200",
-            radius=16,
-            is_trainer=False,
-        )
 
         leading = (
             ft.IconButton(
@@ -134,127 +127,147 @@ class MobileAppBar:
         )
 
         return ft.AppBar(
-            title=ft.Text(
-                title,
-                size=18,
-                weight=ft.FontWeight.W_600,
-                color=ft.Colors.PRIMARY,
+            title=ft.Container(
+                content=ft.Text(
+                    title,
+                    size=18,
+                    weight=ft.FontWeight.W_600,
+                    color=ft.Colors.PRIMARY,
+                ),
+                padding=ft.padding.symmetric(horizontal=16),  # Margem lateral no título
             ),
             center_title=True,
             leading=leading,
             elevation=0,
             bgcolor=ft.Colors.SURFACE,
             actions=[
-                ft.PopupMenuButton(
-                    content=avatar,
-                    tooltip="Menu",
-                    items=[
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.HOME, color=ft.Colors.BLUE_600, size=20
-                                    ),
-                                    ft.Text(
-                                        "Início", size=14, weight=ft.FontWeight.W_500
-                                    ),
-                                ],
-                                spacing=12,
-                            ),
-                            on_click=self.handle_menu_item,
+                ft.Container(
+                    content=ft.PopupMenuButton(
+                        content=ft.Icon(
+                            ft.Icons.MENU_OUTLINED,
+                            size=28,
+                            color=ft.Colors.PRIMARY,
                         ),
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.PERSON,
-                                        color=ft.Colors.GREEN_600,
-                                        size=20,
-                                    ),
-                                    ft.Text(
-                                        "Perfil", size=14, weight=ft.FontWeight.W_500
-                                    ),
-                                ],
-                                spacing=12,
+                        tooltip="Menu",
+                        items=[
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.HOME,
+                                            color=ft.Colors.BLUE_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Início",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
                             ),
-                            on_click=self.handle_menu_item,
-                        ),
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.CALENDAR_MONTH,
-                                        color=ft.Colors.PURPLE_600,
-                                        size=20,
-                                    ),
-                                    ft.Text(
-                                        "Histórico", size=14, weight=ft.FontWeight.W_500
-                                    ),
-                                ],
-                                spacing=12,
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.PERSON,
+                                            color=ft.Colors.GREEN_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Perfil",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
                             ),
-                            on_click=self.handle_menu_item,
-                        ),
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.TIMER,
-                                        color=ft.Colors.ORANGE_600,
-                                        size=20,
-                                    ),
-                                    ft.Text(
-                                        "Pergunte ao Treinador",
-                                        size=14,
-                                        weight=ft.FontWeight.W_500,
-                                    ),
-                                ],
-                                spacing=12,
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.CALENDAR_MONTH,
+                                            color=ft.Colors.PURPLE_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Histórico",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
                             ),
-                            on_click=self.handle_menu_item,
-                        ),
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.GROUP,
-                                        color=ft.Colors.TEAL_600,
-                                        size=20,
-                                    ),
-                                    ft.Text(
-                                        "Galeria de Vitórias",
-                                        size=14,
-                                        weight=ft.FontWeight.W_500,
-                                    ),
-                                ],
-                                spacing=12,
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.TIMER,
+                                            color=ft.Colors.ORANGE_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Pergunte ao Treinador",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
                             ),
-                            on_click=self.handle_menu_item,
-                        ),
-                        ft.PopupMenuItem(),
-                        ft.PopupMenuItem(
-                            content=ft.Row(
-                                [
-                                    ft.Icon(
-                                        ft.Icons.LOGOUT,
-                                        color=ft.Colors.RED_600,
-                                        size=20,
-                                    ),
-                                    ft.Text(
-                                        "Sair",
-                                        size=14,
-                                        weight=ft.FontWeight.W_500,
-                                        color=ft.Colors.RED_600,
-                                    ),
-                                ],
-                                spacing=12,
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.GROUP,
+                                            color=ft.Colors.TEAL_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Galeria de Vitórias",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
                             ),
-                            on_click=self.handle_menu_item,
-                        ),
-                    ],
-                    menu_position=ft.PopupMenuPosition.UNDER,
-                    elevation=2,
-                    shape=ft.RoundedRectangleBorder(radius=12),
+                            ft.PopupMenuItem(),
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.LOGOUT,
+                                            color=ft.Colors.RED_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "Sair",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                            color=ft.Colors.RED_600,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
+                            ),
+                        ],
+                        menu_position=ft.PopupMenuPosition.UNDER,
+                        elevation=2,
+                        shape=ft.RoundedRectangleBorder(radius=12),
+                    ),
+                    padding=ft.padding.only(
+                        right=16
+                    ),  # Margem lateral no botão de ação
                 ),
             ],
         )
