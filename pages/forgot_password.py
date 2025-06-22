@@ -14,7 +14,7 @@ logger.addHandler(handler)
 
 
 def ForgotPasswordPage(page: ft.Page):
-    supabase_service = SupabaseService()
+    supabase_service = SupabaseService.get_instance(page)
     lottie_url = os.getenv("LOTTIE_LOGIN")
 
     forgot_password_lottie = fl.Lottie(

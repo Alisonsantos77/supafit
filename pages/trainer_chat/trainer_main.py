@@ -103,7 +103,7 @@ def TrainerTab(
                         ft.Row(
                             [
                                 ft.Text(
-                                    "Treinador Virtual",
+                                    "Treinador Coachito",
                                     size=20,
                                     weight=ft.FontWeight.BOLD,
                                 ),

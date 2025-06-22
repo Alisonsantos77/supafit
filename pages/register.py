@@ -13,7 +13,7 @@ LOTTIE_REGISTER = os.getenv("LOTTIE_REGISTER")
 
 
 def RegisterPage(page: ft.Page):
-    supabase_service = SupabaseService()
+    supabase_service = SupabaseService.get_instance(page)
     page.scroll = ft.ScrollMode.AUTO
     register_btn = ft.Ref[ft.ElevatedButton]()
 

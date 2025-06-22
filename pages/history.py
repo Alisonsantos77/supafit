@@ -4,7 +4,7 @@ from utils.helpers import format_date
 
 
 def HistoryPage(page: ft.Page, supabase):
-    supabase_service = SupabaseService()
+    supabase_service = SupabaseService.get_instance(page)
     user_id = page.client_storage.get("supafit.user_id")
     workouts = supabase_service.get_workouts(user_id).data or []
 
