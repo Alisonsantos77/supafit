@@ -18,8 +18,8 @@ logger = get_logger("supafit.trainer_chat.trainer_main")
 def TrainerTab(
     page: ft.Page, supabase_service: SupabaseService, anthropic: AnthropicService
 ) -> ft.Control:
-    """Cria a interface da aba Treinador com design moderno."""
-    page.padding = 10
+    """Cria a interface da aba Treinador com design minimalista."""
+    page.padding = 0
     user_id = page.client_storage.get("supafit.user_id")
 
     async def initialize():
@@ -78,83 +78,56 @@ def TrainerTab(
 
     page.run_task(setup_page)
 
-    header = ft.Container(
-        content=ft.Column(
+    input_row = ft.Container(
+        content=ft.Row(
             [
-                ft.Text(
-                    "Chat com o Treinador",
-                    size=28,
-                    weight=ft.FontWeight.BOLD,
-                ),
-                ft.Text(
-                    "Converse com seu treinador virtual",
-                    size=14,
-                    opacity=0.8,
-                ),
+                question_field,
+                ask_button,
             ],
-            spacing=4,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=8,
+            tight=True,
         ),
-        padding=ft.padding.all(32),
-        border_radius=ft.border_radius.only(bottom_left=24, bottom_right=24),
+        padding=ft.padding.symmetric(horizontal=8, vertical=12),
+        border=ft.border.only(
+            top=ft.BorderSide(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE))
+        ),
     )
 
     main_column = ft.Column(
         ref=ft.Ref[ft.Column](),
         controls=[
-            header,
             ft.Container(
                 content=ft.Column(
                     [
                         ft.Row(
                             [
                                 ft.Text(
-                                    "Conversa",
-                                    size=18,
+                                    "Treinador Virtual",
+                                    size=20,
                                     weight=ft.FontWeight.BOLD,
                                 ),
                                 clear_button,
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=8,
                         ),
-                        ft.Container(
-                            content=chat_container,
-                            border=ft.border.all(
-                                1, ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE)
-                            ),
-                            border_radius=16,
-                            padding=10,
-                            expand=True,
-                        ),
-                        ft.ResponsiveRow(
-                            [
-                                ft.Container(
-                                    content=question_field,
-                                    col={"xs": 12, "sm": 9, "md": 10},
-                                    padding=5,
-                                ),
-                                ft.Container(
-                                    content=ask_button,
-                                    col={"xs": 12, "sm": 3, "md": 2},
-                                    alignment=ft.alignment.center,
-                                    padding=5,
-                                ),
-                            ],
-                            alignment=ft.MainAxisAlignment.CENTER,
-                            vertical_alignment=ft.CrossAxisAlignment.END,
-                        ),
+                        chat_container,
                     ],
-                    spacing=15,
+                    spacing=8,
                     horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                    expand=True,
                 ),
-                padding=ft.padding.all(24),
+                padding=ft.padding.symmetric(horizontal=8, vertical=12),
+                expand=True,
             ),
+            input_row,
         ],
         spacing=0,
         alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
         expand=True,
-        scroll="auto",
     )
 
     return main_column

@@ -194,7 +194,7 @@ def ProfileSettingsPage(page: ft.Page):
         ),
         padding=ft.padding.all(32),
         gradient=ft.LinearGradient(
-            colors=[
+            Colors=[
                 ft.Colors.BLUE_600,
                 ft.Colors.BLUE_800,
             ],

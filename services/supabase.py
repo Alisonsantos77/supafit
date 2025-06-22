@@ -32,57 +32,58 @@ class SupabaseService:
         self.client: Client = create_client(self.url, self.key)
         self.page = page
         logger.info("Cliente Supabase inicializado com sucesso.")
-        self._restore_session()
+        if page:
+            self._restore_session()
 
     def _restore_session(self) -> None:
         """Restaura a sessão do Supabase a partir do client_storage."""
         if not self.page:
+            logger.warning("Página não fornecida. Ignorando restauração de sessão.")
             return
         try:
             access_token = self.page.client_storage.get("supafit.access_token")
             refresh_token = self.page.client_storage.get("supafit.refresh_token")
             if access_token and refresh_token:
-                try:
-                    response = self.client.auth.set_session(access_token, refresh_token)
-                    if response.session:
-                        logger.info("Sessão restaurada com sucesso.")
-                        self._update_client_storage(response)
+                response = self.client.auth.set_session(access_token, refresh_token)
+                if response.session:
+                    logger.info("Sessão restaurada com sucesso.")
+                    self._update_client_storage(response)
+                else:
+                    logger.warning("Sessão inválida ou expirada. Tentando renovar.")
+                    if self.refresh_session():
+                        logger.info("Sessão renovada com sucesso.")
                     else:
-                        logger.warning("Sessão inválida ou expirada. Tentando renovar.")
-                        if self.refresh_session():
-                            logger.info("Sessão renovada com sucesso.")
-                        else:
-                            self._clear_session()
-                            self._safe_show_snackbar(
-                                "Sessão expirada. Faça login novamente."
-                            )
-                except Exception as e:
-                    if "Invalid Refresh Token" in str(e):
-                        logger.warning(
-                            "Token de atualização inválido. Limpando sessão."
-                        )
                         self._clear_session()
                         self._safe_show_snackbar(
                             "Sessão expirada. Faça login novamente."
                         )
-                    else:
-                        raise e
             else:
                 logger.info("Nenhum token de sessão encontrado.")
                 self._clear_session()
         except Exception as e:
-            logger.error(f"Erro ao restaurar sessão: {str(e)}")
-            self._clear_session()
-            self._safe_show_snackbar(f"Erro ao restaurar sessão: {str(e)}")
+            if "Invalid Refresh Token" in str(e):
+                logger.warning("Token de atualização inválido. Limpando sessão.")
+                self._clear_session()
+                self._safe_show_snackbar("Sessão expirada. Faça login novamente.")
+            else:
+                logger.error(f"Erro ao restaurar sessão: {str(e)}")
+                self._clear_session()
+                self._safe_show_snackbar(f"Erro ao restaurar sessão: {str(e)}")
 
     def _safe_show_snackbar(self, message: str) -> None:
         """Exibe snackbar apenas se a página estiver pronta."""
-        if self.page and hasattr(self.page, "open"):
+        if (
+            self.page
+            and hasattr(self.page, "overlay")
+            and self.page.overlay is not None
+        ):
             try:
-                self.page.open(ft.SnackBar(ft.Text(message)))
-                self.page.update()
+                snackbar = CustomSnackBar(message=message, bgcolor=ft.Colors.RED_700)
+                snackbar.show(self.page)
             except Exception as e:
                 logger.error(f"Erro ao exibir snackbar: {str(e)}")
+        else:
+            logger.warning("Página não pronta para exibir snackbar.")
 
     def _update_client_storage(self, response) -> None:
         """Atualiza dados de autenticação no client_storage."""
@@ -99,10 +100,7 @@ class SupabaseService:
             logger.info(f"Client storage atualizado para user: {user.email}")
         except Exception as e:
             logger.error(f"Erro ao atualizar client_storage: {str(e)}")
-            self.page.open(
-                ft.SnackBar(ft.Text(f"Erro ao atualizar armazenamento: {str(e)}"))
-            )
-            self.page.update()
+            self._safe_show_snackbar(f"Erro ao atualizar armazenamento: {str(e)}")
 
     def _check_and_save_user(self, user_id: str) -> None:
         """Verifica e salva informações do perfil no client_storage."""
@@ -120,8 +118,7 @@ class SupabaseService:
                 logger.info("Perfil não encontrado - necessário criar perfil")
         except Exception as e:
             logger.error(f"Erro ao verificar perfil: {str(e)}")
-            self.page.open(ft.SnackBar(ft.Text(f"Erro ao verificar perfil: {str(e)}")))
-            self.page.update()
+            self._safe_show_snackbar(f"Erro ao verificar perfil: {str(e)}")
 
     def _clear_session(self) -> None:
         """Limpa dados de sessão no Supabase."""
@@ -141,9 +138,7 @@ class SupabaseService:
             logger.info("Sessão concluída com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao concluir sessão: {str(e)}")
-            if self.page:
-                self.page.open(ft.SnackBar(ft.Text(f"Erro ao limpar sessão: {str(e)}")))
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao limpar sessão: {str(e)}")
 
     def get_current_user(self) -> str:
         """Retorna o usuário atual autenticado."""
@@ -172,11 +167,7 @@ class SupabaseService:
             return False
         except Exception as e:
             logger.error(f"Erro ao verificar autenticação: {str(e)}")
-            if self.page:
-                self.page.open(
-                    ft.SnackBar(ft.Text(f"Erro ao verificar autenticação: {str(e)}"))
-                )
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao verificar autenticação: {str(e)}")
             return False
 
     def login(self, email: str, password: str):
@@ -194,9 +185,7 @@ class SupabaseService:
                 raise Exception("Falha no login: resposta inválida")
         except Exception as e:
             logger.error(f"Erro no login: {str(e)}")
-            if self.page:
-                self.page.open(ft.SnackBar(ft.Text(f"Erro no login: {str(e)}")))
-                self.page.update()
+            self._safe_show_snackbar(f"Erro no login: {str(e)}")
             raise
 
     def refresh_session(self) -> bool:
@@ -210,18 +199,12 @@ class SupabaseService:
             else:
                 logger.warning("Falha ao renovar sessão.")
                 self._clear_session()
-                if self.page:
-                    self.page.open(ft.SnackBar(ft.Text("Falha ao renovar sessão.")))
-                    self.page.update()
+                self._safe_show_snackbar("Falha ao renovar sessão.")
                 return False
         except Exception as e:
             logger.error(f"Erro ao renovar sessão: {str(e)}")
             self._clear_session()
-            if self.page:
-                self.page.open(
-                    ft.SnackBar(ft.Text(f"Erro ao renovar sessão: {str(e)}"))
-                )
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao renovar sessão: {str(e)}")
             return False
 
     def logout(self):
@@ -229,23 +212,15 @@ class SupabaseService:
         try:
             self._clear_session()
             if self.page:
-                self.page.open(
-                    ft.SnackBar(
-                        ft.Text(
-                            "Logout realizado com sucesso!", bgcolor=ft.Colors.GREEN_700
-                        )
-                    )
+                snackbar = CustomSnackBar(
+                    message="Logout realizado com sucesso!", bgcolor=ft.Colors.GREEN_700
                 )
+                snackbar.show(self.page)
                 self.page.go("/login")
-                self.page.update()
             logger.info("Logout concluído com sucesso.")
         except Exception as e:
             logger.error(f"Erro no logout: {str(e)}")
-            if self.page:
-                self.page.open(
-                    ft.SnackBar(ft.Text(f"Erro ao realizar logout: {str(e)}"))
-                )
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao realizar logout: {str(e)}")
             raise
 
     def create_profile(self, user_id: str, profile_data: dict):
@@ -263,9 +238,7 @@ class SupabaseService:
             return response.data
         except Exception as e:
             logger.error(f"Erro ao criar perfil: {str(e)}")
-            if self.page:
-                self.page.open(ft.SnackBar(ft.Text(f"Erro ao criar perfil: {str(e)}")))
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao criar perfil: {str(e)}")
             raise
 
     def get_profile(self, user_id: str):
@@ -281,11 +254,7 @@ class SupabaseService:
             return response
         except Exception as e:
             logger.error(f"Erro ao recuperar perfil: {str(e)}")
-            if self.page:
-                self.page.open(
-                    ft.SnackBar(ft.Text(f"Erro ao recuperar perfil: {str(e)}"))
-                )
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao recuperar perfil: {str(e)}")
             raise
 
     def get_workouts(self, user_id: str):
@@ -301,9 +270,5 @@ class SupabaseService:
             return response
         except Exception as e:
             logger.error(f"Erro ao recuperar treinos: {str(e)}")
-            if self.page:
-                self.page.open(
-                    ft.SnackBar(ft.Text(f"Erro ao recuperar treinos: {str(e)}"))
-                )
-                self.page.update()
+            self._safe_show_snackbar(f"Erro ao recuperar treinos: {str(e)}")
             raise

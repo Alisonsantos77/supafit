@@ -3,15 +3,31 @@ import asyncio
 import time
 from datetime import datetime
 import uuid
-from components.message import ChatMessage, Message
+from .message import Message, ChatMessage
 from services.supabase import SupabaseService
 from services.anthropic import AnthropicService
 from postgrest.exceptions import APIError
 from utils.logger import get_logger
 from utils.quebra_mensagem import integrate_with_chat
 from utils.alerts import CustomSnackBar, CustomAlertDialog
+import sys
+import logging
 
+# Configura logger para UTF-8
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 logger = get_logger("supafit.trainer_chat.chat_logic")
+logger.handlers[0].setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+)
+logger.handlers[0].stream.reconfigure(encoding="utf-8")
+
 COOLDOWN_SECONDS = 2
 
 
@@ -21,8 +37,10 @@ async def load_chat_history(
     chat_container: ft.ListView,
     page: ft.Page,
 ) -> list:
-    """Carrega o histórico de conversa do Supabase com animação de entrada."""
+    """Carrega o histórico de conversa com animação de entrada."""
     try:
+        import json
+
         chat_container.controls.clear()
         chat_container.controls.append(
             ChatMessage(
@@ -31,10 +49,12 @@ async def load_chat_history(
                     text="Olá! Como posso ajudar com seu treino hoje? 😄",
                     user_type="trainer",
                     created_at=datetime.now().isoformat(),
+                    show_avatar=True,
                 ),
                 page,
             )
         )
+
         resp = (
             supabase_service.client.table("trainer_qa")
             .select("message")
@@ -43,25 +63,39 @@ async def load_chat_history(
             .limit(50)
             .execute()
         )
+
         history = []
+
         for item in resp.data:
-            messages = item.get("message", [])
+            raw_message = item.get("message", [])
+            if isinstance(raw_message, str):
+                try:
+                    messages = json.loads(raw_message)
+                except Exception as e:
+                    logger.error(f"Erro ao decodificar mensagem JSON: {e}")
+                    continue
+            else:
+                messages = raw_message
+
             history.extend(messages)
             for msg in messages:
                 chat_container.controls.append(
                     ChatMessage(
                         Message(
                             user_name="Você" if msg["role"] == "user" else "Treinador",
-                            text=msg["content"],
+                            text=msg["content"] or "Mensagem vazia",
                             user_type=msg["role"],
                             created_at=msg["timestamp"],
+                            show_avatar=False,
                         ),
                         page,
                     )
                 )
+                
         page.update()
         logger.info(f"Histórico carregado para user_id: {user_id}")
         return history
+
     except APIError as e:
         if e.code == "42501":
             if supabase_service.refresh_session():
@@ -87,7 +121,7 @@ async def clear_chat(
     chat_container: ft.ListView,
     page: ft.Page,
 ):
-    """Limpa o histórico de conversa com confirmação visual."""
+    """Limpa o histórico com confirmação visual."""
 
     async def confirm_clear(e):
         if e.control.text == "Sim":
@@ -102,6 +136,7 @@ async def clear_chat(
                             text="Olá! Como posso ajudar com seu treino hoje? 😄",
                             user_type="trainer",
                             created_at=datetime.now().isoformat(),
+                            show_avatar=True,
                         ),
                         page,
                     )
@@ -144,7 +179,7 @@ async def ask_question(
     supabase_service: SupabaseService,
     anthropic: AnthropicService,
     question_field: ft.TextField,
-    ask_button: ft.ElevatedButton,
+    ask_button: ft.IconButton,
     chat_container: ft.ListView,
     user_data: dict,
     user_id: str,
@@ -154,29 +189,26 @@ async def ask_question(
     """Processa a pergunta do usuário com validações e animações."""
     current_time = time.time()
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
-        CustomSnackBar(message="Aguarde antes de enviar outra pergunta!").show(page)
+        CustomSnackBar(message="Aguarde antes de enviar outra mensagem!").show(page)
         return
 
     question = question_field.value.strip()
     if not question:
-        question_field.error_text = "Digite uma pergunta!"
+        question_field.error_text = "Digite uma mensagem!"
         page.update()
         return
     if len(question) > 500:
-        question_field.error_text = "Pergunta muito longa (máximo 500 caracteres)."
+        question_field.error_text = "Mensagem muito longa (máximo 500 caracteres)."
         page.update()
         return
     if anthropic.is_sensitive_question(question):
         CustomSnackBar(
-            message="Conversa sensível detectada.", bgcolor=ft.Colors.RED_700
+            message="Conteúdo sensível detectado.", bgcolor=ft.Colors.RED_700
         ).show(page)
         return
 
     ask_button.disabled = True
-    ask_button.content = ft.Row(
-        [ft.ProgressRing(width=16, height=16), ft.Text(" Enviando...")],
-        alignment=ft.MainAxisAlignment.CENTER,
-    )
+    ask_button.content = ft.ProgressRing(width=24, height=24, stroke_width=2)
     page.update()
 
     try:
@@ -188,6 +220,7 @@ async def ask_question(
                     text=question,
                     user_type="user",
                     created_at=datetime.now().isoformat(),
+                    show_avatar=False,
                 ),
                 page,
             )
@@ -198,19 +231,21 @@ async def ask_question(
         typing_indicator = ft.AnimatedSwitcher(
             content=ft.Row(
                 [
-                    ft.Text("Treinador está digitando"),
-                    ft.ProgressRing(width=16, height=16),
-                ]
+                    ft.Text("Treinador está digitando...", size=14, italic=True),
+                    ft.ProgressRing(width=16, height=16, stroke_width=2),
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                spacing=8,
             ),
             transition=ft.AnimatedSwitcherTransition.FADE,
-            duration=500,
+            duration=300,
         )
         chat_container.controls.append(typing_indicator)
         page.update()
         await asyncio.sleep(1)
 
         system_prompt = f"""
-        Você é um treinador virtual do SupaFit, motivado e amigável. Use emojis 💪🏋️.
+        Você é um treinador virtual do SupaFit, motivado e amigável. Use emojis moderadamente.
         Informações do usuário:
         - Nome: {user_data.get('name', 'Usuário')}
         - Idade: {user_data.get('age', 'N/A')} anos
@@ -237,6 +272,8 @@ async def ask_question(
             }
         ]
         for msg, delay in messages_with_delays:
+            if not msg.strip():  # Ignora mensagens vazias
+                continue
             response_id = str(uuid.uuid4())
             message_json.append(
                 {
@@ -251,9 +288,10 @@ async def ask_question(
                 ChatMessage(
                     Message(
                         user_name="Treinador",
-                        text=msg,
+                        text=msg.strip() or "Mensagem vazia",
                         user_type="assistant",
                         created_at=datetime.now().isoformat(),
+                        show_avatar=False,
                     ),
                     page,
                 )
@@ -263,26 +301,28 @@ async def ask_question(
             await asyncio.sleep(delay)
             page.update()
 
-        supabase_service.client.table("trainer_qa").insert(
-            {
-                "user_id": user_id,
-                "message": message_json,
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
-            }
-        ).execute()
+        if len(message_json) > 1:  # Insere apenas se houver mensagens válidas
+            supabase_service.client.table("trainer_qa").insert(
+                {
+                    "user_id": user_id,
+                    "message": message_json,
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                }
+            ).execute()
         question_field.value = ""
         question_field.error_text = None
-        CustomSnackBar(message="Pergunta enviada com sucesso!").show(page)
+        CustomSnackBar(message="Mensagem enviada!").show(page)
         last_question_time[0] = current_time
         logger.info(f"Pergunta processada com sucesso para user_id: {user_id}")
 
     except Exception as ex:
         logger.error(f"Erro ao processar pergunta: {str(ex)}")
         CustomSnackBar(
-            message=f"Erro ao obter resposta: {str(ex)}", bgcolor=ft.Colors.RED_700
+            message=f"Erro ao enviar mensagem: {str(ex)}", bgcolor=ft.Colors.RED_700
         ).show(page)
     finally:
         ask_button.disabled = False
-        ask_button.content = ft.Text("Enviar", size=14, weight=ft.FontWeight.W_600)
+        ask_button.content = None
+        ask_button.icon = ft.Icons.SEND_ROUNDED
         page.update()

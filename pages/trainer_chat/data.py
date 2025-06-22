@@ -2,8 +2,23 @@ import flet as ft
 from services.supabase import SupabaseService
 from utils.logger import get_logger
 from utils.alerts import CustomSnackBar
+import sys
+import logging
 
+# Configura logger para evitar erros de codificação no Windows
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 logger = get_logger("supafit.trainer_chat.data")
+logger.handlers[0].setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+)
+logger.handlers[0].stream.reconfigure(encoding="utf-8")
 
 
 def get_user_profile(supabase_service: SupabaseService, user_id: str) -> dict:

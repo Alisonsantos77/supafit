@@ -3,71 +3,65 @@ from utils.alerts import CustomSnackBar
 
 
 def create_chat_container(page: ft.Page) -> ft.ListView:
-    """Cria o contêiner do chat com auto-scroll e animação de entrada."""
+    """Cria o contêiner do chat com auto-scroll e design minimalista."""
     return ft.ListView(
         ref=ft.Ref[ft.ListView](),
         expand=True,
-        spacing=10,
-        padding=20,
+        spacing=8,
+        padding=ft.padding.symmetric(horizontal=8, vertical=12),
         auto_scroll=True,
         width=page.window.width,
-        animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_IN),
     )
 
 
 def create_question_input() -> ft.TextField:
-    """Cria o campo de entrada de perguntas com validação visual."""
+    """Cria o campo de entrada com validação visual e design limpo."""
     return ft.TextField(
         ref=ft.Ref[ft.TextField](),
-        label="Faça sua pergunta",
+        label="Digite sua mensagem",
         multiline=True,
         expand=True,
-        border_radius=12,
-        text_size=14,
+        border_radius=24,
+        text_size=16,
         min_lines=1,
-        max_lines=5,
+        max_lines=4,
         shift_enter=True,
         filled=True,
-        border_color=ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE),
+        border_color=ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE),
         focused_border_color=ft.Colors.BLUE_400,
-        content_padding=ft.padding.all(16),
-        text_style=ft.TextStyle(size=14),
+        content_padding=ft.padding.symmetric(horizontal=16, vertical=12),
+        text_style=ft.TextStyle(size=16),
         max_length=500,
         counter_style=ft.TextStyle(color=ft.Colors.ON_SURFACE_VARIANT),
-        on_change=lambda e: e.control.error_text(None),  # Limpa erro ao digitar
+        on_change=lambda e: setattr(e.control, "error_text", None),
     )
 
 
-def create_ask_button(page: ft.Page, on_click_callback) -> ft.ElevatedButton:
-    """Cria o botão de envio com feedback de loading e animação."""
-    button = ft.ElevatedButton(
-        ref=ft.Ref[ft.ElevatedButton](),
-        content=ft.Text("Enviar", size=14, weight=ft.FontWeight.W_600),
+def create_ask_button(page: ft.Page, on_click_callback) -> ft.IconButton:
+    """Cria o botão de envio como ícone com animação suave."""
+    return ft.IconButton(
+        ref=ft.Ref[ft.IconButton](),
+        icon=ft.Icons.SEND_ROUNDED,
+        icon_size=24,
+        icon_color=ft.Colors.BLUE_400,
         style=ft.ButtonStyle(
-            padding=ft.padding.symmetric(horizontal=24, vertical=16),
-            shape=ft.RoundedRectangleBorder(radius=12),
-            elevation=0,
+            padding=12,
+            shape=ft.CircleBorder(),
             overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE),
         ),
-        height=56,
         on_click=on_click_callback,
         animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
     )
-    return button
 
 
-def create_clear_button(page: ft.Page, clear_callback) -> ft.ElevatedButton:
-    """Cria o botão para limpar o chat com animação."""
-    button = ft.ElevatedButton(
-        content=ft.Text("Limpar Chat", size=14, weight=ft.FontWeight.W_600),
+def create_clear_button(page: ft.Page, clear_callback) -> ft.TextButton:
+    """Cria o botão de limpar chat como texto com animação."""
+    return ft.TextButton(
+        content=ft.Text("Limpar", size=14, color=ft.Colors.BLUE_400),
         style=ft.ButtonStyle(
-            padding=ft.padding.symmetric(horizontal=24, vertical=16),
-            shape=ft.RoundedRectangleBorder(radius=12),
-            elevation=0,
-            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE),
+            padding=ft.padding.symmetric(horizontal=12, vertical=8),
+            shape=ft.RoundedRectangleBorder(radius=8),
         ),
-        height=56,
         on_click=clear_callback,
-        animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+        animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_IN),
     )
-    return button

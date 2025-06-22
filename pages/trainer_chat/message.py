@@ -5,12 +5,18 @@ from components.components import AvatarComponent
 
 class Message:
     def __init__(
-        self, user_name: str, text: str, user_type: str = "user", created_at: str = None
+        self,
+        user_name: str,
+        text: str,
+        user_type: str = "user",
+        created_at: str = None,
+        show_avatar: bool = False,
     ):
         self.user_name = user_name
         self.text = text
         self.user_type = user_type
         self.created_at = created_at
+        self.show_avatar = show_avatar
 
 
 class ChatMessage(ft.Container):
@@ -18,36 +24,40 @@ class ChatMessage(ft.Container):
         super().__init__()
         self.message = message
         self.page = page
+        self.is_user = message.user_type == "user"
 
-        # Determina se é mensagem do treinador
-        is_trainer = message.user_type == "trainer"
-        avatar = AvatarComponent(message.user_name, radius=20, is_trainer=is_trainer)
+        # Avatar apenas para mensagem inicial do treinador
+        avatar = (
+            AvatarComponent(message.user_name, radius=16, is_trainer=not self.is_user)
+            if message.show_avatar and not self.is_user
+            else None
+        )
 
-        # Formata o timestamp inicial
+        # Formata o timestamp
         self.time_str = self._format_timestamp(message.created_at)
 
-        # Usa cores do tema da página
+        # Usa cores do tema
         cs = page.theme.color_scheme
-        bgcolor = cs.primary if is_trainer else cs.secondary
-        text_color = cs.on_primary if is_trainer else cs.on_secondary
-        time_color = ft.Colors.WHITE54
+        text_color = cs.on_surface
+        time_color = ft.Colors.with_opacity(0.6, cs.on_surface)
 
         # Referências para controles dinâmicos
         self.message_text_ref = ft.Ref[ft.Markdown]()
         self.time_display_ref = ft.Ref[ft.Text]()
 
-        # Configura o Markdown para o texto da mensagem
+
         self.message_text = ft.Markdown(
             ref=self.message_text_ref,
             value=message.text,
             selectable=True,
             extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
             on_tap_link=lambda e: page.launch_url(e.data),
-            opacity=0,  # Inicia invisível para fade-in
+            opacity=1,  # Alterado de 0 para 1
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_IN),
         )
-
-        # Configura o Text para o timestamp
+        self.opacity = 1  # Alterado de 0 para 1
+        self.offset = ft.Offset(0, 0)  # Alterado de (0.2 if self.is_user else -0.2, 0)
+        # Configura o timestamp
         self.time_display = ft.Text(
             ref=self.time_display_ref,
             value=self.time_str,
@@ -61,7 +71,8 @@ class ChatMessage(ft.Container):
             leading=avatar,
             title=ft.Text(
                 message.user_name,
-                weight=ft.FontWeight.BOLD,
+                size=14,
+                weight=ft.FontWeight.W_500,
                 color=text_color,
             ),
             subtitle=ft.Column(
@@ -70,30 +81,35 @@ class ChatMessage(ft.Container):
                     self.time_display,
                 ],
                 tight=True,
-                spacing=5,
+                spacing=4,
             ),
-            bgcolor=bgcolor,
-            content_padding=ft.padding.symmetric(horizontal=10, vertical=5),
-            dense=False,
-            min_leading_width=40,
+            bgcolor=(
+                ft.Colors.with_opacity(0.05, cs.on_surface) if self.is_user else None
+            ),
+            content_padding=ft.padding.symmetric(horizontal=8, vertical=4),
+            dense=True,
+            min_leading_width=32,
         )
 
         # Configurações do Container
         self.content = list_tile
-        self.padding = ft.padding.symmetric(horizontal=10, vertical=5)
-        self.border_radius = 10
+        self.padding = ft.padding.symmetric(horizontal=8, vertical=4)
+        self.border_radius = 16
         self.alignment = (
-            ft.alignment.center_left if is_trainer else ft.alignment.center_right
+            ft.alignment.center_right if self.is_user else ft.alignment.center_left
         )
-        self.width = min(page.window.width * 0.7, 400)
+        self.width = min(page.window.width * 0.75, 400)
         self.expand = True
         self.clip_behavior = ft.ClipBehavior.HARD_EDGE
-        self.shadow = ft.BoxShadow(blur_radius=1, offset=ft.Offset(0, 2))
+        self.animate_opacity = ft.Animation(400, ft.AnimationCurve.EASE_OUT)
+        self.animate_offset = ft.Animation(400, ft.AnimationCurve.EASE_OUT)
+        self.offset = ft.Offset(0.2 if self.is_user else -0.2, 0)
+        self.opacity = 0
 
     def did_mount(self):
-        """Chamado quando o controle é montado na página."""
-        # Aplica o efeito de fade-in inicial
-        self.message_text_ref.current.opacity = 1
+        """Aplica fade-in e deslize ao montar."""
+        self.opacity = 1
+        self.offset = self.offset = ft.Offset(0, 0)
         self.update()
 
     def _format_timestamp(self, created_at: str) -> str:
@@ -108,18 +124,13 @@ class ChatMessage(ft.Container):
         return "Horário desconhecido"
 
     def update_text(self, new_text: str):
-        """Atualiza o texto da mensagem dinamicamente com efeito de fade-in."""
-        # Atualiza o texto com efeito de fade
-        self.message_text_ref.current.opacity = 0  # Torna invisível antes de atualizar
+        """Atualiza o texto com efeito de fade-in."""
+        self.message_text_ref.current.opacity = 0
         self.message_text_ref.current.value = new_text
-        self.message.text = new_text  # Atualiza o texto no objeto Message
-        self.message_text_ref.current.opacity = 1  # Fade-in para o novo texto
-
-        # Atualiza o timestamp
+        self.message.text = new_text
+        self.message_text_ref.current.opacity = 1
         self.message.created_at = datetime.now().isoformat()
         self.time_display_ref.current.value = self._format_timestamp(
             self.message.created_at
         )
-
-        # Atualiza a UI
         self.page.update()

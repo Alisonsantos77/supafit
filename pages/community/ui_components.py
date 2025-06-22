@@ -4,14 +4,14 @@ from .models import Victory
 from components.components import AvatarComponent
 from utils.alerts import CustomSnackBar
 
-category_colors = {
+category_Colors = {
     "Força": ft.Colors.RED_100,
     "Resistência": ft.Colors.BLUE_100,
     "Disciplina": ft.Colors.PURPLE_100,
     "Nutrição": ft.Colors.GREEN_100,
 }
 
-category_text_colors = {
+category_text_Colors = {
     "Força": ft.Colors.RED_800,
     "Resistência": ft.Colors.BLUE_800,
     "Disciplina": ft.Colors.PURPLE_800,
@@ -60,9 +60,7 @@ class VictoryCard:
                         ),
                         trailing=ft.Chip(
                             label=ft.Text(
-                                self.victory.category,
-                                size=12,
-                                color=ft.Colors.PRIMARY                               
+                                self.victory.category, size=12, color=ft.Colors.PRIMARY
                             ),
                             padding=ft.padding.symmetric(horizontal=8),
                         ),
@@ -232,7 +230,7 @@ class CategoryFilter:
                     color=(
                         ft.Colors.WHITE
                         if category == self.selected_category
-                        else category_text_colors.get(category, ft.Colors.GREY_800)
+                        else category_text_Colors.get(category, ft.Colors.GREY_800)
                     ),
                 ),
                 selected=category == self.selected_category,
@@ -240,7 +238,7 @@ class CategoryFilter:
                 bgcolor=(
                     ft.Colors.GREY_900
                     if category == self.selected_category
-                    else category_colors.get(category, ft.Colors.GREY_200)
+                    else category_Colors.get(category, ft.Colors.GREY_200)
                 ),
                 padding=ft.padding.symmetric(horizontal=12),
                 animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
