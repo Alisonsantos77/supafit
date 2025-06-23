@@ -71,9 +71,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Redireciona para página de login."""
         page.views.append(
             ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Login - SupaFit", show_back_button=False
-                ),
                 padding=20,
                 route="/login",
                 controls=[LoginPage(page)],
@@ -104,9 +101,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
         """Manipula rotas públicas."""
         route_handlers = {
             "/login": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Login - SupaFit", show_back_button=False
-                ),
                 padding=20,
                 route="/login",
                 controls=[LoginPage(page)],
@@ -115,9 +109,6 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 scroll=ft.ScrollMode.AUTO,
             ),
             "/register": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Registrar - SupaFit", show_back_button=True
-                ),
                 route="/register",
                 controls=[RegisterPage(page)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,

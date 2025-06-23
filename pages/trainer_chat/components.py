@@ -1,5 +1,4 @@
 import flet as ft
-from utils.alerts import CustomSnackBar
 
 
 def create_chat_container(page: ft.Page) -> ft.ListView:

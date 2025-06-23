@@ -10,7 +10,6 @@ from pages.trainer_chat.data import get_user_profile, validate_user_session
 from services.supabase import SupabaseService
 from services.anthropic import AnthropicService
 from utils.logger import get_logger
-from utils.alerts import CustomSnackBar
 
 logger = get_logger("supafit.trainer_chat.trainer_main")
 

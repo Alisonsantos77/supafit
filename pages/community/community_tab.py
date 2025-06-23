@@ -1,5 +1,7 @@
 import flet as ft
 import logging
+
+from utils.alerts import CustomSnackBar
 from .controller import CommunityController
 from .ui_components import (
     VictoryCard,
@@ -7,7 +9,6 @@ from .ui_components import (
     CategoryFilter,
     VictoryForm,
 )
-from utils.alerts import CustomSnackBar
 
 logger = logging.getLogger("supafit.community")
 logger.setLevel(logging.INFO)
@@ -33,9 +34,11 @@ def CommunityTab(page: ft.Page, supabase_service):
         if controller.create_victory(content, category):
             victory_form.clear_form()
             update_victories(controller.get_selected_category())
-            CustomSnackBar("Vitória compartilhada!", bgcolor=ft.Colors.GREEN_600).show(
-                page
-            )
+            page.open(ft.SnackBar(
+                ft.Text("Vitória postada com sucesso!"),
+                bgcolor=ft.Colors.GREEN_600,
+            ))
+            page.update()
 
     def handle_like_click(victory_id: str, currently_liked: bool):
         if controller.toggle_like(victory_id, currently_liked):
@@ -46,11 +49,19 @@ def CommunityTab(page: ft.Page, supabase_service):
             victory_id, controller.get_current_user_id()
         )
         if success:
-            CustomSnackBar("Vitória deletada!", bgcolor=ft.Colors.GREEN_600).show(page)
+            page.open(ft.SnackBar(
+                ft.Text("Vitória deletada com sucesso!"),
+                bgcolor=ft.Colors.GREEN_600,
+            ))
+            page.update()
             update_victories(controller.get_selected_category())
         else:
-            CustomSnackBar(message, bgcolor=ft.Colors.RED_600).show(page)
-
+            page.open(ft.SnackBar(
+                ft.Text(f"Erro ao deletar vitória: {message}"),
+                bgcolor=ft.Colors.RED_600,
+            ))
+            page.update()
+            
     def handle_show_details(victory):
         dialog = VictoryDetailsDialog(victory, page)
         dialog.show()
@@ -88,9 +99,11 @@ def CommunityTab(page: ft.Page, supabase_service):
         except Exception as e:
             logger.error(f"Erro ao atualizar vitórias: {str(e)}")
             if page:
-                CustomSnackBar(
-                    "Erro ao carregar vitórias.", bgcolor=ft.Colors.RED_600
-                ).show(page)
+                page.open(ft.SnackBar(
+                    ft.Text("Erro ao carregar vitórias. Tente novamente mais tarde."),
+                    bgcolor=ft.Colors.RED_600,
+                ))
+                page.update()
             else:
                 logger.error("Page não disponível para exibir SnackBar")
 

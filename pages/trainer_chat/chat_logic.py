@@ -6,10 +6,10 @@ import uuid
 from .message import Message, ChatMessage
 from services.supabase import SupabaseService
 from services.anthropic import AnthropicService
+from utils.alerts import CustomAlertDialog
 from postgrest.exceptions import APIError
 from utils.logger import get_logger
 from utils.quebra_mensagem import integrate_with_chat
-from utils.alerts import CustomSnackBar, CustomAlertDialog
 import sys
 import logging
 
@@ -91,7 +91,7 @@ async def load_chat_history(
                         page,
                     )
                 )
-                
+
         page.update()
         logger.info(f"Histórico carregado para user_id: {user_id}")
         return history
@@ -102,16 +102,17 @@ async def load_chat_history(
                 page.go(page.route)
                 return []
             else:
-                CustomSnackBar(
-                    message="Sessão expirada. Faça login novamente.",
-                    bgcolor=ft.Colors.RED_700,
-                ).show(page)
+                page.open(
+                    ft.SnackBar(ft.Text("Sessão expirada. Faça login novamente.", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700)
+                )
+                page.update()
                 page.go("/login")
                 return []
         logger.error(f"Erro ao carregar histórico: {str(e)}")
-        CustomSnackBar(
-            message="Erro ao carregar chat.", bgcolor=ft.Colors.RED_700
-        ).show(page)
+        page.open(
+            ft.SnackBar(ft.Text(f"Erro ao carregar histórico: {str(e)}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700)
+        )
+        page.update()
         return []
 
 
@@ -129,7 +130,8 @@ async def clear_chat(
                 supabase_service.client.table("trainer_qa").delete().eq(
                     "user_id", user_id
                 ).execute()
-                chat_container.controls = [
+                chat_container.controls.clear()
+                chat_container.controls.append(
                     ChatMessage(
                         Message(
                             user_name="Treinador",
@@ -140,27 +142,44 @@ async def clear_chat(
                         ),
                         page,
                     )
-                ]
-                CustomSnackBar(message="Chat limpo com sucesso!").show(page)
+                )
+                page.update()
+                page.open(
+                    ft.SnackBar(
+                        ft.Text("Chat limpo com sucesso!", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.GREEN_700,
+                    )
+                )
+                page.update()
                 logger.info(f"Chat limpo para user_id: {user_id}")
             except APIError as ex:
                 if ex.code == "42501":
                     if supabase_service.refresh_session():
                         page.go(page.route)
                     else:
-                        CustomSnackBar(
-                            message="Sessão expirada. Faça login novamente.",
-                            bgcolor=ft.Colors.RED_700,
-                        ).show(page)
+                        page.open(
+                            ft.SnackBar(
+                                ft.Text("Sessão expirada. Faça login novamente.", color=ft.Colors.WHITE),
+                                bgcolor=ft.Colors.RED_700,
+                            )
+                        )
+                        page.update()
                         page.go("/login")
                 else:
                     logger.error(f"Erro ao limpar chat: {str(ex)}")
-                    CustomSnackBar(
-                        message=f"Erro ao limpar chat: {str(ex)}",
-                        bgcolor=ft.Colors.RED_700,
-                    ).show(page)
-        page.close(confirm_dialog)
-        page.update()
+                    page.open(
+                        ft.SnackBar(
+                            ft.Text(f"Erro ao limpar chat: {str(ex)}", color=ft.Colors.WHITE),
+                            bgcolor=ft.Colors.RED_700,
+                        )
+                    )
+                    page.update()
+            finally:
+                page.close(confirm_dialog)
+                page.update()
+        else:
+            page.close(confirm_dialog)
+            page.update()
 
     confirm_dialog = CustomAlertDialog(
         content=ft.Text("Tem certeza que deseja limpar todo o histórico de mensagens?"),
@@ -168,7 +187,7 @@ async def clear_chat(
     )
     confirm_dialog.actions = [
         ft.TextButton("Sim", on_click=confirm_clear),
-        ft.TextButton("Não", on_click=lambda e: page.close(confirm_dialog)),
+        ft.TextButton("Não", on_click=confirm_clear),
     ]
     confirm_dialog.show(page)
 
@@ -186,10 +205,16 @@ async def ask_question(
     last_question_time: list,
     history_cache: list,
 ):
-    """Processa a pergunta do usuário com validações e animações."""
+    """Processa a pergunta do usuário com validações, animações e feedback visual."""
     current_time = time.time()
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
-        CustomSnackBar(message="Aguarde antes de enviar outra mensagem!").show(page)
+        page.open(
+            ft.SnackBar(
+                ft.Text("Aguarde alguns segundos antes de enviar outra pergunta.", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_700,
+            )
+        )
+        page.update()
         return
 
     question = question_field.value.strip()
@@ -202,13 +227,13 @@ async def ask_question(
         page.update()
         return
     if anthropic.is_sensitive_question(question):
-        CustomSnackBar(
-            message="Conteúdo sensível detectado.", bgcolor=ft.Colors.RED_700
-        ).show(page)
+        page.open(ft.SnackBar(ft.Text("Pergunta sensível detectada.", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700))
+        page.update()
         return
 
     ask_button.disabled = True
-    ask_button.content = ft.ProgressRing(width=24, height=24, stroke_width=2)
+    ask_button.icon_color = ft.Colors.GREY_400
+    question_field.value = ""
     page.update()
 
     try:
@@ -240,9 +265,6 @@ async def ask_question(
             transition=ft.AnimatedSwitcherTransition.FADE,
             duration=300,
         )
-        chat_container.controls.append(typing_indicator)
-        page.update()
-        await asyncio.sleep(1)
 
         system_prompt = f"""
         # IDENTIDADE E PAPEL PRINCIPAL
@@ -250,7 +272,7 @@ async def ask_question(
 
         ## PERSONALIDADE E COMUNICAÇÃO
         - **Tom**: Amigável, motivacional e profissional - como um personal trainer experiente que realmente se importa
-        - **Estilo**: Conversacional e humano, evitando linguagem robótica ou excessivamente formal
+        - **Estilo**: Conversational e humano, evitando linguagem robótica ou excessivamente formal
         - **Emojis**: Use com moderação (1-2 por resposta) apenas para expressar entusiasmo genuíno ou celebrar conquistas
         - **Tratamento**: Sempre pelo nome quando disponível, criando conexão pessoal
 
@@ -358,7 +380,6 @@ async def ask_question(
         if not answer or "desculpe" in answer.lower():
             raise ValueError("Resposta inválida do Anthropic")
 
-        chat_container.controls.remove(typing_indicator)
         messages_with_delays = integrate_with_chat(answer)
 
         message_json = [
@@ -369,9 +390,15 @@ async def ask_question(
                 "timestamp": datetime.now().isoformat(),
             }
         ]
+
         for msg, delay in messages_with_delays:
             if not msg.strip():  # Ignora mensagens vazias
                 continue
+            chat_container.controls.append(typing_indicator)
+            page.update()
+            await asyncio.sleep(0.3)  # Breve pausa para mostrar "escrevendo"
+            chat_container.controls.remove(typing_indicator)
+
             response_id = str(uuid.uuid4())
             message_json.append(
                 {
@@ -396,7 +423,7 @@ async def ask_question(
             )
             if len(chat_container.controls) > 50:
                 chat_container.controls.pop(0)
-            await asyncio.sleep(delay)
+            await asyncio.sleep(delay * 0.7)  # Reduz delay em 30%
             page.update()
 
         if len(message_json) > 1:  # Insere apenas se houver mensagens válidas
@@ -410,17 +437,25 @@ async def ask_question(
             ).execute()
         question_field.value = ""
         question_field.error_text = None
-        CustomSnackBar(message="Mensagem enviada!").show(page)
+        page.open(
+            ft.SnackBar(
+                ft.Text("Pergunta enviada com sucesso!", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.GREEN_700,
+            )
+        )
+        page.update()
         last_question_time[0] = current_time
         logger.info(f"Pergunta processada com sucesso para user_id: {user_id}")
 
     except Exception as ex:
         logger.error(f"Erro ao processar pergunta: {str(ex)}")
-        CustomSnackBar(
-            message=f"Erro ao enviar mensagem: {str(ex)}", bgcolor=ft.Colors.RED_700
-        ).show(page)
+        page.open(
+            ft.SnackBar(
+                ft.Text(f"Erro ao processar pergunta: {str(ex)}", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_700,
+            )
+        )
     finally:
         ask_button.disabled = False
-        ask_button.content = None
-        ask_button.icon = ft.Icons.SEND_ROUNDED
+        ask_button.icon_color = ft.Colors.BLUE_400
         page.update()

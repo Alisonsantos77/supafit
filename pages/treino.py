@@ -1,18 +1,29 @@
 import flet as ft
 import asyncio
-import logging
 import requests
+import logging
 from components.exercise_tile import ExerciseTile
 from components.components import TimerDialog
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
+RAPID_API_KEY = os.getenv("RAPIDAPI_KEY")
 logger = logging.getLogger("supafit.treino")
 
-GYM_FIT_API_KEY = os.getenv("GYM_FIT_API_KEY")
-GYM_FIT_API_HOST = "gymfit-api.p.rapidapi.com"
+# Mapeamento de nomes de exercícios (português para inglês)
+EXERCISE_NAME_MAPPING = {
+    "Supino Reto": "bench press",
+    "Crucifixo Inclinado": "incline dumbbell fly",
+    "Agachamento Livre": "squat",
+    "Leg Press": "leg press",
+    "Remada Curvada": "bent-over row",
+    "Rosca Direta": "bicep curl",
+    "Desenvolvimento de Ombros": "shoulder press",
+    "Supino Inclinado": "incline bench press",
+}
+
 
 def Treinopage(page: ft.Page, supabase, day):
     # Estado do treino
@@ -80,82 +91,129 @@ def Treinopage(page: ft.Page, supabase, day):
         page.update()
 
     def fetch_exercise_data(exercise_name):
-        """Busca dados do exercício na GymFit API."""
+        """Função para visualizar os dados brutos retornados pela ExerciseDB API."""
+        api_name = EXERCISE_NAME_MAPPING.get(exercise_name, exercise_name).lower()
+        logger.debug(f"Mapeando {exercise_name} para {api_name} para a ExerciseDB API")
+
+        url = f"https://exercisedb.p.rapidapi.com/exercises/name/{api_name}"
+        headers = {
+            "X-RapidAPI-Key": RAPID_API_KEY,
+            "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
+        }
         try:
-            querystring = {"name": exercise_name.replace(" ", "%20")}
-            url = f"https://{GYM_FIT_API_HOST}/v1/exercises/search"  # Endpoint corrigido
-            headers = {
-                "X-RapidAPI-Key": GYM_FIT_API_KEY,
-                "X-RapidAPI-Host": GYM_FIT_API_HOST
-            }
-            response = requests.get(url, headers=headers, params=querystring)
+            logger.debug(f"Buscando dados para {api_name} na ExerciseDB API")
+            response = requests.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
-
-            if data and isinstance(data, list) and len(data) > 0:
-                exercise = data[0]
-                return {
-                    "animation_url": exercise.get("image_url", "https://picsum.photos/200"),
-                    "video_url": exercise.get("video_url"),
-                    "body_part": exercise.get("bodyPart", exercise.get("body_part")),
-                    "target": exercise.get("target_muscle", exercise.get("target")),
-                    "secondary_muscles": exercise.get("secondary_muscles", []),
-                    "instructions": exercise.get("instructions", []),
-                    "exercise_tips": exercise.get("tips", []),
-                }
-            logger.warning(f"Nenhum exercício encontrado na GymFit API para {exercise_name}")
-            return {
-                "animation_url": "https://picsum.photos/200",
-                "video_url": None,
-                "body_part": None,
-                "target": None,
-                "secondary_muscles": [],
-                "instructions": [],
-                "exercise_tips": [],
-            }
+            # logger.info(f"Dados brutos da API para {api_name}: {data}")
+            return data
         except Exception as e:
-            logger.error(f"Erro ao buscar dados para {exercise_name}: {str(e)}")
-            return {
-                "animation_url": "https://picsum.photos/200",
-                "video_url": None,
-                "body_part": None,
-                "target": None,
-                "secondary_muscles": [],
-                "instructions": [],
-                "exercise_tips": [],
-            }
+            logger.error(f"Erro ao buscar dados para {api_name}: {str(e)}")
+            return None
+
+    def fetch_exercise_animation(exercise_name):
+        data = fetch_exercise_data(exercise_name)
+        if data and isinstance(data, list) and data:
+            # Selecionar o exercício mais relevante
+            api_name = EXERCISE_NAME_MAPPING.get(exercise_name, exercise_name).lower()
+            for exercise in data:
+                exercise_name_lower = exercise["name"].lower()
+                if (
+                    api_name == "bench press"
+                    and "barbell bench press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "incline bench press"
+                    and "barbell incline bench press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if api_name == "squat" and "barbell full squat" in exercise_name_lower:
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "leg press"
+                    and "sled 45° leg press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "bent-over row"
+                    and "barbell bent-over row" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if api_name == "bicep curl" and "barbell curl" in exercise_name_lower:
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if (
+                    api_name == "shoulder press"
+                    and "barbell shoulder press" in exercise_name_lower
+                ):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+                if exercise.get("gifUrl"):
+                    return {
+                        "animation_url": exercise.get("gifUrl"),
+                        "body_part": exercise.get("bodyPart"),
+                        "target": exercise.get("target"),
+                        "secondary_muscles": exercise.get("secondaryMuscles"),
+                        "instructions": exercise.get("instructions"),
+                    }
+            logger.warning(f"Nenhum gifUrl encontrado nos dados para {exercise_name}")
+        return {
+            "animation_url": None,
+            "body_part": None,
+            "target": None,
+            "secondary_muscles": None,
+            "instructions": None,
+        }
 
     def load_exercises(day):
         try:
-            # Tenta carregar do Supabase primeiro
             response = (
-                supabase.client.table("exercises").select("*").eq("day", day.lower()).execute()
+                supabase.table("exercises").select("*").eq("day", day.lower()).execute()
             )
             logger.info("Dados do Supabase (exercises): %s", response.data)
             if not response.data:
-                logger.warning(f"Nenhum exercício encontrado para {day} no Supabase")
-                # Consulta GymFit API como fallback
-                querystring = {"day": day.lower(), "limit": "2"}  # Limita a 2 para testes
-                url = f"https://{GYM_FIT_API_HOST}/v1/exercises/search"
-                headers = {
-                    "X-RapidAPI-Key": GYM_FIT_API_KEY,
-                    "X-RapidAPI-Host": GYM_FIT_API_HOST
-                }
-                api_response = requests.get(url, headers=headers, params=querystring)
-                api_response.raise_for_status()
-                exercises = api_response.json()
-                return [
-                    {
-                        "id": exercise.get("id", f"api_{i}"),
-                        "name": exercise.get("name", f"Exercise_{i}"),
-                        "series": exercise.get("sets", 4),
-                        "repetitions": exercise.get("reps", 12),
-                        "load": exercise.get("load", 0),
-                        "image_url": exercise.get("image_url", "https://picsum.photos/200"),
-                        **fetch_exercise_data(exercise.get("name", f"Exercise_{i}")),
-                    }
-                    for i, exercise in enumerate(exercises[:2])  # Limita a 2 para testes
-                ]
+                logger.warning(f"Nenhum exercício encontrado para {day}")
             return [
                 {
                     "id": exercise["id"],
@@ -164,9 +222,29 @@ def Treinopage(page: ft.Page, supabase, day):
                     "repetitions": exercise["reps"],
                     "load": exercise["load"],
                     "image_url": exercise.get("image_url"),
-                    **fetch_exercise_data(exercise["name"]),
+                    **fetch_exercise_animation(exercise["name"]),
                 }
-                for exercise in response.data
+                for exercise in (
+                    response.data
+                    or [
+                        {
+                            "id": "1",
+                            "name": "Supino Reto",
+                            "sets": 4,
+                            "reps": 12,
+                            "load": 0,
+                            "image_url": "https://picsum.photos/200",
+                        },
+                        {
+                            "id": "2",
+                            "name": "Agachamento Livre",
+                            "sets": 4,
+                            "reps": 10,
+                            "load": 0,
+                            "image_url": "https://picsum.photos/200",
+                        },
+                    ]
+                )
             ]
         except Exception as e:
             logger.error(f"Erro ao carregar exercícios para {day}: {str(e)}")
@@ -178,7 +256,7 @@ def Treinopage(page: ft.Page, supabase, day):
                     "repetitions": 12,
                     "load": 0,
                     "image_url": "https://picsum.photos/200",
-                    **fetch_exercise_data("Supino Reto"),
+                    **fetch_exercise_animation("Supino Reto"),
                 },
                 {
                     "id": "2",
@@ -187,7 +265,7 @@ def Treinopage(page: ft.Page, supabase, day):
                     "repetitions": 10,
                     "load": 0,
                     "image_url": "https://picsum.photos/200",
-                    **fetch_exercise_data("Agachamento Livre"),
+                    **fetch_exercise_animation("Agachamento Livre"),
                 },
             ]
 
@@ -225,13 +303,11 @@ def Treinopage(page: ft.Page, supabase, day):
                 repetitions=exercise["repetitions"],
                 load=exercise["load"],
                 animation_url=exercise["animation_url"],
-                video_url=exercise["video_url"],
                 image_url=exercise["image_url"],
                 body_part=exercise["body_part"],
                 target=exercise["target"],
                 secondary_muscles=exercise["secondary_muscles"],
                 instructions=exercise["instructions"],
-                exercise_tips=exercise["exercise_tips"],
                 on_favorite_click=favorite_exercise,
                 on_load_save=update_load,
                 supabase=supabase,
