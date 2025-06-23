@@ -33,7 +33,9 @@ def setup_routes(page: ft.Page, supabase, anthropic):
     def show_snackbar(message: str, color: str = ft.Colors.RED_700):
         """Exibe feedback para o usuário com estilo consistente."""
         snackbar = CustomSnackBar(message=message, bgcolor=color)
-        snackbar.show(page)
+        page.snack_bar = snackbar
+        page.snack_bar.open = True
+        page.update()
         logger.info(f"SnackBar: {message}")
 
     def require_auth(func):
@@ -83,6 +85,12 @@ def setup_routes(page: ft.Page, supabase, anthropic):
 
     def redirect_to_create_profile():
         """Redireciona para criação de perfil."""
+
+        def on_complete():
+            page.client_storage.set("supafit.profile_created", True)
+            page.go("/home")
+            logger.info("Perfil criado, navegando para /home")
+
         page.views.append(
             ft.View(
                 appbar=mobile_appbar.create_appbar(
@@ -214,6 +222,12 @@ def setup_routes(page: ft.Page, supabase, anthropic):
     @require_auth
     def handle_create_profile():
         """Manipula a rota de criação de perfil."""
+
+        def on_complete():
+            page.client_storage.set("supafit.profile_created", True)
+            page.go("/home")
+            logger.info("Perfil criado, navegando para /home")
+
         page.views.append(
             ft.View(
                 appbar=mobile_appbar.create_appbar(
@@ -245,7 +259,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                 show_snackbar("Rota não encontrada. Redirecionando para login.")
                 redirect_to_login()
         except Exception as e:
-            logger.error(f"Erro ao processar rota {page.route}: {e}")
+            logger.error(f"Erro ao processar rota {page.route}: {str(e)}")
             show_snackbar(f"Erro ao carregar página: {str(e)}")
             redirect_to_login()
         page.update()

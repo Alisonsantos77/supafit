@@ -3,10 +3,12 @@ import logging
 import time
 from .step1_name import Step1Name
 from .step2_age import Step2Age
-from .step3_weight import Step3Weight
-from .step4_height import Step4Height
-from .step5_goal import Step5Goal
-from .step6_review import Step6Review
+from .step3_gender import Step3Gender
+from .step4_weight import Step4Weight
+from .step5_height import Step5Height
+from .step6_goal import Step6Goal
+from .step7_restrictions import Step7Restrictions
+from .step8_review import Step8Review
 
 from utils.logger import get_logger
 
@@ -82,6 +84,8 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             if hasattr(step, "age_input") and step.age_input:
                 step.age_input.value = ""
                 step.age_input.error_text = None
+            if hasattr(step, "gender_radio_group") and step.gender_radio_group:
+                step.gender_radio_group.value = "Masculino"
             if hasattr(step, "weight_input") and step.weight_input:
                 step.weight_input.value = ""
                 step.weight_input.error_text = None
@@ -90,6 +94,9 @@ def CreateProfilePage(page: ft.Page, supabase_service):
                 step.height_input.error_text = None
             if hasattr(step, "goal_radio_group") and step.goal_radio_group:
                 step.goal_radio_group.value = "Manter forma"
+            if hasattr(step, "restrictions_input") and step.restrictions_input:
+                step.restrictions_input.value = ""
+                step.restrictions_input.error_text = None
             if hasattr(step, "review_text") and step.review_text:
                 step.review_text.value = ""
         update_view()
@@ -106,8 +113,8 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         logger.info(f"Tentando avançar da etapa {current_step[0]}")
         if steps[current_step[0]].validate():
             current_step[0] += 1
-            if current_step[0] == 5:  # Revisão
-                steps[5].update_review()
+            if current_step[0] == 7:  # Revisão
+                steps[7].update_review()
             update_view()
             logger.info(f"Avançou para a etapa {current_step[0]}")
         else:
@@ -172,8 +179,8 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         """Atualiza a visibilidade das etapas."""
         for index, step in enumerate(steps):
             step.view.visible = index == current_step[0]
-            # Atualizar revisão apenas quando a etapa 5 for visível
-            if index == 5 and step.view.visible:
+            # Atualizar revisão apenas quando a etapa 7 for visível
+            if index == 7 and step.view.visible:
                 step.update_review()
         page.update()
         logger.info(f"View atualizada para a etapa {current_step[0]}")
@@ -188,16 +195,24 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             Step2Age(page, profile_data, current_step, next_step, previous_step)
         )
         steps.append(
-            Step3Weight(page, profile_data, current_step, next_step, previous_step)
+            Step3Gender(page, profile_data, current_step, next_step, previous_step)
         )
         steps.append(
-            Step4Height(page, profile_data, current_step, next_step, previous_step)
+            Step4Weight(page, profile_data, current_step, next_step, previous_step)
         )
         steps.append(
-            Step5Goal(page, profile_data, current_step, next_step, previous_step)
+            Step5Height(page, profile_data, current_step, next_step, previous_step)
         )
         steps.append(
-            Step6Review(
+            Step6Goal(page, profile_data, current_step, next_step, previous_step)
+        )
+        steps.append(
+            Step7Restrictions(
+                page, profile_data, current_step, next_step, previous_step
+            )
+        )
+        steps.append(
+            Step8Review(
                 page,
                 profile_data,
                 current_step,

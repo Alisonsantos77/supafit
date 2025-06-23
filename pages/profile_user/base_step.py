@@ -66,19 +66,3 @@ class BaseStep(ABC):
             bool: True se os dados são válidos, False caso contrário.
         """
         pass
-
-    def show_snackbar(self, message: str, color: str = ft.Colors.RED):
-        """Exibe uma SnackBar com feedback para o usuário.
-
-        Args:
-            message (str): Mensagem a ser exibida.
-            color (str): Cor da SnackBar (padrão: vermelho para erros).
-        """
-        self.page.snack_bar = ft.SnackBar(
-            content=ft.Text(message, color=ft.Colors.WHITE),
-            bgcolor=color,
-            duration=3000,
-        )
-        self.page.snack_bar.open = True
-        self.page.update()
-        logger.info(f"SnackBar exibida: {message}")

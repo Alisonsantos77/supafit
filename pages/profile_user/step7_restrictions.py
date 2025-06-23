@@ -1,9 +1,10 @@
 import flet as ft
 from .base_step import BaseStep, logger
+from services.anthropic import AnthropicService
 
 
-class Step2Age(BaseStep):
-    """Etapa 2: Coleta da idade do usuário."""
+class Step7Restrictions(BaseStep):
+    """Etapa 8: Coleta de restrições do usuário (lesões, dificuldades, etc.)."""
 
     def __init__(
         self,
@@ -15,16 +16,17 @@ class Step2Age(BaseStep):
         supabase_service=None,
         on_create=None,
     ):
-        self.age_input = ft.TextField(
-            label="Idade",
+        self.restrictions_input = ft.TextField(
+            label="Restrições (lesões, dificuldades, etc.)",
             width=320,
             border="underline",
             filled=True,
             text_size=16,
-            keyboard_type=ft.KeyboardType.NUMBER,
+            multiline=True,
+            max_lines=4,
         )
         super().__init__(page, profile_data, current_step, on_next, on_previous)
-        logger.info("Step2Age inicializado com sucesso.")
+        logger.info("Step7Restrictions inicializado com sucesso.")
 
     def build_step_progress(self) -> ft.Control:
         """Constrói o indicador de progresso das etapas."""
@@ -75,7 +77,7 @@ class Step2Age(BaseStep):
                 self.build_step_progress(),
                 ft.Container(
                     content=ft.Image(
-                        src="mascote_supafit/step_age.png",
+                        src="mascote_supafit/step8.png",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,
@@ -83,7 +85,7 @@ class Step2Age(BaseStep):
                     alignment=ft.alignment.center,
                     padding=20,
                 ),
-                self.age_input,
+                self.restrictions_input,
                 ft.Row(
                     [
                         ft.ElevatedButton("Voltar", on_click=self.on_previous),
@@ -99,14 +101,34 @@ class Step2Age(BaseStep):
         )
 
     def validate(self) -> bool:
-        age = self.age_input.value.strip()
-        if not age or not age.isdigit() or int(age) < 10 or int(age) > 100:
-            self.age_input.error_text = "Insira uma idade válida (10-100)."
-            self.age_input.update()
-            self.show_snackbar("Insira uma idade válida (10-100).")
-            logger.warning("Idade inválida.")
+        restrictions = self.restrictions_input.value.strip()
+
+        # Verificar comprimento
+        if len(restrictions) > 500:
+            self.restrictions_input.error_text = (
+                "Descrição muito longa (máx. 500 caracteres)."
+            )
+            self.restrictions_input.update()
+            self.show_snackbar("Descrição muito longa (máx. 500 caracteres).")
+            logger.warning("Restrições excedem o limite de caracteres.")
             return False
-        self.age_input.error_text = None
-        self.profile_data["age"] = int(age)
-        logger.info(f"Idade coletada: {age}")
+
+        if restrictions:
+            anthropic_service = AnthropicService()
+            if anthropic_service.is_sensitive_restrictions(restrictions):
+                self.restrictions_input.error_text = (
+                    "Restrições contêm conteúdo inadequado."
+                )
+                self.restrictions_input.update()
+                self.show_snackbar(
+                    "Por favor, descreva apenas lesões ou dificuldades apropriadas."
+                )
+                logger.warning(
+                    f"Conteúdo sensível detectado nas restrições: {restrictions}"
+                )
+                return False
+
+        self.restrictions_input.error_text = None
+        self.profile_data["restrictions"] = restrictions or None
+        logger.info(f"Restrições coletadas: {restrictions or 'Nenhuma'}")
         return True

@@ -2,8 +2,8 @@ import flet as ft
 from .base_step import BaseStep, logger
 
 
-class Step2Age(BaseStep):
-    """Etapa 2: Coleta da idade do usuário."""
+class Step6Goal(BaseStep):
+    """Etapa 6: Coleta do objetivo do usuário."""
 
     def __init__(
         self,
@@ -15,16 +15,20 @@ class Step2Age(BaseStep):
         supabase_service=None,
         on_create=None,
     ):
-        self.age_input = ft.TextField(
-            label="Idade",
-            width=320,
-            border="underline",
-            filled=True,
-            text_size=16,
-            keyboard_type=ft.KeyboardType.NUMBER,
+        self.goal_radio_group = ft.RadioGroup(
+            content=ft.Column(
+                [
+                    ft.Radio(value="Perder peso", label="Perder peso"),
+                    ft.Radio(value="Ganhar massa", label="Ganhar massa"),
+                    ft.Radio(value="Manter forma", label="Manter forma"),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=10,
+            ),
+            value="Manter forma",
         )
         super().__init__(page, profile_data, current_step, on_next, on_previous)
-        logger.info("Step2Age inicializado com sucesso.")
+        logger.info("Step6Goal inicializado com sucesso.")
 
     def build_step_progress(self) -> ft.Control:
         """Constrói o indicador de progresso das etapas."""
@@ -75,7 +79,7 @@ class Step2Age(BaseStep):
                 self.build_step_progress(),
                 ft.Container(
                     content=ft.Image(
-                        src="mascote_supafit/step_age.png",
+                        src="mascote_supafit/step_goal.png",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,
@@ -83,7 +87,7 @@ class Step2Age(BaseStep):
                     alignment=ft.alignment.center,
                     padding=20,
                 ),
-                self.age_input,
+                self.goal_radio_group,
                 ft.Row(
                     [
                         ft.ElevatedButton("Voltar", on_click=self.on_previous),
@@ -99,14 +103,6 @@ class Step2Age(BaseStep):
         )
 
     def validate(self) -> bool:
-        age = self.age_input.value.strip()
-        if not age or not age.isdigit() or int(age) < 10 or int(age) > 100:
-            self.age_input.error_text = "Insira uma idade válida (10-100)."
-            self.age_input.update()
-            self.show_snackbar("Insira uma idade válida (10-100).")
-            logger.warning("Idade inválida.")
-            return False
-        self.age_input.error_text = None
-        self.profile_data["age"] = int(age)
-        logger.info(f"Idade coletada: {age}")
+        self.profile_data["goal"] = self.goal_radio_group.value
+        logger.info(f"Objetivo coletado: {self.profile_data['goal']}")
         return True

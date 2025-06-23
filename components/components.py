@@ -331,12 +331,14 @@ class LoadEditor(ft.Row):
                         content=ft.Text(f"Carga {load}kg salva!"), action="OK"
                     )
                     e.page.snack_bar.open = True
+                    e.page.update()
                 except Exception as error:
                     e.page.snack_bar = ft.SnackBar(
                         content=ft.Text(f"Erro ao salvar carga: {str(error)}"),
                         action="OK",
                     )
                     e.page.snack_bar.open = True
+                    e.page.update()
             e.page.close(confirm_dialog)
             self.load_text.visible = True
             self.load_field.visible = False

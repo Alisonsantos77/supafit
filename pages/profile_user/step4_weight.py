@@ -2,8 +2,8 @@ import flet as ft
 from .base_step import BaseStep, logger
 
 
-class Step3Weight(BaseStep):
-    """Etapa 3: Coleta do peso do usuário."""
+class Step4Weight(BaseStep):
+    """Etapa 4: Coleta do peso do usuário."""
 
     def __init__(
         self,
@@ -12,6 +12,8 @@ class Step3Weight(BaseStep):
         current_step: list,
         on_next,
         on_previous,
+        supabase_service=None,
+        on_create=None,
     ):
         self.weight_input = ft.TextField(
             label="Peso (kg)",
@@ -22,15 +24,58 @@ class Step3Weight(BaseStep):
             keyboard_type=ft.KeyboardType.NUMBER,
         )
         super().__init__(page, profile_data, current_step, on_next, on_previous)
-        logger.info("Step3Weight inicializado com sucesso.")
+        logger.info("Step4Weight inicializado com sucesso.")
+
+    def build_step_progress(self) -> ft.Control:
+        """Constrói o indicador de progresso das etapas."""
+        steps = []
+        for i in range(8):
+            is_current = self.current_step[0] == i
+            is_completed = self.current_step[0] > i
+            steps.append(
+                ft.Container(
+                    width=30,
+                    height=30,
+                    border_radius=15,
+                    bgcolor=ft.Colors.BLUE_400 if is_current else None,
+                    border=ft.border.all(
+                        2,
+                        (
+                            ft.Colors.BLUE_400
+                            if is_current
+                            else (
+                                ft.Colors.GREEN_400
+                                if is_completed
+                                else ft.Colors.GREY_400
+                            )
+                        ),
+                    ),
+                    content=ft.Text(
+                        str(i + 1),
+                        color=ft.Colors.WHITE if is_current else ft.Colors.BLACK,
+                        size=14,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    alignment=ft.alignment.center,
+                    animate_opacity=300,
+                    animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
+                    scale=1.2 if is_current else 1.0,
+                )
+            )
+        return ft.Row(
+            steps,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=10,
+        )
 
     def build_view(self) -> ft.Control:
         return ft.Column(
             [
-                ft.Text("Etapa 3 de 5: Peso", size=20, weight=ft.FontWeight.BOLD),
+                self.build_step_progress(),
                 ft.Container(
                     content=ft.Image(
-                        src="mascote_supafit/step3.png",
+                        src="mascote_supafit/step_weight.png",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,

@@ -76,7 +76,6 @@ class AnthropicService:
         """
         try:
             logger.info("Enviando pergunta para Anthropic: %s", question)
-            # Monta o payload com histórico + nova pergunta
             messages = []
             for item in history:
                 if item.get("role") in ["user", "assistant"] and item.get("content"):
@@ -176,7 +175,6 @@ class AnthropicService:
             logger.error(f"Erro ao verificar pergunta sensível: {str(e)}")
             return False
 
-
     def is_sensitive_name(self, name: str) -> bool:
         """Verifica se o nome contém conteúdo sensível ou inadequado usando o Claude.
 
@@ -219,4 +217,33 @@ class AnthropicService:
             return False
         except Exception as e:
             logger.error(f"Erro ao verificar nome sensível: {str(e)}")
+            return False
+
+
+    def is_sensitive_restrictions(self, text: str) -> bool:
+        """
+        Verifica se o texto contém conteúdo sensível usando a API da Anthropic.
+
+        Args:
+            text (str): Texto a ser verificado (restrições do usuário).
+
+        Returns:
+            bool: True se o texto contém conteúdo sensível, False caso contrário.
+        """
+        try:
+            response = self.client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=100,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Analise o seguinte texto para conteúdo sensível ou inadequado (ex.: linguagem ofensiva, violência, conteúdo explícito): '{text}'. Responda apenas 'True' ou 'False'.",
+                    }
+                ],
+            )
+            result = response.content[0].text.strip()
+            logger.info(f"Verificação de conteúdo sensível para '{text}': {result}")
+            return result == "True"
+        except Exception as e:
+            logger.error(f"Erro ao verificar conteúdo sensível: {str(e)}")
             return False
