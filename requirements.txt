@@ -5,3 +5,4 @@ requests
 supabase
 flet-lottie
 cryptography
+flet-video
