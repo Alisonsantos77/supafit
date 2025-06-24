@@ -154,3 +154,5 @@ cython_debug/
 /URL shortener/assets/manifest.json
 storage
 /assets
+teste.py
+*json
