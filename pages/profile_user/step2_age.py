@@ -23,11 +23,12 @@ class Step2Age(BaseStep):
             text_size=16,
             keyboard_type=ft.KeyboardType.NUMBER,
         )
-        super().__init__(page, profile_data, current_step, on_next, on_previous)
+        super().__init__(
+            page, profile_data, current_step, on_next, on_previous, on_create
+        )
         logger.info("Step2Age inicializado com sucesso.")
 
     def build_step_progress(self) -> ft.Control:
-        """Constrói o indicador de progresso das etapas."""
         steps = []
         for i in range(8):
             is_current = self.current_step[0] == i
@@ -100,13 +101,16 @@ class Step2Age(BaseStep):
 
     def validate(self) -> bool:
         age = self.age_input.value.strip()
-        if not age or not age.isdigit() or int(age) < 10 or int(age) > 100:
+        if not age.isdigit() or int(age) < 10 or int(age) > 100:
             self.age_input.error_text = "Insira uma idade válida (10-100)."
-            self.age_input.update()
+            self.page.update()
             self.show_snackbar("Insira uma idade válida (10-100).")
             logger.warning("Idade inválida.")
             return False
+        # Limpa erro anterior
         self.age_input.error_text = None
+        self.page.update()
+        # Salva no profile_data
         self.profile_data["age"] = int(age)
-        logger.info(f"Idade coletada: {age}")
+        logger.info(f"Idade coletada: {self.profile_data['age']}")
         return True

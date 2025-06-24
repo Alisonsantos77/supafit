@@ -1,5 +1,4 @@
 import flet as ft
-import logging
 import time
 from .step1_name import Step1Name
 from .step2_age import Step2Age
@@ -9,7 +8,6 @@ from .step5_height import Step5Height
 from .step6_goal import Step6Goal
 from .step7_restrictions import Step7Restrictions
 from .step8_review import Step8Review
-
 from utils.logger import get_logger
 
 logger = get_logger("supabafit.profile_user.create_profile")
@@ -58,12 +56,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             logger.info("Diálogo de carregamento fechado")
 
     def show_snackbar(message: str, color: str = ft.Colors.RED):
-        """Exibe uma SnackBar com feedback para o usuário.
-
-        Args:
-            message (str): Mensagem a ser exibida.
-            color (str): Cor da SnackBar (padrão: vermelho para erros).
-        """
+        """Exibe uma SnackBar com feedback para o usuário."""
         page.snack_bar = ft.SnackBar(
             content=ft.Text(message, color=ft.Colors.WHITE),
             bgcolor=color,
@@ -75,6 +68,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
 
     def reset_form():
         """Reinicia o formulário e os dados do perfil."""
+        logger.info(f"Antes de resetar profile_data: {profile_data}")
         profile_data.clear()
         current_step[0] = 0
         for step in steps:
@@ -99,27 +93,31 @@ def CreateProfilePage(page: ft.Page, supabase_service):
                 step.restrictions_input.error_text = None
             if hasattr(step, "review_text") and step.review_text:
                 step.review_text.value = ""
-        update_view()
         logger.info("Formulário de perfil reiniciado.")
+        update_view()
+
 
     def next_step(e):
-        """Avança para a próxima etapa se a validação passar."""
         nonlocal last_event_time
         current_time = time.time()
         if current_time - last_event_time[0] < 0.5:
             logger.info("Debounce: Evento ignorado por 500ms")
             return
         last_event_time[0] = current_time
-        logger.info(f"Tentando avançar da etapa {current_step[0]}")
+        logger.info(
+            f"Tentando avançar da etapa {current_step[0]}, profile_data: {profile_data}"
+        )
         if steps[current_step[0]].validate():
             current_step[0] += 1
-            if current_step[0] == 7:  # Revisão
-                steps[7].update_review()
+            if current_step[0] == 7:
+                steps[7].update_review()  # Chama a atualização do carrossel
             update_view()
-            logger.info(f"Avançou para a etapa {current_step[0]}")
+            logger.info(
+                f"Avançou para a etapa {current_step[0]}, profile_data: {profile_data}"
+            )
         else:
             logger.warning("Validação falhou na etapa atual.")
-
+        
     def previous_step(e):
         """Volta para a etapa anterior."""
         nonlocal last_event_time
@@ -128,11 +126,15 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             logger.info("Debounce: Evento ignorado por 500ms")
             return
         last_event_time[0] = current_time
-        logger.info(f"Tentando voltar da etapa {current_step[0]}")
+        logger.info(
+            f"Tentando voltar da etapa {current_step[0]}, profile_data: {profile_data}"
+        )
         if current_step[0] > 0:
             current_step[0] -= 1
             update_view()
-            logger.info(f"Retrocedeu para a etapa {current_step[0]}")
+            logger.info(
+                f"Retrocedeu para a etapa {current_step[0]}, profile_data: {profile_data}"
+            )
 
     def create_profile(e):
         """Cria o perfil do usuário no Supabase."""
@@ -142,7 +144,7 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             logger.info("Debounce: Evento ignorado por 500ms")
             return
         last_event_time[0] = current_time
-        logger.info("Enviando dados do perfil...")
+        logger.info(f"Enviando dados do perfil: {profile_data}")
         user_id = page.client_storage.get("supafit.user_id")
         level = page.client_storage.get("supafit.level")
 
@@ -185,7 +187,6 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         page.update()
         logger.info(f"View atualizada para a etapa {current_step[0]}")
 
-    # Instancia as etapas com tratamento de erros
     steps = []
     try:
         steps.append(

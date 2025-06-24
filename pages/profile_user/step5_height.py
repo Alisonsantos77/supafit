@@ -116,5 +116,5 @@ class Step5Height(BaseStep):
             return False
         self.height_input.error_text = None
         self.profile_data["height"] = int(height)
-        logger.info(f"Altura coletada: {height}")
+        logger.info(f"Altura coletada: {self.profile_data['height']}")
         return True

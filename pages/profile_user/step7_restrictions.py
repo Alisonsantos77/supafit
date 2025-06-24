@@ -77,7 +77,7 @@ class Step7Restrictions(BaseStep):
                 self.build_step_progress(),
                 ft.Container(
                     content=ft.Image(
-                        src="mascote_supafit/step8.png",
+                        src="mascote_supafit/step7_restrictions.png",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,
@@ -130,5 +130,5 @@ class Step7Restrictions(BaseStep):
 
         self.restrictions_input.error_text = None
         self.profile_data["restrictions"] = restrictions or None
-        logger.info(f"Restrições coletadas: {restrictions or 'Nenhuma'}")
+        logger.info(f"Restrições coletadas: {self.profile_data['restrictions'] or 'nenhuma'}")
         return True

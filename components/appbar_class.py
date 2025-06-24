@@ -91,7 +91,6 @@ class MobileAppBar:
                 self.page.update()
 
             confirm_dialog = ft.AlertDialog(
-                modal=True,
                 title=ft.Text("Confirmar Saída", size=18, weight=ft.FontWeight.BOLD),
                 content=ft.Text("Deseja realmente sair?"),
                 actions=[

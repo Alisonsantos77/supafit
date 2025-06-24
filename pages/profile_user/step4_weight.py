@@ -116,5 +116,5 @@ class Step4Weight(BaseStep):
             return False
         self.weight_input.error_text = None
         self.profile_data["weight"] = weight
-        logger.info(f"Peso coletado: {weight}")
+        logger.info(f"Peso coletado: {self.profile_data['weight']}")
         return True
