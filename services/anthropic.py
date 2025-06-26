@@ -58,7 +58,8 @@ class AnthropicService:
             logger.error(f"Erro ao gerar plano de treino com Anthropic: {str(e)}")
             raise e
 
-    def answer_question(
+
+    async def answer_question(
         self, question: str, history: list, system_prompt: str = None
     ) -> str:
         """Envia a pergunta, histórico e prompt do sistema para a API da Anthropic e retorna a resposta.
@@ -97,27 +98,28 @@ class AnthropicService:
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             }
-            response = httpx.post(
-                (
-                    f"{self.base_url}/v1/messages"
-                    if not self.base_url.endswith("/v1/messages")
-                    else self.base_url
-                ),
-                json=payload,
-                headers=headers,
-                timeout=30,
-            )
-            response.raise_for_status()
-            data = response.json()
-            if "content" in data and isinstance(data["content"], list):
-                text = data["content"][0].get("text", "").strip()
-            elif "completion" in data:
-                text = data["completion"].strip()
-            else:
-                text = str(data)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    (
+                        f"{self.base_url}/v1/messages"
+                        if not self.base_url.endswith("/v1/messages")
+                        else self.base_url
+                    ),
+                    json=payload,
+                    headers=headers,
+                    timeout=30,
+                )
+                response.raise_for_status()
+                data = response.json()
+                if "content" in data and isinstance(data["content"], list):
+                    text = data["content"][0].get("text", "").strip()
+                elif "completion" in data:
+                    text = data["completion"].strip()
+                else:
+                    text = str(data)
 
-            logger.info("Resposta recebida de Anthropic: %s", text[:50])
-            return text
+                logger.info("Resposta recebida de Anthropic: %s", text[:50])
+                return text
 
         except httpx.HTTPStatusError as ex:
             error_text = ex.response.text or str(ex)
@@ -128,7 +130,7 @@ class AnthropicService:
         except Exception as ex:
             logger.error(f"Erro inesperado em answer_question: {ex}")
             return "Desculpe, não consegui responder agora."
-
+    
     def is_sensitive_question(self, question: str) -> bool:
         """Verifica se a pergunta contém conteúdo sensível ou inadequado usando o Claude.
 
@@ -182,7 +184,6 @@ class AnthropicService:
         except Exception as e:
             logger.error(f"Erro ao verificar pergunta sensível: {str(e)}")
             return False
-
 
     def is_sensitive_name(self, name: str) -> bool:
         """Verifica se o nome contém conteúdo sensível ou inadequado usando o Claude."""

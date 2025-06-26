@@ -3,7 +3,7 @@ import os
 import asyncio
 import logging
 import flet as ft
-import flet_video  # registra controles de vídeo
+import flet_video
 from flet_video import Video, VideoMedia
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -20,9 +20,7 @@ db: Client = create_client(efr_url, efr_key)
 
 
 def get_video_url(storage_bucket, file_name: str) -> str:
-    """
-    Retorna URL pública para arquivo no bucket.
-    """
+    """Retorna URL pública para arquivo no bucket."""
     try:
         url = storage_bucket.get_public_url(file_name)
         logger.debug(f"Gerada URL pública para {file_name}: {url}")
@@ -33,10 +31,7 @@ def get_video_url(storage_bucket, file_name: str) -> str:
 
 
 def Treinopage(page: ft.Page, supabase: any, day: str):
-    """
-    Renderiza a página de treino para o dia informado.
-    Usa SERVICE_ROLE_KEY para acessar tanto DB quanto Storage.
-    """
+    """Renderiza a página de treino para o dia informado."""
     storage_bucket = db.storage.from_("supafit-videos")
     try:
         bucket_files = {f["name"] for f in storage_bucket.list(path="")}
@@ -48,41 +43,116 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
         bucket_files = set()
 
     def video_for(name: str) -> str:
-        """
-        Carrega URL do vídeo a partir de video_urls.json com validação.
-        """
+        """Carrega URL do vídeo a partir da tabela video_urls no Supabase."""
         try:
-            with open("video_urls.json", "r", encoding="utf-8") as f:
-                video_urls = json.load(f)
-            video_url = video_urls.get(name)
-            if video_url:
-                logger.debug(f"URL do vídeo encontrada para {name}: {video_url}")
-                return video_url
-            else:
-                logger.warning(
-                    f"Nenhuma URL de vídeo encontrada para {name} em video_urls.json"
+            cache_key = f"video_url_{name}"
+            cached_url = page.client_storage.get(cache_key)
+            if cached_url:
+                logger.debug(
+                    f"URL do vídeo encontrada no cache para {name}: {cached_url}"
                 )
-                return None
+                return cached_url
+            response = (
+                supabase.client.table("video_urls")
+                .select("url")
+                .eq("name", name)
+                .execute()
+            )
+            if response.data:
+                url = response.data[0]["url"]
+                page.client_storage.set(cache_key, url)
+                logger.debug(f"URL do vídeo encontrada para {name}: {url}")
+                return url
+            logger.warning(f"Nenhuma URL de vídeo encontrada para {name}")
+            return None
         except Exception as e:
-            logger.error(f"Erro ao carregar URL do vídeo para {name}: {str(e)}")
+            logger.error(f"Erro ao consultar URL do vídeo para {name}: {str(e)}")
             return None
 
-    def load_exercises(day: str):
-        """
-        Carrega exercícios com base em video_urls.json para o dia especificado.
-        """
+    async def download_videos(e, exercises):
+        """Baixa vídeos do treino para armazenamento local."""
         try:
-            with open("video_urls.json", "r", encoding="utf-8") as f:
-                video_urls = json.load(f)
-            exercise_names = list(video_urls.keys())
-            logger.info(
-                f"Carregados {len(exercise_names)} exercícios de video_urls.json"
-            )
+            import httpx
+
+            for ex in exercises:
+                url = ex["video_url"]
+                if not url:
+                    logger.warning(f"Sem URL para baixar vídeo de {ex['name']}")
+                    continue
+                local_path = f"videos/{ex['name']}.mp4"
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(url)
+                    if response.status_code == 200:
+                        with open(local_path, "wb") as f:
+                            f.write(response.content)
+                        page.client_storage.set(
+                            f"video_path_{ex['name']}", f"file://{local_path}"
+                        )
+                        logger.info(f"Vídeo baixado para {ex['name']}: {local_path}")
+                    else:
+                        logger.error(
+                            f"Falha ao baixar vídeo de {ex['name']}: {response.status_code}"
+                        )
+            page.open(ft.SnackBar(
+                content=ft.Text("Vídeos baixados com sucesso!", ft.Colors.WHITE),
+                bgcolor=ft.Colors.GREEN_700,
+            ))
+            page.update()
         except Exception as e:
-            logger.error(f"Erro ao carregar video_urls.json: {str(e)}")
+            logger.error(f"Erro ao baixar vídeos: {str(e)}")
+            page.open(ft.SnackBar(
+                content=ft.Text(f"Erro ao baixar vídeos: {str(e)}", ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_700,
+            ))
+            page.update()
+
+    def clear_downloaded_videos(e):
+        """Remove vídeos baixados e limpa cache de caminhos locais."""
+        try:
+            import shutil
+
+            videos_dir = "videos"
+            if os.path.exists(videos_dir):
+                shutil.rmtree(videos_dir)
+                logger.info("Diretório de vídeos removido")
+            for key in page.client_storage.get_keys():
+                if key.startswith("video_path_"):
+                    page.client_storage.remove(key)
+                    logger.debug(f"Chave de vídeo removida: {key}")
+            page.open(ft.SnackBar(
+                content=ft.Text("Vídeos baixados limpos com sucesso!", ft.Colors.WHITE),
+                bgcolor=ft.Colors.GREEN_700,
+            ))
+            page.update()
+        except Exception as e:
+            logger.error(f"Erro ao limpar vídeos baixados: {str(e)}")
+            page.open(ft.SnackBar(
+                content=ft.Text(f"Erro ao limpar vídeos: {str(e)}", ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_700,
+            ))
+            page.update()
+
+    def load_exercises(day: str):
+        """Carrega exercícios do Supabase para o dia especificado."""
+        cache_key = f"exercises_{day}"
+        try:
+            cached = page.client_storage.get(cache_key)
+            if cached:
+                logger.info(f"Carregando exercícios de {day} do cache")
+                return cached
+        except Exception as e:
+            logger.warning(f"Erro ao verificar cache para {day}: {str(e)}")
+
+        try:
+            response = supabase.client.table("video_urls").select("name").execute()
+            exercise_names = (
+                [item["name"] for item in response.data] if response.data else []
+            )
+            logger.info(f"Carregados {len(exercise_names)} exercícios do Supabase")
+        except Exception as e:
+            logger.error(f"Erro ao carregar exercícios do Supabase: {str(e)}")
             exercise_names = []
 
-        # Mapeamento de exercícios por dia
         day_exercises = {
             "segunda": [
                 {"name": "Supino Reto", "sets": 4, "reps": 12, "load": 0},
@@ -182,24 +252,24 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
         valid_exercises = []
         for ex in exercises:
             if ex["name"] in exercise_names:
+                video_url = video_for(ex["name"])
                 valid_exercises.append(
                     {
                         "name": ex["name"],
                         "series": ex["sets"],
                         "repetitions": ex["reps"],
                         "load": ex["load"],
-                        "video_url": video_for(ex["name"]),
+                        "video_url": video_url,
                     }
                 )
+                logger.debug(f"Exercício válido adicionado: {ex['name']}")
             else:
                 logger.warning(
-                    f"Exercício {ex['name']} não encontrado em video_urls.json para o dia {day}"
+                    f"Exercício {ex['name']} não encontrado na tabela video_urls"
                 )
 
         if not valid_exercises:
-            logger.warning(
-                f"Nenhum exercício válido encontrado para {day}. Carregando padrão."
-            )
+            logger.warning(f"Nenhum exercício válido para {day}. Carregando padrão.")
             valid_exercises = [
                 {
                     "name": "Supino Reto",
@@ -217,6 +287,12 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
                 },
             ]
 
+        try:
+            page.client_storage.set(cache_key, valid_exercises)
+            logger.info(f"Exercícios de {day} salvos no cache: {len(valid_exercises)}")
+        except Exception as e:
+            logger.error(f"Erro ao salvar exercícios no cache: {str(e)}")
+
         logger.info(f"Exercícios válidos para {day}: {len(valid_exercises)}")
         return valid_exercises
 
@@ -226,9 +302,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
     training_timer_ref = ft.Ref[ft.Text]()
 
     async def run_training_timer():
-        """
-        Executa o temporizador do treino.
-        """
+        """Executa o temporizador do treino."""
         nonlocal training_time, training_running
         while training_running:
             training_time += 1
@@ -236,11 +310,10 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
             training_timer_ref.current.value = f"Tempo: {m:02d}:{s:02d}"
             training_timer_ref.current.update()
             await asyncio.sleep(1)
+            logger.debug(f"Tempo de treino atualizado: {m:02d}:{s:02d}")
 
     def start_training(e):
-        """
-        Inicia o treino, habilitando controles e temporizador.
-        """
+        """Inicia o treino, habilitando controles e temporizador."""
         nonlocal training_started, training_running
         training_started = True
         training_running = True
@@ -249,14 +322,14 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
         start_btn.visible = False
         pause_btn.visible = True
         finish_btn.visible = True
+        download_btn.visible = True
+        clear_btn.visible = True
         page.run_task(run_training_timer)
         logger.info(f"Treino iniciado para o dia {day}")
         page.update()
 
     def pause_training(e):
-        """
-        Pausa o treino.
-        """
+        """Pausa o treino."""
         nonlocal training_running
         training_running = False
         pause_btn.visible = False
@@ -265,9 +338,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
         page.update()
 
     def resume_training(e):
-        """
-        Retoma o treino.
-        """
+        """Retoma o treino."""
         nonlocal training_running
         training_running = True
         page.run_task(run_training_timer)
@@ -277,9 +348,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
         page.update()
 
     def stop_training(e):
-        """
-        Finaliza o treino com confirmação.
-        """
+        """Finaliza o treino com confirmação."""
         nonlocal training_running
 
         def confirm(ev):
@@ -289,6 +358,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
                 logger.info(f"Treino finalizado para o dia {day}")
                 page.go("/home")
             page.close(dlg)
+            page.update()
 
         dlg = ft.AlertDialog(
             modal=True,
@@ -301,16 +371,18 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
             actions_alignment=ft.MainAxisAlignment.END,
         )
         page.open(dlg)
+        logger.debug("Diálogo de finalização de treino aberto")
 
     def favorite_ex(tile):
-        """
-        Manipula o evento de favoritar/desfavoritar exercício.
-        """
+        """Manipula o evento de favoritar/desfavoritar exercício."""
         msg = (
             "Exercício favoritado!" if tile.is_favorited else "Exercício desfavoritado!"
         )
-        page.snack_bar = ft.SnackBar(content=ft.Text(msg), action="OK")
-        page.snack_bar.open = True
+        page.open(ft.SnackBar(
+            content=ft.Text(msg),
+            bgcolor=ft.Colors.GREEN_700 if tile.is_favorited else ft.Colors.RED_700,
+        ))
+        page.update()
         logger.info(
             f"Exercício {tile.exercise_name} {'favoritado' if tile.is_favorited else 'desfavoritado'}"
         )
@@ -350,13 +422,25 @@ def Treinopage(page: ft.Page, supabase: any, day: str):
     finish_btn = ft.ElevatedButton(
         "Finalizar Treino", on_click=stop_training, visible=False, ref=ft.Ref()
     )
+    download_btn = ft.ElevatedButton(
+        "Baixar Vídeos",
+        on_click=lambda e: page.run_task(download_videos, exercises),
+        visible=False,
+        ref=ft.Ref(),
+    )
+    clear_btn = ft.ElevatedButton(
+        "Limpar Vídeos", on_click=clear_downloaded_videos, visible=False, ref=ft.Ref()
+    )
 
     control_bar = ft.Container(
         content=ft.ResponsiveRow(
             [
                 ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/home")),
                 ft.Text(ref=training_timer_ref, value="Tempo: 00:00", size=16),
-                ft.Row([pause_btn, resume_btn, finish_btn], spacing=5),
+                ft.Row(
+                    [pause_btn, resume_btn, finish_btn, download_btn, clear_btn],
+                    spacing=5,
+                ),
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             spacing=10,
