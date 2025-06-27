@@ -17,7 +17,7 @@ from utils.alerts import CustomSnackBar
 logger = get_logger("supafit.routes")
 
 
-def setup_routes(page: ft.Page, supabase, anthropic):
+def setup_routes(page: ft.Page, supabase, openai):
     """Sistema de rotas melhorado com autenticação simplificada."""
 
     PUBLIC_ROUTES = ["/login", "/register", "/terms", "/forgot_password"]
@@ -128,7 +128,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
                     "Termos de Uso", show_back_button=True
                 ),
                 route="/terms",
-                controls=[TermsPage(page, supabase, anthropic)],
+                controls=[TermsPage(page, supabase, openai)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 scroll=ft.ScrollMode.AUTO,
@@ -174,7 +174,7 @@ def setup_routes(page: ft.Page, supabase, anthropic):
             "/trainer": lambda: ft.View(
                 appbar=mobile_appbar.create_appbar("Treinador", show_back_button=True),
                 route="/trainer",
-                controls=[TrainerTab(page, supabase, anthropic)],
+                controls=[TrainerTab(page, supabase, openai)],
                 vertical_alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 padding=20,

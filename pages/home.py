@@ -11,142 +11,49 @@ def Homepage(page: ft.Page, supabase):
 
     def load_workouts():
         try:
-            if not user_id:
-                logger.warning(
-                    "Nenhum user_id válido encontrado. Carregando treinos padrão."
-                )
-                return [
-                    {
-                        "day": "segunda",
-                        "name": "Peito e Tríceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "terça",
-                        "name": "Costas e Bíceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "quarta",
-                        "name": "Pernas",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "quinta",
-                        "name": "Ombros",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "sexta",
-                        "name": "Peito e Tríceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "sábado",
-                        "name": "Descanso",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "domingo",
-                        "name": "Descanso",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                ]
-
-            # filtrar por user_id
-            response = (
-                supabase.client.table("daily_workouts")
-                .select("*")
-                .eq("user_id", user_id)
-                .execute()
-            )
-            if not response.data:
-                logger.info(
-                    "Nenhum treino encontrado para o usuário. Carregando treinos padrão."
-                )
-                return [
-                    {
-                        "day": "segunda",
-                        "name": "Peito e Tríceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "terça",
-                        "name": "Costas e Bíceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "quarta",
-                        "name": "Pernas",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "quinta",
-                        "name": "Ombros",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "sexta",
-                        "name": "Peito e Tríceps",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "sábado",
-                        "name": "Descanso",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                    {
-                        "day": "domingo",
-                        "name": "Descanso",
-                        "image_url": "https://picsum.photos/200",
-                    },
-                ]
-            return [
-                {
-                    **workout,
-                    "image_url": workout.get("image_url", "https://picsum.photos/200"),
-                }
-                for workout in response.data
-            ]
-        except Exception as e:
-            logger.error(f"Erro ao carregar treinos: {str(e)}")
-            return [
+            # Dados mock com imagens locais
+            workouts = [
                 {
                     "day": "segunda",
                     "name": "Peito e Tríceps",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_peito.png",
                 },
                 {
                     "day": "terça",
                     "name": "Costas e Bíceps",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_costas.png",
                 },
                 {
                     "day": "quarta",
                     "name": "Pernas",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_perna.png", 
                 },
                 {
                     "day": "quinta",
                     "name": "Ombros",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_braco.png", 
                 },
                 {
                     "day": "sexta",
                     "name": "Peito e Tríceps",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_peito.png",
                 },
                 {
                     "day": "sábado",
                     "name": "Descanso",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_descanso.png", 
                 },
                 {
                     "day": "domingo",
                     "name": "Descanso",
-                    "image_url": "https://picsum.photos/200",
+                    "image_url": "mascote_supafit/treino_descanso.png", 
                 },
             ]
+            logger.info("Treinos mock carregados com imagens locais.")
+            return workouts
+        except Exception as e:
+            logger.error(f"Erro ao carregar treinos mock: {str(e)}")
+            return workouts  # Retorna a mesma lista mock em caso de erro
 
     workouts = load_workouts()
     current_day = datetime.now().strftime("%A").lower()

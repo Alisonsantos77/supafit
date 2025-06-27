@@ -1,6 +1,6 @@
 import flet as ft
 from .base_step import BaseStep, logger
-from services.anthropic import AnthropicService
+from services.openai import OpenAIService
 
 
 class Step7Restrictions(BaseStep):
@@ -114,8 +114,8 @@ class Step7Restrictions(BaseStep):
             return False
 
         if restrictions:
-            anthropic_service = AnthropicService()
-            if anthropic_service.is_sensitive_restrictions(restrictions):
+            openai_service = OpenAIService()
+            if openai_service.is_sensitive_restrictions(restrictions):
                 self.restrictions_input.error_text = (
                     "Restrições contêm conteúdo inadequado."
                 )
@@ -130,5 +130,7 @@ class Step7Restrictions(BaseStep):
 
         self.restrictions_input.error_text = None
         self.profile_data["restrictions"] = restrictions or None
-        logger.info(f"Restrições coletadas: {self.profile_data['restrictions'] or 'nenhuma'}")
+        logger.info(
+            f"Restrições coletadas: {self.profile_data['restrictions'] or 'nenhuma'}"
+        )
         return True

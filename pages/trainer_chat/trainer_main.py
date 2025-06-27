@@ -8,14 +8,14 @@ from pages.trainer_chat.components import (
 from pages.trainer_chat.chat_logic import load_chat_history, clear_chat, ask_question
 from pages.trainer_chat.data import get_user_profile, validate_user_session
 from services.supabase import SupabaseService
-from services.anthropic import AnthropicService
+from services.openai import OpenAIService
 from utils.logger import get_logger
 
 logger = get_logger("supafit.trainer_chat.trainer_main")
 
 
 def TrainerTab(
-    page: ft.Page, supabase_service: SupabaseService, anthropic: AnthropicService
+    page: ft.Page, supabase_service: SupabaseService, openai: OpenAIService
 ) -> ft.Control:
     """Cria a interface da aba Treinador com design minimalista."""
     page.padding = 0
@@ -41,7 +41,7 @@ def TrainerTab(
             e,
             page,
             supabase_service,
-            anthropic,
+            openai,
             question_field,
             ask_button,
             chat_container,

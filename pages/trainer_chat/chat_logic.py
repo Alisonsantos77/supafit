@@ -5,7 +5,7 @@ from datetime import datetime
 import uuid
 from .message import Message, ChatMessage
 from services.supabase import SupabaseService
-from services.anthropic import AnthropicService
+from services.openai import OpenAIService
 from utils.alerts import CustomAlertDialog
 from postgrest.exceptions import APIError
 from utils.logger import get_logger
@@ -68,6 +68,9 @@ async def load_chat_history(
 
         for item in resp.data:
             raw_message = item.get("message", [])
+            if raw_message is None:  # Verificação para mensagem nula
+                logger.warning(f"Mensagem nula encontrada para user_id: {user_id}")
+                continue
             if isinstance(raw_message, str):
                 try:
                     messages = json.loads(raw_message)
@@ -103,14 +106,26 @@ async def load_chat_history(
                 return []
             else:
                 page.open(
-                    ft.SnackBar(ft.Text("Sessão expirada. Faça login novamente.", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700)
+                    ft.SnackBar(
+                        ft.Text(
+                            "Sessão expirada. Faça login novamente.",
+                            color=ft.Colors.WHITE,
+                        ),
+                        bgcolor=ft.Colors.RED_700,
+                    )
                 )
                 page.update()
                 page.go("/login")
                 return []
         logger.error(f"Erro ao carregar histórico: {str(e)}")
         page.open(
-            ft.SnackBar(ft.Text(f"Erro ao carregar histórico: {str(e)}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700)
+            ft.SnackBar(
+                ft.Text(
+                    f"Erro ao carregar histórico: {str(e)}",
+                    color=ft.Colors.WHITE,
+                ),
+                bgcolor=ft.Colors.RED_700,
+            )
         )
         page.update()
         return []
@@ -196,7 +211,7 @@ async def ask_question(
     e,
     page: ft.Page,
     supabase_service: SupabaseService,
-    anthropic: AnthropicService,
+    openai: OpenAIService,
     question_field: ft.TextField,
     ask_button: ft.IconButton,
     chat_container: ft.ListView,
@@ -210,7 +225,10 @@ async def ask_question(
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
         page.open(
             ft.SnackBar(
-                ft.Text("Aguarde alguns segundos antes de enviar outra pergunta.", color=ft.Colors.WHITE),
+                ft.Text(
+                    "Aguarde alguns segundos antes de enviar outra pergunta.",
+                    color=ft.Colors.WHITE,
+                ),
                 bgcolor=ft.Colors.RED_700,
             )
         )
@@ -226,8 +244,13 @@ async def ask_question(
         question_field.error_text = "Mensagem muito longa (máximo 500 caracteres)."
         page.update()
         return
-    if anthropic.is_sensitive_question(question):
-        page.open(ft.SnackBar(ft.Text("Pergunta sensível detectada.", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700))
+    if openai.is_sensitive_question(question):
+        page.open(
+            ft.SnackBar(
+                ft.Text("Pergunta sensível detectada.", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_700,
+            )
+        )
         page.update()
         return
 
@@ -265,7 +288,6 @@ async def ask_question(
             transition=ft.AnimatedSwitcherTransition.FADE,
             duration=300,
         )
-
         system_prompt = f"""
         # IDENTIDADE E PAPEL PRINCIPAL
         Você é Coach Coachito, o treinador virtual oficial do SupaFit - um personal trainer experiente, motivacional e genuinamente interessado no sucesso de cada aluno. Sua missão é ser o parceiro de treino que todos gostariam de ter: conhecedor, motivador, paciente e sempre focado nos resultados reais.
@@ -376,9 +398,9 @@ async def ask_question(
         ## LEMBRETE FINAL:
         Você é mais que um chatbot - é um parceiro de jornada fitness. Cada interação deve deixar o usuário mais motivado, informado e confiante em sua capacidade de alcançar seus objetivos de forma segura e sustentável.
         """
-        answer = anthropic.answer_question(question, history_cache, system_prompt)
+        answer = await openai.answer_question(question, history_cache, system_prompt)
         if not answer or "desculpe" in answer.lower():
-            raise ValueError("Resposta inválida do Anthropic")
+            raise ValueError("Resposta inválida do Openai")
 
         messages_with_delays = integrate_with_chat(answer)
 
@@ -423,17 +445,16 @@ async def ask_question(
             )
             if len(chat_container.controls) > 50:
                 chat_container.controls.pop(0)
-            await asyncio.sleep(delay * 0.7)  # Reduz delay em 30%
+            await asyncio.sleep(delay * 0.3)  # Reduz delay em 70%
             page.update()
 
         if len(message_json) > 1:  # Insere apenas se houver mensagens válidas
-            supabase_service.client.table("trainer_qa").insert(
+            supabase_service.client.table("trainer_qa").upsert(
                 {
                     "user_id": user_id,
                     "message": message_json,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat(),
-                }
+                },
+                on_conflict="user_id",
             ).execute()
         question_field.value = ""
         question_field.error_text = None

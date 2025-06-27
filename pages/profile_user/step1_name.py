@@ -1,6 +1,6 @@
 import flet as ft
 from .base_step import BaseStep, logger
-from services.anthropic import AnthropicService
+from services.openai import OpenAIService
 import re
 
 
@@ -70,9 +70,7 @@ class Step1Name(BaseStep):
             spacing=10,
         )
 
-    def build_view(
-        self,
-    ) -> ft.Control:
+    def build_view(self) -> ft.Control:
         return ft.Column(
             [
                 self.build_step_progress(),
@@ -104,7 +102,7 @@ class Step1Name(BaseStep):
         name = self.name_input.value.strip()
         if not name:
             self.name_input.error_text = "Por favor, insira seu nome."
-            self.name_input.error_textupdate()
+            self.name_input.update()
             self.show_snackbar("Por favor, insira seu nome.")
             logger.warning("Nome não preenchido.")
             return False
@@ -112,10 +110,8 @@ class Step1Name(BaseStep):
         # Verificação de comprimento do nome
         if len(name) < 2 or len(name) > 20:
             self.name_input.error_text = "Nome deve ter entre 2 e 20 caracteres."
-            self.name_input.update_error_text(
-                self.show_snackbar("Nome deve ter entre 2 e 20 caracteres")
-            )
-            logger.warning("Comprimento inválido do nome: {name}")
+            self.name_input.update()
+            self.show_snackbar("Nome deve ter entre 2 e 20 caracteres")
             logger.warning(f"Comprimento do nome: {name}")
             return False
 
@@ -128,8 +124,8 @@ class Step1Name(BaseStep):
             return False
 
         # Verificação de conteúdo sensível
-        anthropic_service = AnthropicService()
-        if anthropic_service.is_sensitive_name(name):
+        openai_service = OpenAIService()
+        if openai_service.is_sensitive_name(name):
             self.name_input.error_text = "Nome contém conteúdo inadequado."
             self.name_input.update()
             self.show_snackbar("Escolha um nome apropriado.")
@@ -138,5 +134,5 @@ class Step1Name(BaseStep):
 
         self.name_input.error_text = None
         self.profile_data["name"] = name
-        logger.info(f"Nome coletado coletado: {name}")
+        logger.info(f"Nome coletado: {name}")
         return True

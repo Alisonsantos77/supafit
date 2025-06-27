@@ -11,7 +11,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def TermsPage(page: ft.Page, supabase, anthropic):
+def TermsPage(page: ft.Page, supabase, openai):
     # Conteúdo dos Termos de Uso em Markdown
     terms_markdown = """
 # Termos de Uso do DebtManager
@@ -50,7 +50,7 @@ Se você exceder o limite, sua conta poderá ser bloqueada até que um upgrade d
 
 ## 5. Responsabilidade
 
-- Fazemos o possível para manter o DebtManager funcionando perfeitamente, mas não nos responsabilizamos por falhas de serviços de terceiros (ex.: Twilio para mensagens, Supabase para dados, Anthropic para extração de PDFs).
+- Fazemos o possível para manter o DebtManager funcionando perfeitamente, mas não nos responsabilizamos por falhas de serviços de terceiros (ex.: Twilio para mensagens, Supabase para dados, Openai para extração de PDFs).
 - Se você usar a aplicação de forma incorreta (ex.: enviar dados errados nos PDFs), a responsabilidade é sua.
 - O DebtManager não garante que todas as notificações serão entregues (devido a falhas de rede ou bloqueios), mas notificaremos você em caso de problemas.
 
@@ -98,11 +98,11 @@ No DebtManager, levamos sua privacidade a sério! Como lidamos com dados sensív
 
 - Seus dados são armazenados no Supabase, um serviço de banco de dados seguro.
 - Utilizamos criptografia para proteger informações sensíveis (como no nosso código, com `flet.security.encrypt`).
-- Apenas nossa equipe e os serviços necessários (como Twilio e Anthropic) têm acesso aos dados, e somente para o funcionamento da aplicação.
+- Apenas nossa equipe e os serviços necessários (como Twilio e Openai) têm acesso aos dados, e somente para o funcionamento da aplicação.
 
 ## 4. Com quem compartilhamos seus dados?
 
-- **Serviços de terceiros:** Usamos Twilio para enviar mensagens, Supabase para armazenar dados e Anthropic para extrair dados de PDFs. Eles recebem apenas o necessário para operar.
+- **Serviços de terceiros:** Usamos Twilio para enviar mensagens, Supabase para armazenar dados e Openai para extrair dados de PDFs. Eles recebem apenas o necessário para operar.
 - **Sem vendas:** Não vendemos nem compartilhamos seus dados com terceiros para fins de marketing, a menos que você autorize.
 - **Autoridades:** Em caso de ordem judicial, podemos compartilhar dados, mas apenas o exigido por lei.
 

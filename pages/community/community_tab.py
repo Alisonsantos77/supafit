@@ -107,7 +107,6 @@ def CommunityTab(page: ft.Page, supabase_service):
             else:
                 logger.error("Page não disponível para exibir SnackBar")
 
-    # Componentes da UI
     victories_list = ft.ListView(
         expand=True,
         spacing=8,

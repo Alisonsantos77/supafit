@@ -1,4 +1,3 @@
-# main.py
 import flet as ft
 import requests
 from routes import setup_routes
@@ -6,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from services.supabase import SupabaseService
-from services.anthropic import AnthropicService
+from services.openai import OpenAIService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,7 +35,7 @@ def main(page: ft.Page):
         "Barlow": "assets/fonts/Barlow-Regular.ttf",
         "Manrope": "assets/fonts/Manrope-VariableFont_wght.ttf",
     }
-    # Inicializar serviços
+    
     try:
         supabase = SupabaseService.get_instance(page)
     except Exception as e:
@@ -45,7 +44,7 @@ def main(page: ft.Page):
         page.go("/login")
         return
 
-    anthropic = AnthropicService()
+    openai = OpenAIService()
 
     # Carregar perfil
     user_id = page.client_storage.get("supafit.user_id")
@@ -85,7 +84,7 @@ def main(page: ft.Page):
     logging.info(f"Valores recuperados do armazenamento: {storage_values}")
 
     try:
-        setup_routes(page, supabase, anthropic)
+        setup_routes(page, supabase, openai)
     except Exception as e:
         logging.error(f"Erro ao configurar rotas: {str(e)}")
         page.add(ft.Text(f"Erro ao configurar rotas: {str(e)}"))

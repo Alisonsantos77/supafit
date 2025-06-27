@@ -281,7 +281,6 @@ class ProfileActions:
                         ),
                         on_click=save_callback,
                         style=ft.ButtonStyle(
-                            # color=ft.Colors.WHITE,
                             overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
                             elevation=0,
                             shadow_color=ft.Colors.TRANSPARENT,
@@ -306,7 +305,6 @@ class ProfileActions:
                         ),
                         on_click=back_callback,
                         style=ft.ButtonStyle(
-                            # color=ft.Colors.ON_SURFACE,
                             overlay_color=ft.Colors.with_opacity(
                                 0.08, ft.Colors.ON_SURFACE
                             ),
