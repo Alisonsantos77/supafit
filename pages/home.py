@@ -5,58 +5,86 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Mapeamento de título para imagem local
+IMAGE_MAP = {
+    "peito e tríceps": "mascote_supafit/treino_peito.png",
+    "costas e bíceps": "mascote_supafit/treino_costas.png",
+    "pernas": "mascote_supafit/treino_perna.png",
+    "ombros": "mascote_supafit/treino_ombros.png",
+    "descanso": "mascote_supafit/treino_descanso.png",
+}
 
-def Homepage(page: ft.Page, supabase):
+# Ordem fixa dos dias da semana
+WEEK_DAYS_ORDER = [
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+    "domingo",
+]
+
+
+def Homepage(page: ft.Page, supabase_service):
     user_id = page.client_storage.get("supafit.user_id")
+    if not user_id:
+        logger.warning(
+            "User ID não encontrado no client_storage. Redirecionando para login."
+        )
+        page.go("/login")
+        return ft.Container()
 
     def load_workouts():
         try:
-            # Dados mock com imagens locais
+            resp = (
+                supabase_service.client.table("user_plans")
+                .select(
+                    "day, title, plan_exercises(order, sets, reps, exercicios(nome))"
+                )
+                .eq("user_id", user_id)
+                .execute()
+            )
+            data = resp.data or []
+
+            workouts_by_day = {day: None for day in WEEK_DAYS_ORDER}
+
+            for plan in data:
+                title = plan.get("title", "")
+                exercises = sorted(
+                    plan.get("plan_exercises", []), key=lambda x: x.get("order", 0)
+                )
+                ex_list = [
+                    {
+                        "name": ex["exercicios"]["nome"],
+                        "sets": ex.get("sets"),
+                        "reps": ex.get("reps"),
+                    }
+                    for ex in exercises
+                ]
+                img = IMAGE_MAP.get(title.lower(), "mascote_supafit/treino_padrao.png")
+
+                workouts_by_day[plan.get("day")] = {
+                    "day": plan.get("day"),
+                    "name": title,
+                    "exercises": ex_list,
+                    "image_url": img,
+                }
+
             workouts = [
-                {
-                    "day": "segunda",
-                    "name": "Peito e Tríceps",
-                    "image_url": "mascote_supafit/treino_peito.png",
-                },
-                {
-                    "day": "terça",
-                    "name": "Costas e Bíceps",
-                    "image_url": "mascote_supafit/treino_costas.png",
-                },
-                {
-                    "day": "quarta",
-                    "name": "Pernas",
-                    "image_url": "mascote_supafit/treino_perna.png", 
-                },
-                {
-                    "day": "quinta",
-                    "name": "Ombros",
-                    "image_url": "mascote_supafit/treino_braco.png", 
-                },
-                {
-                    "day": "sexta",
-                    "name": "Peito e Tríceps",
-                    "image_url": "mascote_supafit/treino_peito.png",
-                },
-                {
-                    "day": "sábado",
-                    "name": "Descanso",
-                    "image_url": "mascote_supafit/treino_descanso.png", 
-                },
-                {
-                    "day": "domingo",
-                    "name": "Descanso",
-                    "image_url": "mascote_supafit/treino_descanso.png", 
-                },
+                workouts_by_day[day] for day in WEEK_DAYS_ORDER if workouts_by_day[day]
             ]
-            logger.info("Treinos mock carregados com imagens locais.")
+            logger.info(f"{len(workouts)} treinos carregados do Supabase.")
             return workouts
+
         except Exception as e:
-            logger.error(f"Erro ao carregar treinos mock: {str(e)}")
-            return workouts  # Retorna a mesma lista mock em caso de erro
+            logger.error(f"Erro ao carregar treinos do Supabase: {e}")
+            return []
 
     workouts = load_workouts()
-    current_day = datetime.now().strftime("%A").lower()
+
+    # Mapeia dia atual
+    today_en = datetime.now().strftime("%A").lower()
     day_map = {
         "monday": "segunda",
         "tuesday": "terça",
@@ -66,24 +94,22 @@ def Homepage(page: ft.Page, supabase):
         "saturday": "sábado",
         "sunday": "domingo",
     }
-    current_day = day_map.get(current_day, "segunda")
+    current_day = day_map.get(today_en, "segunda")
 
     workout_grid = ft.ResponsiveRow(
         controls=[
             ft.Container(
                 content=WorkoutTile(
-                    workout_name=workout["name"],
-                    day=workout["day"],
-                    image_url=workout["image_url"],
-                    is_current_day=workout["day"] == current_day,
-                    on_view_click=lambda e, day=workout["day"]: page.go(
-                        f"/treino/{day}"
-                    ),
+                    workout_name=wk["name"],
+                    day=wk["day"],
+                    image_url=wk["image_url"],
+                    is_current_day=(wk["day"] == current_day),
+                    on_view_click=lambda e, day=wk["day"]: page.go(f"/treino/{day}"),
                 ),
                 col=10,
                 padding=10,
             )
-            for workout in workouts
+            for wk in workouts
         ],
         columns=12,
         spacing=10,
