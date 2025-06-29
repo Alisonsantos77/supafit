@@ -10,6 +10,7 @@ from pages.trainer_chat.data import get_user_profile, validate_user_session
 from services.supabase import SupabaseService
 from services.openai import OpenAIService
 from utils.logger import get_logger
+import time
 
 logger = get_logger("supafit.trainer_chat.trainer_main")
 
@@ -32,11 +33,15 @@ def TrainerTab(
 
     chat_container = create_chat_container(page)
     question_field = create_question_input()
-    last_question_time = [0]
+    last_question_time = [time.time() - 10]  # previne bloqueio inicial
     user_data = {}
     history_cache = []
 
     async def ask_button_callback(e):
+        if not user_data:
+            page.open(ft.SnackBar(ft.Text("Carregando dados do perfil...")))
+            page.update()
+            return
         await ask_question(
             e,
             page,
