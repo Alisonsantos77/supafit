@@ -67,9 +67,7 @@ class AvatarComponent(ft.CircleAvatar):
                     "user_id é obrigatório se image_url não for fornecido."
                 )
             self.image_url = (
-                f"https://robohash.org/{user_id}_trainer.png?set=set3"
-                if is_trainer
-                else f"https://api.dicebear.com/9.x/pixel-art/png?seed={user_id}"
+                "mascote_supafit/coachito.png"
             )
         super().__init__(foreground_image_src=self.image_url, radius=radius, **kwargs)
         self.on_click = self.handle_click

@@ -98,7 +98,7 @@ class Step1Name(BaseStep):
             spacing=15,
         )
 
-    def validate(self) -> bool:
+    async def validate(self) -> bool:
         name = self.name_input.value.strip()
         if not name:
             self.name_input.error_text = "Por favor, insira seu nome."
@@ -125,7 +125,7 @@ class Step1Name(BaseStep):
 
         # Verificação de conteúdo sensível
         openai_service = OpenAIService()
-        if openai_service.is_sensitive_name(name):
+        if await openai_service.is_sensitive_name(name):
             self.name_input.error_text = "Nome contém conteúdo inadequado."
             self.name_input.update()
             self.show_snackbar("Escolha um nome apropriado.")

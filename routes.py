@@ -11,10 +11,8 @@ from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
 from pages.profile_user.create_profile import CreateProfilePage
 from pages.forgot_password import ForgotPasswordPage
-from utils.logger import get_logger
 from utils.alerts import CustomSnackBar
 
-logger = get_logger("supafit.routes")
 
 
 def setup_routes(page: ft.Page, supabase, openai):
@@ -36,14 +34,13 @@ def setup_routes(page: ft.Page, supabase, openai):
         page.snack_bar = snackbar
         page.snack_bar.open = True
         page.update()
-        logger.info(f"SnackBar: {message}")
 
     def require_auth(func):
         """Decorator para rotas que precisam de autenticação."""
 
         def wrapper():
             if not supabase.is_authenticated():
-                logger.info("Usuário não autenticado - redirecionando para login")
+                print("Usuário não autenticado - redirecionando para login")
                 show_snackbar(
                     "Por favor, faça login para continuar.", ft.Colors.BLUE_400
                 )
@@ -60,7 +57,7 @@ def setup_routes(page: ft.Page, supabase, openai):
                 page.client_storage.get("supafit.profile_created") or False
             )
             if not profile_created:
-                logger.info("Perfil não criado - redirecionando para criação de perfil")
+                print("Perfil não criado - redirecionando para criação de perfil")
                 show_snackbar("Complete seu perfil para continuar.", ft.Colors.BLUE_400)
                 return redirect_to_create_profile()
             return func()
@@ -89,7 +86,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         def on_complete():
             page.client_storage.set("supafit.profile_created", True)
             page.go("/home")
-            logger.info("Perfil criado, navegando para /home")
+            print("Perfil criado, navegando para /home")
 
         page.views.append(
             ft.View(
@@ -226,8 +223,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         def on_complete():
             page.client_storage.set("supafit.profile_created", True)
             page.go("/home")
-            logger.info("Perfil criado, navegando para /home")
-
+            print("Perfil criado, navegando para /home")
         page.views.append(
             ft.View(
                 appbar=mobile_appbar.create_appbar(
@@ -244,7 +240,7 @@ def setup_routes(page: ft.Page, supabase, openai):
     def route_change(route):
         """Manipulador principal de mudanças de rota."""
         page.views.clear()
-        logger.info(f"Navegando para: {page.route}")
+        print(f"Navegando para: {page.route}")  # Debugging output
         try:
             if page.route in PUBLIC_ROUTES:
                 handle_public_routes()
@@ -255,11 +251,11 @@ def setup_routes(page: ft.Page, supabase, openai):
             ):
                 handle_protected_routes()
             else:
-                logger.warning(f"Rota não encontrada: {page.route}")
+                print(f"Rota não encontrada: {page.route}")
                 show_snackbar("Rota não encontrada. Redirecionando para login.")
                 redirect_to_login()
         except Exception as e:
-            logger.error(f"Erro ao processar rota {page.route}: {str(e)}")
+            print(f"Erro ao processar rota {page.route}: {str(e)}")
             show_snackbar(f"Erro ao carregar página: {str(e)}")
             redirect_to_login()
         page.update()

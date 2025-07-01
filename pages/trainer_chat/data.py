@@ -1,24 +1,7 @@
 import flet as ft
 from services.supabase import SupabaseService
-from utils.logger import get_logger
 from utils.alerts import CustomSnackBar
 import sys
-import logging
-
-# Configura logger para evitar erros de codificação no Windows
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = get_logger("supafit.trainer_chat.data")
-logger.handlers[0].setFormatter(
-    logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-)
-logger.handlers[0].stream.reconfigure(encoding="utf-8")
 
 
 def get_user_profile(supabase_service: SupabaseService, user_id: str) -> dict:
@@ -44,10 +27,10 @@ def get_user_profile(supabase_service: SupabaseService, user_id: str) -> dict:
                 "user_id": user_id,
             }
         )
-        logger.info(f"Perfil carregado para user_id: {user_id}")
+        print(f"INFO: Perfil carregado para user_id: {user_id}")
         return profile
     except Exception as e:
-        logger.error(f"Erro ao carregar perfil do usuário {user_id}: {str(e)}")
+        print(f"ERROR: Falha ao carregar perfil do usuário {user_id}: {str(e)}", file=sys.stderr)
         return {
             "name": "Usuário",
             "age": "N/A",
@@ -64,7 +47,7 @@ async def validate_user_session(
 ) -> bool:
     """Valida a sessão do usuário e redireciona se necessário."""
     if not user_id or user_id == "default_user":
-        logger.error("Usuário não autenticado.")
+        print("Usuário não autenticado. Redirecionando para a página de login.")
         CustomSnackBar(
             message="Você precisa estar logado para acessar o chat.",
             bgcolor=ft.Colors.RED_700,

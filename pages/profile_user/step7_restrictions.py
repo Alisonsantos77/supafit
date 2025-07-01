@@ -100,7 +100,7 @@ class Step7Restrictions(BaseStep):
             spacing=15,
         )
 
-    def validate(self) -> bool:
+    async def validate(self) -> bool:
         restrictions = self.restrictions_input.value.strip()
 
         # Verificar comprimento
@@ -115,7 +115,7 @@ class Step7Restrictions(BaseStep):
 
         if restrictions:
             openai_service = OpenAIService()
-            if openai_service.is_sensitive_restrictions(restrictions):
+            if await openai_service.is_sensitive_restrictions(restrictions):
                 self.restrictions_input.error_text = (
                     "Restrições contêm conteúdo inadequado."
                 )

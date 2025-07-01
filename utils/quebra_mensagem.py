@@ -21,9 +21,6 @@ class UnicodeFilter(logging.Filter):
         return True
 
 
-from utils.logger import get_logger
-
-logger = get_logger("supabafit.quebra_mensagem")
 
 """
 Arquivo para manipulação de textos no chat do SupaFit, 
@@ -52,10 +49,10 @@ def calculate_typing_delay(message: str) -> float:
         typing_time_seconds = max(
             1, min(round(typing_time_seconds, 2), 8)
         )  # Entre 1 e 8 segundos
-        logger.info(f"Delay calculado para '{message[:50]}...': {typing_time_seconds}s")
+        print(f"Delay calculado para '{message[:50]}...': {typing_time_seconds}s")
         return typing_time_seconds
     except Exception as ex:
-        logger.error(f"Erro ao calcular delay de digitação: {ex}")
+        print(f"Erro ao calcular delay de digitação: {ex}")
         return 3.0  # Valor padrão em caso de erro
 
 
@@ -111,7 +108,7 @@ def process_fitness_list(items: list) -> list:
         else:
             result.append(items[i])
             i += 1
-    logger.info(f"Processadas {len(result)} mensagens após tratamento de listas")
+    print(f"Mensagens processadas: {result[:5]}...")  # Exibe as primeiras 5 mensagens
     return result
 
 
@@ -191,10 +188,10 @@ def break_messages(text: str, break_probability: float = 0.5) -> list:
 
         # Processar listas de treino
         messages = process_fitness_list(messages)
-        logger.info(f"Texto quebrado em {len(messages)} mensagens")
+        print(f"Texto quebrado em {len(messages)} mensagens")  # Debug
 
     except Exception as ex:
-        logger.error(f"Erro ao quebrar mensagens: {ex}")
+        print(f"Erro ao quebrar mensagens: {ex}")
         messages = [text]  # Fallback para o texto original
 
     return messages

@@ -78,7 +78,7 @@ def Homepage(page: ft.Page, supabase_service):
             return workouts
 
         except Exception as e:
-            logger.error(f"Erro ao carregar treinos do Supabase: {e}")
+            print(f"Erro ao carregar treinos do Supabase: {e}")
             return []
 
     workouts = load_workouts()
