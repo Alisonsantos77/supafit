@@ -1,9 +1,6 @@
 import flet as ft
 from components.components import WorkoutTile
 from datetime import datetime
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Mapeamento de título para imagem local
 IMAGE_MAP = {
@@ -12,6 +9,11 @@ IMAGE_MAP = {
     "pernas": "mascote_supafit/treino_perna.png",
     "ombros": "mascote_supafit/treino_ombros.png",
     "descanso": "mascote_supafit/treino_descanso.png",
+    "alongamento": "mascote_supafit/treino_alongamento.png",
+    "braço": "mascote_supafit/treino_braco.png",
+    "cardio": "mascote_supafit/treino_cardio.png",
+    "core": "mascote_supafit/treino_core.png",
+    "full body": "mascote_supafit/treino_full_body.png",
 }
 
 # Ordem fixa dos dias da semana
@@ -29,9 +31,7 @@ WEEK_DAYS_ORDER = [
 def Homepage(page: ft.Page, supabase_service):
     user_id = page.client_storage.get("supafit.user_id")
     if not user_id:
-        logger.warning(
-            "User ID não encontrado no client_storage. Redirecionando para login."
-        )
+        print("User ID não encontrado no client_storage. Redirecionando para login.")
         page.go("/login")
         return ft.Container()
 
@@ -43,6 +43,7 @@ def Homepage(page: ft.Page, supabase_service):
                     "day, title, plan_exercises(order, sets, reps, exercicios(nome))"
                 )
                 .eq("user_id", user_id)
+                .order("order", desc=False, foreign_table="plan_exercises")
                 .execute()
             )
             data = resp.data or []
@@ -50,7 +51,7 @@ def Homepage(page: ft.Page, supabase_service):
             workouts_by_day = {day: None for day in WEEK_DAYS_ORDER}
 
             for plan in data:
-                title = plan.get("title", "")
+                title = plan.get("title", "").lower()
                 exercises = sorted(
                     plan.get("plan_exercises", []), key=lambda x: x.get("order", 0)
                 )
@@ -62,7 +63,7 @@ def Homepage(page: ft.Page, supabase_service):
                     }
                     for ex in exercises
                 ]
-                img = IMAGE_MAP.get(title.lower(), "mascote_supafit/treino_padrao.png")
+                img = IMAGE_MAP.get(title, "mascote_supafit/treino_padrao.png")
 
                 workouts_by_day[plan.get("day")] = {
                     "day": plan.get("day"),
@@ -74,11 +75,11 @@ def Homepage(page: ft.Page, supabase_service):
             workouts = [
                 workouts_by_day[day] for day in WEEK_DAYS_ORDER if workouts_by_day[day]
             ]
-            logger.info(f"{len(workouts)} treinos carregados do Supabase.")
+            print(f"INFO - Homepage: {len(workouts)} treinos carregados do Supabase.")
             return workouts
 
         except Exception as e:
-            print(f"Erro ao carregar treinos do Supabase: {e}")
+            print(f"ERROR - Homepage: Erro ao carregar treinos do Supabase: {e}")
             return []
 
     workouts = load_workouts()
