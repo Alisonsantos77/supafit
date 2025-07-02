@@ -38,7 +38,6 @@ class OpenAIService:
         """
         try:
             print("INFO- Openai", f"Enviando pergunta: {question[:50]}...")
-            print("INFO- Openai", f"Enviando pergunta: {question[:50]}...")
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
