@@ -7,11 +7,8 @@ import openai
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from services.supabase import SupabaseService
-from utils.logger import get_logger
 from services.trainer_functions import FUNCTION_MAP, get_user_plan
-from tokencost import calculate_prompt_cost, calculate_completion_cost
 
-logger = get_logger("supafit.services")
 
 
 class OpenAIService:
@@ -21,7 +18,7 @@ class OpenAIService:
         self.base_url = "https://api.openai.com/v1/chat/completions"
         openai.api_key = self.api_key
         self.client = AsyncOpenAI(api_key=self.api_key)
-        logger.info(f"Serviço OpenAI inicializado com base_url: {self.base_url}")
+        print("INFO- OpenAI", f"Serviço OpenAI inicializado com base_url: {self.base_url}")
 
     async def answer_question(
         self, question: str, history: list, system_prompt: str = None
@@ -40,7 +37,7 @@ class OpenAIService:
             httpx.HTTPStatusError: Se a chamada à API falhar.
         """
         try:
-            logger.info("Enviando pergunta para OpenAI: %s", question)
+            print("INFO- Openai", f"Enviando pergunta: {question[:50]}...")
             print("INFO- Openai", f"Enviando pergunta: {question[:50]}...")
             messages = []
             if system_prompt:

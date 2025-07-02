@@ -6,3 +6,4 @@ supabase
 flet-lottie
 cryptography
 flet-video
+openai
