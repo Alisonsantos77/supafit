@@ -2,10 +2,8 @@ import os
 import flet as ft
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from utils.logger import get_logger
 from utils.alerts import CustomSnackBar, CustomAlertDialog
 
-logger = get_logger("services.supabase")
 
 
 class SupabaseService:
@@ -31,14 +29,14 @@ class SupabaseService:
         self.key = os.getenv("SUPABASE_KEY")
         self.client: Client = create_client(self.url, self.key)
         self.page = page
-        logger.info("Cliente Supabase inicializado com sucesso.")
+        print("INFO: Cliente Supabase inicializado com sucesso.")
         if page:
             self._restore_session()
 
     def _restore_session(self) -> None:
         """Restaura a sessão do Supabase a partir do client_storage."""
         if not self.page:
-            logger.warning("Página não fornecida. Ignorando restauração de sessão.")
+            print("WARNING: Página não fornecida. Ignorando restauração de sessão.")
             return
         try:
             access_token = self.page.client_storage.get("supafit.access_token")
@@ -46,27 +44,27 @@ class SupabaseService:
             if access_token and refresh_token:
                 response = self.client.auth.set_session(access_token, refresh_token)
                 if response.session:
-                    logger.info("Sessão restaurada com sucesso.")
+                    print("INFO: Sessão restaurada com sucesso.")
                     self._update_client_storage(response)
                 else:
-                    logger.warning("Sessão inválida ou expirada. Tentando renovar.")
+                    print("WARNING: Sessão inválida ou expirada. Tentando renovar.")
                     if self.refresh_session():
-                        logger.info("Sessão renovada com sucesso.")
+                        print("INFO: Sessão renovada com sucesso.")
                     else:
                         self._clear_session()
                         self._safe_show_snackbar(
                             "Sessão expirada. Faça login novamente."
                         )
             else:
-                logger.info("Nenhum token de sessão encontrado.")
+                print("INFO: Nenhum token de sessão encontrado.")
                 self._clear_session()
         except Exception as e:
             if "Invalid Refresh Token" in str(e):
-                logger.warning("Token de atualização inválido. Limpando sessão.")
+                print("WARNING: Token de atualização inválido. Limpando sessão.")
                 self._clear_session()
                 self._safe_show_snackbar("Sessão expirada. Faça login novamente.")
             else:
-                logger.error(f"Erro ao restaurar sessão: {str(e)}")
+                print(f"ERROR: Erro ao restaurar sessão: {str(e)}")
                 self._clear_session()
                 self._safe_show_snackbar(f"Erro ao restaurar sessão: {str(e)}")
 
@@ -81,9 +79,9 @@ class SupabaseService:
                 snackbar = CustomSnackBar(message=message, bgcolor=ft.Colors.RED_700)
                 snackbar.show(self.page)
             except Exception as e:
-                logger.error(f"Erro ao exibir snackbar: {str(e)}")
+                print(f"ERROR: Erro ao exibir snackbar: {str(e)}")
         else:
-            logger.warning("Página não pronta para exibir snackbar.")
+            print("WARNING: Página não pronta para exibir snackbar.")
 
     def _update_client_storage(self, response) -> None:
         """Atualiza dados de autenticação no client_storage."""
@@ -97,9 +95,9 @@ class SupabaseService:
             self.page.client_storage.set("supafit.user_id", user.id)
             self.page.client_storage.set("supafit.email", user.email)
             self._check_and_save_user(user.id)
-            logger.info(f"Client storage atualizado para user: {user.email}")
+            print(f"INFO: Client storage atualizado para user: {user.email}")
         except Exception as e:
-            logger.error(f"Erro ao atualizar client_storage: {str(e)}")
+            print(f"ERROR: Erro ao atualizar client_storage: {str(e)}")
             self._safe_show_snackbar(f"Erro ao atualizar armazenamento: {str(e)}")
 
     def _check_and_save_user(self, user_id: str) -> None:
@@ -113,11 +111,11 @@ class SupabaseService:
             if profile_exists:
                 level = profile_response.data[0].get("level", "iniciante")
                 self.page.client_storage.set("supafit.level", level)
-                logger.info(f"Perfil encontrado - nível: {level}")
+                print(f"INFO: Perfil encontrado - nível: {level}")
             else:
-                logger.info("Perfil não encontrado - necessário criar perfil")
+                print("INFO: Perfil não encontrado - necessário criar perfil")
         except Exception as e:
-            logger.error(f"Erro ao verificar perfil: {str(e)}")
+            print(f"ERROR: Erro ao verificar perfil: {str(e)}")
             self._safe_show_snackbar(f"Erro ao verificar perfil: {str(e)}")
 
     def _clear_session(self) -> None:
@@ -135,10 +133,9 @@ class SupabaseService:
                 ]
                 for key in auth_keys:
                     self.page.client_storage.remove(key)
-            logger.info("Sessão concluída com sucesso.")
+            print("INFO: Sessão concluída com sucesso.")
         except Exception as e:
-            logger.error(f"Erro ao concluir sessão: {str(e)}")
-            self._safe_show_snackbar(f"Erro ao limpar sessão: {str(e)}")
+            print(f"ERROR: Erro ao concluir sessão: {str(e)}")
 
     def get_current_user(self) -> str:
         """Retorna o usuário atual autenticado."""
@@ -146,7 +143,7 @@ class SupabaseService:
             user = self.client.auth.get_user()
             return user.user if user else None
         except Exception as e:
-            logger.error(f"Erro ao obter usuário atual: {str(e)}")
+            print(f"ERROR: Erro ao obter usuário atual: {str(e)}")
             return None
 
     def is_authenticated(self) -> bool:
@@ -166,25 +163,25 @@ class SupabaseService:
                 return stored_user_id == user.id if user else False
             return False
         except Exception as e:
-            logger.error(f"Erro ao verificar autenticação: {str(e)}")
+            print(f"ERROR: Erro ao verificar autenticação: {str(e)}")
             self._safe_show_snackbar(f"Erro ao verificar autenticação: {str(e)}")
             return False
 
     def login(self, email: str, password: str):
         """Realiza login com email e senha."""
-        logger.info(f"Tentando login para: {email}")
+        print(f"INFO: Tentando login para: {email}")
         try:
             response = self.client.auth.sign_in_with_password(
                 {"email": email, "password": password}
             )
             if response.user and response.session:
                 self._update_client_storage(response)
-                logger.info("Login realizado com sucesso.")
+                print("INFO: Login realizado com sucesso.")
                 return response
             else:
                 raise Exception("Falha no login: resposta inválida")
         except Exception as e:
-            logger.error(f"Erro no login: {str(e)}")
+            print(f"ERROR: Erro no login: {str(e)}")
             self._safe_show_snackbar(f"Erro no login: {str(e)}")
             raise
 
@@ -194,15 +191,15 @@ class SupabaseService:
             session = self.client.auth.refresh_session()
             if session and session.session:
                 self._update_client_storage(session)
-                logger.info("Sessão renovada com sucesso.")
+                print("INFO: Sessão renovada com sucesso.")
                 return True
             else:
-                logger.warning("Falha ao renovar sessão.")
+                print("WARNING: Falha ao renovar sessão.")
                 self._clear_session()
                 self._safe_show_snackbar("Falha ao renovar sessão.")
                 return False
         except Exception as e:
-            logger.error(f"Erro ao renovar sessão: {str(e)}")
+            print(f"ERROR: Erro ao renovar sessão: {str(e)}")
             self._clear_session()
             self._safe_show_snackbar(f"Erro ao renovar sessão: {str(e)}")
             return False
@@ -217,15 +214,15 @@ class SupabaseService:
                 )
                 snackbar.show(self.page)
                 self.page.go("/login")
-            logger.info("Logout concluído com sucesso.")
+            print("INFO: Logout concluído com sucesso.")
         except Exception as e:
-            logger.error(f"Erro no logout: {str(e)}")
+            print(f"ERROR: Erro no logout: {str(e)}")
             self._safe_show_snackbar(f"Erro ao realizar logout: {str(e)}")
             raise
 
     def create_profile(self, user_id: str, profile_data: dict):
         """Cria perfil do usuário."""
-        logger.info(f"Criando perfil para user_id: {user_id}")
+        print(f"INFO: Criando perfil para user_id: {user_id}")
         try:
             profile_data["user_id"] = user_id
             response = self.client.table("user_profiles").insert(profile_data).execute()
@@ -234,16 +231,16 @@ class SupabaseService:
                 self.page.client_storage.set(
                     "supafit.level", profile_data.get("level", "iniciante")
                 )
-            logger.info("Perfil criado com sucesso.")
+            print("INFO: Perfil criado com sucesso.")
             return response.data
         except Exception as e:
-            logger.error(f"Erro ao criar perfil: {str(e)}")
+            print(f"ERROR: Erro ao criar perfil: {str(e)}")
             self._safe_show_snackbar(f"Erro ao criar perfil: {str(e)}")
             raise
 
     def get_profile(self, user_id: str):
         """Recupera perfil do usuário."""
-        logger.info(f"Recuperando perfil para user_id: {user_id}")
+        print(f"INFO: Recuperando perfil para user_id: {user_id}")
         try:
             response = (
                 self.client.table("user_profiles")
@@ -253,13 +250,13 @@ class SupabaseService:
             )
             return response
         except Exception as e:
-            logger.error(f"Erro ao recuperar perfil: {str(e)}")
+            print(f"ERROR: Erro ao recuperar perfil: {str(e)}")
             self._safe_show_snackbar(f"Erro ao recuperar perfil: {str(e)}")
             raise
 
     def get_workouts(self, user_id: str):
         """Recupera treinos do usuário."""
-        logger.info(f"Recuperando treinos para user_id: {user_id}")
+        print(f"INFO: Recuperando treinos para user_id: {user_id}")
         try:
             response = (
                 self.client.table("daily_workouts")
@@ -269,6 +266,6 @@ class SupabaseService:
             )
             return response
         except Exception as e:
-            logger.error(f"Erro ao recuperar treinos: {str(e)}")
+            print(f"ERROR: Erro ao recuperar treinos: {str(e)}")
             self._safe_show_snackbar(f"Erro ao recuperar treinos: {str(e)}")
             raise
