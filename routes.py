@@ -14,7 +14,6 @@ from pages.forgot_password import ForgotPasswordPage
 from utils.alerts import CustomSnackBar
 
 
-
 def setup_routes(page: ft.Page, supabase, openai):
     """Sistema de rotas melhorado com autenticação simplificada."""
 
@@ -203,18 +202,24 @@ def setup_routes(page: ft.Page, supabase, openai):
             page.views.append(route_handlers[page.route]())
         elif page.route.startswith("/treino/"):
             day = page.route.split("/")[-1]
-            page.views.append(
-                ft.View(
-                    appbar=mobile_appbar.create_appbar(
-                        f"Treino - {day.capitalize()}", show_back_button=True
-                    ),
-                    route=f"/treino/{day}",
-                    controls=[Treinopage(page, supabase, day)],
-                    vertical_alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    scroll=ft.ScrollMode.AUTO,
+            user_id = page.client_storage.get("supafit.user_id")
+            if not user_id:
+                print("Usuário não autenticado - redirecionando para login")
+                show_snackbar("Por favor, faça login para continuar.", ft.Colors.BLUE_400)
+                redirect_to_login()
+            else:
+                page.views.append(
+                    ft.View(
+                        appbar=mobile_appbar.create_appbar(
+                            f"Treino - {day.capitalize()}", show_back_button=True
+                        ),
+                        route=f"/treino/{day}",
+                        controls=[Treinopage(page, supabase, day, user_id)],
+                        vertical_alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        scroll=ft.ScrollMode.AUTO,
+                    )
                 )
-            )
 
     @require_auth
     def handle_create_profile():

@@ -126,7 +126,7 @@ venv.bak/
 .spyproject
 
 # Rope project settings
-.ropeproject
+.ropeproject 
 
 # mkdocs documentation
 /site
@@ -156,3 +156,4 @@ storage
 /assets
 teste.py
 *json
+*png
