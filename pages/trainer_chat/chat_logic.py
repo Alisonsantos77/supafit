@@ -10,7 +10,7 @@ from services.openai import OpenAIService
 from utils.alerts import CustomAlertDialog
 from postgrest.exceptions import APIError
 from utils.quebra_mensagem import integrate_with_chat
-from services.trainer_functions import TOOLS  # Importar TOOLS
+from services.trainer_functions import TOOLS
 
 # Cache global para armazenar planos e histórico
 cached_plans = {}
@@ -161,7 +161,6 @@ async def clear_chat(
                         bgcolor=ft.Colors.GREEN_700,
                     )
                 )
-                # Limpar cache do histórico
                 cached_history.pop(user_id, None)
                 print(f"INFO: Chat limpo para user_id: {user_id}")
             except APIError as ex:
@@ -222,13 +221,14 @@ async def ask_question(
     last_question_time: list,
     history_cache: list,
 ):
-    """Processa pergunta do usuário e atualiza o plano de treino."""
+    """Processa pergunta do usuário, lida com function calling e atualiza o chat e o plano de treino."""
     current_time = time.time()
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
+        print(f"WARNING: Tentativa antes do cooldown de {COOLDOWN_SECONDS}s")
         page.open(
             ft.SnackBar(
                 ft.Text(
-                    "Aguarde alguns segundos antes de enviar outra pergunta.",
+                    f"Espere {COOLDOWN_SECONDS} segundos antes de outra pergunta.",
                     color=ft.Colors.WHITE,
                 ),
                 bgcolor=ft.Colors.RED_700,
@@ -238,15 +238,17 @@ async def ask_question(
         return
 
     question = question_field.value.strip()
+    # Validações iniciais
     if not question:
         question_field.error_text = "Digite uma mensagem!"
         page.update()
         return
-    if len(question) > 500:
-        question_field.error_text = "Mensagem muito longa (máximo 500 caracteres)."
+    if len(question) > 50:
+        question_field.error_text = "Mensagem muito longa (máx. 50 chars)."
         page.update()
         return
     if await openai.is_sensitive_question(question):
+        print("INFO: Pergunta sensível detectada")
         page.open(
             ft.SnackBar(
                 ft.Text("Pergunta sensível detectada.", color=ft.Colors.WHITE),
@@ -256,12 +258,14 @@ async def ask_question(
         page.update()
         return
 
+    # Desabilita botão e limpa campo
     ask_button.disabled = True
     ask_button.icon_color = ft.Colors.GREY_400
     question_field.value = ""
     page.update()
 
     try:
+        # Exibe pergunta do usuário no chat
         question_id = str(uuid.uuid4())
         chat_container.controls.append(
             ChatMessage(
@@ -278,7 +282,7 @@ async def ask_question(
         if len(chat_container.controls) > 50:
             chat_container.controls.pop(0)
 
-        typing_indicator = ft.AnimatedSwitcher(
+        typing = ft.AnimatedSwitcher(
             content=ft.Row(
                 [
                     ft.Text("Treinador está digitando...", size=14, italic=True),
@@ -296,42 +300,76 @@ async def ask_question(
             "content": OpenAIService.get_system_prompt(user_data, user_id),
         }
 
-        filtered_history = filtered(history_cache)  # Usar função definida
-        user_message = {
+        filtered_history = []
+        for msg in history_cache:
+            if msg.get("role") in ["user", "assistant"] and msg.get("content"):
+                clean_msg = {"role": msg["role"], "content": msg["content"]}
+                filtered_history.append(clean_msg)
+
+        user_msg = {
             "role": "user",
             "content": question,
-            "message_id": question_id,
-            "timestamp": datetime.now().isoformat(),
         }
 
-        messages = [system_msg] + filtered_history + [user_message]
-        messages_to_save = [msg for msg in messages if msg.get("role") != "system"]
+        messages = [system_msg] + filtered_history + [user_msg]
 
-        max_iterations = 5
-        iteration = 0
-        last_tool = None
-
-        while iteration < max_iterations:
-            iteration += 1
-            print(
-                f"INFO: Iteração {iteration} - Enviando {len(messages)} mensagens para OpenAI"
-            )
-
-            response = await openai.chat_with_tools(
-                messages=messages,
-                tools=TOOLS,
-                tool_choice="auto",
-            )
-            print(f"INFO: Iteração {iteration} - Resposta recebida do OpenAI")
-
-            assistant_message = response.choices[0].message
-            assistant_message_dict = {
-                "role": "assistant",
-                "content": assistant_message.content or "",
+        convo_history = filtered_history + [
+            {
+                "role": "user",
+                "content": question,
+                "message_id": question_id,
                 "timestamp": datetime.now().isoformat(),
             }
-            if assistant_message.tool_calls:
-                assistant_message_dict["tool_calls"] = [
+        ]
+
+        max_iter = 5
+        assistant_content = ""
+
+        for it in range(1, max_iter + 1):
+            print(f"INFO: Iteração {it}, mensagens: {len(messages)}")
+
+            print(f"DEBUG: Estrutura das mensagens:")
+            for i, msg in enumerate(messages):
+                print(
+                    f"  [{i}] role: {msg.get('role')}, content_length: {len(str(msg.get('content', '')))}"
+                )
+                if "tool_calls" in msg:
+                    print(f"      tool_calls: {len(msg['tool_calls'])}")
+                if "tool_call_id" in msg:
+                    print(f"      tool_call_id: {msg['tool_call_id']}")
+
+            response = await openai.chat_with_tools(
+                messages=messages, tools=TOOLS, tool_choice="auto"
+            )
+            choice = response.choices[0].message
+            assistant_content = choice.content or ""
+
+            # Se não há tool_calls, finalizamos
+            if not getattr(choice, "tool_calls", None):
+                # Adiciona resposta final às mensagens
+                final_assistant_msg = {
+                    "role": "assistant",
+                    "content": assistant_content,
+                }
+                messages.append(final_assistant_msg)
+
+                convo_history.append(
+                    {
+                        "role": "assistant",
+                        "content": assistant_content,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+                break
+
+            assistant_msg = {
+                "role": "assistant",
+                "content": assistant_content,
+                "tool_calls": [],
+            }
+
+            for tc in choice.tool_calls:
+                assistant_msg["tool_calls"].append(
                     {
                         "id": tc.id,
                         "type": "function",
@@ -340,141 +378,89 @@ async def ask_question(
                             "arguments": tc.function.arguments,
                         },
                     }
-                    for tc in assistant_message.tool_calls
-                ]
-            messages.append(assistant_message_dict)
-            messages_to_save.append(assistant_message_dict)
-
-            if not assistant_message.tool_calls:
-                final_message = (
-                    assistant_message.content or f"Plano atualizado com sucesso!"
-                    if last_tool == "update_plan_exercise"
-                    else "Desculpe, não consegui processar sua solicitação. Tente novamente."
                 )
-                break
 
-            for tc in assistant_message.tool_calls:
+            messages.append(assistant_msg)
+
+            for tc in choice.tool_calls:
+                fname = tc.function.name
                 try:
-                    fname = tc.function.name
-                    fargs = json.loads(tc.function.arguments)
+                    args = json.loads(tc.function.arguments)
+                    print(f"DEBUG: Chamada de {fname} com args: {args}")
+                    args["supabase"] = supabase_service.client
 
-                    if fname in ["add_exercise_to_plan", "update_plan_exercise"]:
-                        plan_id = fargs.get("plan_id")
-                        exercise_id = fargs.get(
-                            "exercise_id",
-                            fargs.get("exercises", [{}])[0].get("exercise_id"),
-                        )
-                        if plan_id and exercise_id:
-                            plan = (
-                                supabase_service.client.table("user_plans")
-                                .select("title")
-                                .eq("plan_id", plan_id)
-                                .execute()
-                                .data
-                            )
-                            exercise = (
-                                supabase_service.client.table("exercicios")
-                                .select("grupo_muscular")
-                                .eq("id", exercise_id)
-                                .execute()
-                                .data
-                            )
-                            if plan and exercise:
-                                title = plan[0]["title"].lower()
-                                grupo_muscular = exercise[0]["grupo_muscular"].lower()
-                                if "costas" in title and not (
-                                    "dorsal" in grupo_muscular
-                                    or "bíceps" in grupo_muscular
-                                ):
-                                    raise ValueError(
-                                        f"Exercício {exercise_id} não corresponde ao grupo muscular esperado para o plano {plan_id}."
-                                    )
-
-                    # Validação de UUID para update_plan_exercise
+                    # Validação específica para update_plan_exercise
                     if fname == "update_plan_exercise":
-                        plan_exercise_id = fargs.get("plan_exercise_id")
-                        plan_exercise = (
-                            supabase_service.client.table("plan_exercises")
-                            .select("plan_exercise_id")
-                            .eq("plan_id", plan_id)
-                            .eq("exercise_id", exercise_id)
-                            .execute()
-                            .data
-                        )
-                        if plan_exercise:
-                            fargs["plan_exercise_id"] = plan_exercise[0][
-                                "plan_exercise_id"
-                            ]
-                        else:
+                        if not args.get("plan_exercise_id"):
                             raise ValueError(
-                                f"ID de plan_exercise inválido: {plan_exercise_id}"
+                                "update_plan_exercise requer plan_exercise_id"
+                            )
+                        if not args.get("new_exercise_name"):
+                            raise ValueError(
+                                "update_plan_exercise requer new_exercise_name"
                             )
 
-                    fargs["supabase"] = supabase_service.client
-                    print(
-                        f"INFO: Iteração {iteration} - Chamando função '{fname}' com args: {fargs}"
-                    )
-                    fres = await openai.execute_function_by_name(fname, fargs)
-                    print(
-                        f"INFO: Iteração {iteration} - Função '{fname}' executada com sucesso"
-                    )
+                    print(f"INFO: Executando {fname}")
+                    fres = await openai.execute_function_by_name(fname, args)
+                    print(f"INFO: {fname} retornou: {fres}")
 
-                    tool_message = {
+                    tool_msg = {
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "name": fname,
                         "content": json.dumps(fres, ensure_ascii=False, default=str),
-                        "timestamp": datetime.now().isoformat(),
                     }
-                    messages.append(tool_message)
-                    messages_to_save.append(tool_message)
-                    last_tool = fname
+                    messages.append(tool_msg)
 
-                except Exception as tool_error:
-                    print(
-                        f"ERROR: Iteração {iteration} - Erro ao executar função '{fname}': {tool_error}"
-                    )
-                    error_message = {
+                except json.JSONDecodeError as e:
+                    print(f"ERROR: Erro ao decodificar JSON para {fname}: {e}")
+                    error_msg = {
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "name": fname,
                         "content": json.dumps(
-                            {"error": f"Erro ao executar função: {str(tool_error)}"},
+                            {"error": f"Erro de formato JSON: {str(e)}"},
                             ensure_ascii=False,
                         ),
-                        "timestamp": datetime.now().isoformat(),
                     }
-                    messages.append(error_message)
-                    messages_to_save.append(error_message)
+                    messages.append(error_msg)
 
-        for msg, delay in integrate_with_chat(final_message):
-            if not msg.strip():
+                except Exception as e:
+                    print(f"ERROR: Erro ao executar {fname}: {e}")
+                    error_msg = {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(
+                            {"error": f"Erro na execução: {str(e)}"}, ensure_ascii=False
+                        ),
+                    }
+                    messages.append(error_msg)
+
+            continue
+
+        for chunk, delay in integrate_with_chat(assistant_content):
+            if not chunk.strip():
                 continue
-
-            chat_container.controls.append(typing_indicator)
+            chat_container.controls.append(typing)
             page.update()
             await asyncio.sleep(0.3)
-            chat_container.controls.remove(typing_indicator)
+            chat_container.controls.remove(typing)
 
-            response_id = str(uuid.uuid4())
-            assistant_response = {
-                "role": "assistant",
-                "content": msg.strip(),
-                "message_id": response_id,
-                "timestamp": datetime.now().isoformat(),
-            }
-            messages_to_save.append(assistant_response)
-            if assistant_response.get("role") != "tool":
-                history_cache.append(assistant_response)
-
+            resp_id = str(uuid.uuid4())
+            history_cache.append(
+                {
+                    "role": "assistant",
+                    "content": chunk.strip(),
+                    "message_id": resp_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             chat_container.controls.append(
                 ChatMessage(
                     Message(
-                        user_name="Treinador",
-                        text=msg.strip(),
-                        user_type="assistant",
-                        created_at=datetime.now().isoformat(),
-                        show_avatar=False,
+                        "Treinador",
+                        chunk.strip(),
+                        "assistant",
+                        datetime.now().isoformat(),
+                        False,
                     ),
                     page,
                 )
@@ -484,17 +470,16 @@ async def ask_question(
             page.update()
             await asyncio.sleep(delay * 0.3)
 
+        # Salva apenas mensagens de user/assistant no Supabase
         try:
             supabase_service.client.table("trainer_qa").upsert(
-                {"user_id": user_id, "message": messages_to_save},
-                on_conflict="user_id",
+                {"user_id": user_id, "message": convo_history}, on_conflict="user_id"
             ).execute()
-            cached_history[user_id] = messages_to_save  # Atualizar cache
-            print(f"INFO: Histórico salvo com sucesso para user_id: {user_id}")
-        except Exception as save_error:
-            print(
-                f"ERROR: Falha ao salvar histórico para user_id: {user_id} - {save_error}"
-            )
+            history_cache[:] = convo_history
+            print(f"INFO: Histórico salvo (somente conversas) para {user_id}")
+        except Exception as err:
+            print(f"ERROR: Falha ao salvar histórico: {err}")
+
         page.open(
             ft.SnackBar(
                 ft.Text("Pergunta enviada com sucesso!", color=ft.Colors.WHITE),
@@ -503,14 +488,15 @@ async def ask_question(
         )
         page.update()
         last_question_time[0] = current_time
-        print(f"INFO: Pergunta processada com sucesso para user_id: {user_id}")
 
     except Exception as ex:
-        print(f"ERROR: Erro ao processar pergunta para user_id: {user_id} - {ex}")
+        print(f"ERROR: ask_question falhou: {ex}")
+        import traceback
+
+        print(f"ERROR: Traceback completo: {traceback.format_exc()}")
         page.open(
             ft.SnackBar(
-                ft.Text(f"Erro ao processar pergunta: {ex}", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED_700,
+                ft.Text(f"Erro: {ex}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700
             )
         )
         page.update()

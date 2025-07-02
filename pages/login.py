@@ -3,10 +3,8 @@ import flet_lottie as fl
 import os
 from time import sleep
 from services.supabase import SupabaseService
-from utils.logger import get_logger
 from utils.alerts import CustomAlertDialog
 
-logger = get_logger("supabafit.login")
 
 
 def LoginPage(page: ft.Page):
@@ -122,13 +120,13 @@ def LoginPage(page: ft.Page):
         page.dialog = loading_dialog
         page.open(loading_dialog)
         page.update()
-        logger.info("Diálogo de carregamento exibido")
+        print("INFO - Login: Diálogo de carregamento exibido")
         return loading_dialog
 
     def hide_loading(dialog):
         page.close(dialog)
         page.update()
-        logger.info("Diálogo de carregamento fechado")
+        print("INFO - Login: Diálogo de carregamento fechado")
 
     def show_success_and_redirect(route, message="Sucesso!"):
         success_dialog = CustomAlertDialog(
@@ -159,7 +157,7 @@ def LoginPage(page: ft.Page):
         page.dialog = success_dialog
         page.open(success_dialog)
         page.update()
-        logger.info(f"Diálogo de sucesso exibido: {message}")
+        print("INFO - Login: Diálogo de sucesso exibido")
         sleep(2)
         page.close(success_dialog)
         page.go(route)
@@ -170,11 +168,9 @@ def LoginPage(page: ft.Page):
             page.client_storage.set("supafit.email", email)
             if level:
                 page.client_storage.set("supafit.level", level)
-            logger.info(
-                f"Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
-            )
+            print(f"INFO - Login: Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}")
         except Exception as ex:
-            logger.error(f"Erro ao salvar dados no client_storage: {str(ex)}")
+            print(f"ERROR - Login: Erro ao salvar dados no client_storage: {str(ex)}")
 
     def login(e):
         email = email_field.value.strip()
@@ -184,7 +180,7 @@ def LoginPage(page: ft.Page):
             status_text.value = "Preencha email e senha!"
             page.open(ft.SnackBar(ft.Text("Preencha email e senha!")))
             page.update()
-            logger.warning("Tentativa de login com campos vazios")
+            print("WARNING - Login: Tentativa de login com campos vazios")
             return
 
         loading_dialog = show_loading()
@@ -193,15 +189,12 @@ def LoginPage(page: ft.Page):
             response = supabase_service.login(email, password)
 
             if response and response.user:
-                logger.info(f"Login bem-sucedido para o email: {email}")
+                print(f"INFO - Login: Login bem-sucedido para o email: {email}")
                 profile_response = supabase_service.get_profile(response.user.id)
                 profile_exists = bool(
                     profile_response.data and len(profile_response.data) > 0
                 )
-                logger.info(
-                    f"Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}."
-                )
-
+                print(f"INFO - Login: Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}.")
                 level = (
                     profile_response.data[0].get("level", "iniciante")
                     if profile_exists
@@ -212,16 +205,12 @@ def LoginPage(page: ft.Page):
                 hide_loading(loading_dialog)
 
                 if not profile_exists:
-                    logger.info(
-                        f"Perfil não encontrado para user_id: {response.user.id}. Redirecionando para /create_profile."
-                    )
+                    print(f"INFO - Login: Perfil não encontrado, redirecionando para /create_profile.")
                     show_success_and_redirect(
                         "/create_profile", "Login realizado! Vamos criar seu perfil."
                     )
                 else:
-                    logger.info(
-                        f"Perfil encontrado para user_id: {response.user.id}. Redirecionando para /home."
-                    )
+                    print(f"INFO - Login: Perfil encontrado, redirecionando para /home.")
                     show_success_and_redirect("/home", "Login realizado!")
             else:
                 raise Exception("Resposta inválida do Supabase Auth")
@@ -235,7 +224,7 @@ def LoginPage(page: ft.Page):
             status_text.value = error_message
             page.open(ft.SnackBar(ft.Text(f"Erro ao fazer login: {error_message}")))
             page.update()
-            logger.error(f"Erro no login: {str(ex)}")
+            print(f"ERROR - Login: Erro ao fazer login: {str(ex)}")
 
     login_button.on_click = login
 
