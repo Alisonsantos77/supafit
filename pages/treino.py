@@ -28,15 +28,15 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
 
         try:
             response = (
-            supabase.client.table("user_plans")
-            .select(
-                "plan_id, plan_exercises(exercise_id, sets, reps, order, exercicios(nome, url_video))"
+                supabase.client.table("user_plans")
+                .select(
+                    "plan_id, plan_exercises(exercise_id, sets, reps, order, exercicios(nome, url_video))"
+                )
+                .eq("user_id", user_id)
+                .eq("day", day.lower())
+                .order("order", desc=False, foreign_table="plan_exercises")
+                .execute()
             )
-            .eq("user_id", user_id)
-            .eq("day", day.lower())
-            .order("order", desc=False, foreign_table="plan_exercises")
-            .execute()
-        )
 
             exercises = []
             if response.data and response.data[0].get("plan_exercises"):
@@ -73,6 +73,32 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             print(f"ERROR - treino: Erro ao carregar exercícios do Supabase: {str(e)}")
             return []
 
+    def load_rest_duration(user_id: str):
+        try:
+            profile_response = (
+                supabase.client.table("user_profiles")
+                .select("rest_duration")
+                .eq("user_id", user_id)
+                .execute()
+            )
+            if profile_response.data and len(profile_response.data) > 0:
+                rest_duration = profile_response.data[0].get("rest_duration", 60)
+                print(
+                    f"INFO - treino: rest_duration carregado para user_id {user_id}: {rest_duration}s"
+                )
+                return rest_duration
+            else:
+                print(
+                    f"WARNING - treino: Perfil não encontrado para user_id {user_id}, usando rest_duration padrão: 60s"
+                )
+                return 60
+        except Exception as e:
+            print(
+                f"ERROR - treino: Erro ao carregar rest_duration do Supabase: {str(e)}"
+            )
+            return 60
+
+    rest_duration = load_rest_duration(user_id)
     training_started = False
     training_time = 0
     training_running = False
@@ -178,6 +204,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                     f"INFO - treino: Carga salva para {ex['name']}: {v}kg"
                 ),
                 page=page,
+                rest_duration=rest_duration,  # Passa o rest_duration para ExerciseTile
             )
             for ex in exercises
         ],

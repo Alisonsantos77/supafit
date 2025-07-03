@@ -20,6 +20,7 @@ class ExerciseTile(ft.Container):
         on_favorite_click=None,
         on_load_save=None,
         page=None,
+        rest_duration: int = 60,  
     ):
         """Inicializa o componente de exercício com nome, séries, repetições, carga e mídia."""
         self.exercise_name = exercise_name
@@ -30,6 +31,7 @@ class ExerciseTile(ft.Container):
         self.page = page
         self.on_favorite_click = on_favorite_click
         self.on_load_save = on_load_save
+        self.rest_duration = rest_duration  
 
         def get_video_source():
             """Obtém a fonte do vídeo (local, client storage ou Supabase)."""
@@ -109,8 +111,10 @@ class ExerciseTile(ft.Container):
         )
 
         interval_button = ft.ElevatedButton(
-            "Iniciar Intervalo (60s)",
-            on_click=lambda e: TimerDialog(duration=60).start_timer(page),
+            f"Iniciar Intervalo ({self.rest_duration}s)",
+            on_click=lambda e: TimerDialog(duration=self.rest_duration).start_timer(
+                page
+            ),
             disabled=True,
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         )
