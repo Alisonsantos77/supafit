@@ -12,8 +12,11 @@ def check_internet_connection():
         response.raise_for_status()
         return True
     except requests.RequestException as e:
-        print("ERROR: Sem conexão com a internet. Verifique sua conexão e tente novamente.")
+        print(
+            "ERROR: Sem conexão com a internet. Verifique sua conexão e tente novamente."
+        )
         return False
+
 
 def main(page: ft.Page):
     load_dotenv()
@@ -27,6 +30,7 @@ def main(page: ft.Page):
         "Manrope": "assets/fonts/Manrope-VariableFont_wght.ttf",
     }
 
+    # Inicializar Supabase
     try:
         supabase = SupabaseService.get_instance(page)
     except Exception as e:
@@ -35,9 +39,19 @@ def main(page: ft.Page):
         page.go("/login")
         return
 
+    # Inicializar OpenAI
     openai = OpenAIService()
 
-    # Carregar perfil
+    # Configurar rotas ANTES de qualquer navegação
+    try:
+        setup_routes(page, supabase, openai)
+    except Exception as e:
+        print(f"ERROR: Não foi possível configurar as rotas: {str(e)}")
+        page.add(ft.Text(f"Erro ao configurar rotas: {str(e)}"))
+        page.go("/login")
+        return
+
+    # Carregar perfil do usuário salvo
     user_id = page.client_storage.get("supafit.user_id")
     profile = {}
     if user_id:
@@ -51,23 +65,34 @@ def main(page: ft.Page):
                 print("Perfil não encontrado, redirecionando para criação de perfil.")
                 page.client_storage.set("supafit.profile_created", False)
                 page.go("/create_profile")
+                page.update()
                 return
         except Exception as e:
             print(f"Erro ao carregar perfil: {str(e)}")
             page.client_storage.set("supafit.profile_created", False)
             page.go("/create_profile")
+            page.update()
             return
     else:
         print("Nenhum user_id encontrado, redirecionando para login.")
         page.go("/login")
+        page.update()
         return
 
     # Validar preferências do tema
     valid_fonts = ["Roboto", "Open Sans", "Barlow", "Manrope"]
     valid_colors = ["GREEN", "BLUE", "RED", "PURPLE"]
-    font_family = profile.get("font_family", "Roboto") if profile.get("font_family") in valid_fonts else "Roboto"
+    font_family = (
+        profile.get("font_family", "Roboto")
+        if profile.get("font_family") in valid_fonts
+        else "Roboto"
+    )
     theme = profile.get("theme", "light")
-    primary_color = profile.get("primary_color", "GREEN") if profile.get("primary_color") in valid_colors else "GREEN"
+    primary_color = (
+        profile.get("primary_color", "GREEN")
+        if profile.get("primary_color") in valid_colors
+        else "GREEN"
+    )
 
     # Definir tema
     page.theme_mode = ft.ThemeMode.DARK if theme == "dark" else ft.ThemeMode.LIGHT
@@ -81,18 +106,14 @@ def main(page: ft.Page):
         font_family=font_family,
     )
 
+    # Debug: imprimir valores do client storage
     keys = ["supafit.user_id", "supafit.email", "supafit.level"]
     storage_values = {key: page.client_storage.get(key) for key in keys}
     print(f"Valores recuperados do armazenamento: {storage_values}")
 
-    try:
-        setup_routes(page, supabase, openai)
-    except Exception as e:
-        print(f"ERROR: Não foi possível configurar as rotas: {str(e)}")
-        page.add(ft.Text(f"Erro ao configurar rotas: {str(e)}"))
-        page.go("/login")
-
+    # Atualiza a página após todas configurações
     page.update()
+
 
 if __name__ == "__main__":
     ft.app(target=main, assets_dir="assets")

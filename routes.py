@@ -4,19 +4,20 @@ from pages.treino import Treinopage
 from pages.profile_settings.profile_settings import ProfileSettingsPage
 from pages.history import HistoryPage
 from components.appbar_class import MobileAppBar
-from pages.login import LoginPage
-from pages.register import RegisterPage
+from pages.auth.login import LoginPage
+from pages.auth.register import RegisterPage
 from pages.community.community_tab import CommunityTab
 from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
 from pages.profile_user.create_profile import CreateProfilePage
-from pages.forgot_password import ForgotPasswordPage
+from pages.auth.forgot_password import ForgotPasswordPage
 from utils.alerts import CustomSnackBar
 
 
 def setup_routes(page: ft.Page, supabase, openai):
-    """Sistema de rotas melhorado com autenticação simplificada."""
+    """Sistema de rotas melhorado seguindo as melhores práticas do Flet."""
 
+    # Configurações de rotas
     PUBLIC_ROUTES = ["/login", "/register", "/terms", "/forgot_password"]
     PROFILE_REQUIRED_ROUTES = [
         "/home",
@@ -27,256 +28,289 @@ def setup_routes(page: ft.Page, supabase, openai):
         "/history",
     ]
 
+    mobile_appbar = MobileAppBar(page)
+
     def show_snackbar(message: str, color: str = ft.Colors.RED_700):
         """Exibe feedback para o usuário com estilo consistente."""
         snackbar = CustomSnackBar(message=message, bgcolor=color)
         page.snack_bar = snackbar
         page.snack_bar.open = True
         page.update()
+        print(f"INFO - routes: SnackBar exibida: {message}")
 
-    def require_auth(func):
-        """Decorator para rotas que precisam de autenticação."""
+    def is_authenticated():
+        """Verifica se o usuário está autenticado."""
+        return supabase.is_authenticated()
 
-        def wrapper():
-            if not supabase.is_authenticated():
-                print("Usuário não autenticado - redirecionando para login")
+    def has_profile():
+        """Verifica se o usuário tem perfil criado."""
+        return page.client_storage.get("supafit.profile_created") or False
+
+    def build_views_for_route(route: str):
+        """
+        Constrói a lista de views baseada na rota atual.
+        Esta é a função central que determina qual view exibir.
+        """
+        page.views.clear()
+
+        # Sempre adiciona a view raiz
+        page.views.append(build_root_view())
+
+        # Rota raiz - redireciona para home ou login
+        if route == "/":
+            if is_authenticated() and has_profile():
+                page.views.append(build_home_view())
+            else:
+                page.views.append(build_login_view())
+                return
+
+        # Rotas públicas
+        elif route in PUBLIC_ROUTES:
+            if route == "/login":
+                page.views.append(build_login_view())
+            elif route == "/register":
+                page.views.append(build_register_view())
+            elif route == "/terms":
+                page.views.append(build_terms_view())
+            elif route == "/forgot_password":
+                page.views.append(build_forgot_password_view())
+
+        # Rota de criação de perfil (requer autenticação)
+        elif route == "/create_profile":
+            if not is_authenticated():
                 show_snackbar(
                     "Por favor, faça login para continuar.", ft.Colors.BLUE_400
                 )
-                return redirect_to_login()
-            return func()
+                page.views.append(build_login_view())
+                return
+            page.views.append(build_create_profile_view())
 
-        return wrapper
-
-    def require_profile(func):
-        """Decorator para rotas que requerem perfil criado."""
-
-        def wrapper():
-            profile_created = (
-                page.client_storage.get("supafit.profile_created") or False
-            )
-            if not profile_created:
-                print("Perfil não criado - redirecionando para criação de perfil")
-                show_snackbar("Complete seu perfil para continuar.", ft.Colors.BLUE_400)
-                return redirect_to_create_profile()
-            return func()
-
-        return wrapper
-
-    mobile_appbar = MobileAppBar(page)
-
-    def redirect_to_login():
-        """Redireciona para página de login."""
-        page.views.append(
-            ft.View(
-                padding=20,
-                route="/login",
-                controls=[LoginPage(page)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-            )
-        )
-        page.go("/login")
-
-    def redirect_to_create_profile():
-        """Redireciona para criação de perfil."""
-
-        def on_complete():
-            page.client_storage.set("supafit.profile_created", True)
-            page.go("/home")
-            print("Perfil criado, navegando para /home")
-
-        page.views.append(
-            ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Criar Perfil", show_back_button=True
-                ),
-                route="/create_profile",
-                controls=[CreateProfilePage(page, supabase)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                padding=20,
-            )
-        )
-        page.go("/create_profile")
-
-    def handle_public_routes():
-        """Manipula rotas públicas."""
-        route_handlers = {
-            "/login": lambda: ft.View(
-                padding=20,
-                route="/login",
-                controls=[LoginPage(page)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-            ),
-            "/register": lambda: ft.View(
-                route="/register",
-                controls=[RegisterPage(page)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-            ),
-            "/terms": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Termos de Uso", show_back_button=True
-                ),
-                route="/terms",
-                controls=[TermsPage(page, supabase, openai)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-                padding=20,
-            ),
-            "/forgot_password": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Recuperar Senha", show_back_button=True
-                ),
-                padding=20,
-                route="/forgot_password",
-                controls=[ForgotPasswordPage(page)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-            ),
-        }
-        handler = route_handlers.get(page.route)
-        if handler:
-            page.views.append(handler())
-
-    @require_auth
-    @require_profile
-    def handle_protected_routes():
-        """Manipula rotas protegidas que precisam de perfil."""
-        route_handlers = {
-            "/home": lambda: ft.View(
-                route="/home",
-                appbar=mobile_appbar.create_appbar("SupaFit", show_back_button=False),
-                controls=[Homepage(page, supabase)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-                padding=20,
-            ),
-            "/community": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar("Comunidade", show_back_button=True),
-                route="/community",
-                controls=[CommunityTab(page, supabase)],
-                padding=20,
-                scroll=ft.ScrollMode.AUTO,
-            ),
-            "/trainer": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar("Treinador", show_back_button=True),
-                route="/trainer",
-                controls=[TrainerTab(page, supabase, openai)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                padding=20,
-            ),
-            "/profile_settings": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar("Perfil", show_back_button=True),
-                route="/profile_settings",
-                controls=[ProfileSettingsPage(page)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-                padding=20,
-            ),
-            "/history": lambda: ft.View(
-                appbar=mobile_appbar.create_appbar("Histórico", show_back_button=True),
-                route="/history",
-                controls=[HistoryPage(page, supabase)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                scroll=ft.ScrollMode.AUTO,
-                padding=20,
-            ),
-        }
-        if page.route == "/" or page.route == "/home":
-            page.views.append(route_handlers["/home"]())
-            if page.route == "/":
-                page.go("/home")
-        elif page.route in route_handlers:
-            page.views.append(route_handlers[page.route]())
-        elif page.route.startswith("/treino/"):
-            day = page.route.split("/")[-1]
-            user_id = page.client_storage.get("supafit.user_id")
-            if not user_id:
-                print("Usuário não autenticado - redirecionando para login")
-                show_snackbar("Por favor, faça login para continuar.", ft.Colors.BLUE_400)
-                redirect_to_login()
-            else:
-                page.views.append(
-                    ft.View(
-                        appbar=mobile_appbar.create_appbar(
-                            f"Treino - {day.capitalize()}", show_back_button=True
-                        ),
-                        route=f"/treino/{day}",
-                        controls=[Treinopage(page, supabase, day, user_id)],
-                        vertical_alignment=ft.MainAxisAlignment.CENTER,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        scroll=ft.ScrollMode.AUTO,
-                    )
+        # Rotas protegidas (requer autenticação e perfil)
+        elif route in PROFILE_REQUIRED_ROUTES or route.startswith("/treino/"):
+            if not is_authenticated():
+                show_snackbar(
+                    "Por favor, faça login para continuar.", ft.Colors.BLUE_400
                 )
+                page.views.append(build_login_view())
+                return
 
-    @require_auth
-    def handle_create_profile():
-        """Manipula a rota de criação de perfil."""
+            if not has_profile():
+                show_snackbar("Complete seu perfil para continuar.", ft.Colors.BLUE_400)
+                page.views.append(build_create_profile_view())
+                return
 
-        def on_complete():
-            page.client_storage.set("supafit.profile_created", True)
-            page.go("/home")
-            print("Perfil criado, navegando para /home")
-        page.views.append(
-            ft.View(
-                appbar=mobile_appbar.create_appbar(
-                    "Criar Perfil", show_back_button=True
-                ),
-                route="/create_profile",
-                controls=[CreateProfilePage(page, supabase)],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                padding=20,
+            # Rotas específicas
+            if route == "/home":
+                page.views.append(build_home_view())
+            elif route == "/community":
+                page.views.append(build_community_view())
+            elif route == "/trainer":
+                page.views.append(build_trainer_view())
+            elif route == "/profile_settings":
+                page.views.append(build_profile_settings_view())
+            elif route == "/history":
+                page.views.append(build_history_view())
+            elif route.startswith("/treino/"):
+                day = route.split("/")[-1]
+                user_id = page.client_storage.get("supafit.user_id")
+                if user_id:
+                    page.views.append(build_treino_view(day, user_id))
+                else:
+                    show_snackbar("Erro: Usuário não identificado.", ft.Colors.RED_700)
+                    page.views.append(build_login_view())
+                    return
+
+        # Rota não encontrada
+        else:
+            show_snackbar(
+                "Rota não encontrada. Redirecionando para login.", ft.Colors.RED_700
             )
+            page.views.append(build_login_view())
+
+    def build_root_view():
+        """Constrói a view raiz (sempre presente)."""
+        return ft.View(
+            route="/",
+            controls=[],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
-    def route_change(route):
-        """Manipulador principal de mudanças de rota."""
-        page.views.clear()
-        print(f"Navegando para: {page.route}")  # Debugging output
-        try:
-            if page.route in PUBLIC_ROUTES:
-                handle_public_routes()
-            elif page.route == "/create_profile":
-                handle_create_profile()
-            elif page.route in PROFILE_REQUIRED_ROUTES or page.route.startswith(
-                "/treino/"
-            ):
-                handle_protected_routes()
-            else:
-                print(f"Rota não encontrada: {page.route}")
-                show_snackbar("Rota não encontrada. Redirecionando para login.")
-                redirect_to_login()
-        except Exception as e:
-            print(f"Erro ao processar rota {page.route}: {str(e)}")
-            show_snackbar(f"Erro ao carregar página: {str(e)}")
-            redirect_to_login()
-        page.update()
+    def build_login_view():
+        """Constrói a view de login."""
+        return ft.View(
+            route="/login",
+            controls=[LoginPage(page)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
 
-    def view_pop(view):
-        """Manipula o voltar das views."""
-        if page.views:
-            page.views.pop()
-            top_view = page.views[-1] if page.views else None
-            if top_view:
+    def build_register_view():
+        """Constrói a view de registro."""
+        return ft.View(
+            route="/register",
+            controls=[RegisterPage(page)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_terms_view():
+        """Constrói a view de termos de uso."""
+        return ft.View(
+            route="/terms",
+            appbar=mobile_appbar.create_appbar("Termos de Uso", show_back_button=True),
+            controls=[TermsPage(page, supabase, openai)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_forgot_password_view():
+        """Constrói a view de recuperação de senha."""
+        return ft.View(
+            route="/forgot_password",
+            appbar=mobile_appbar.create_appbar(
+                "Recuperar Senha", show_back_button=True
+            ),
+            controls=[ForgotPasswordPage(page)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_create_profile_view():
+        """Constrói a view de criação de perfil."""
+        return ft.View(
+            route="/create_profile",
+            appbar=mobile_appbar.create_appbar("Criar Perfil", show_back_button=True),
+            controls=[CreateProfilePage(page, supabase)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_home_view():
+        """Constrói a view da página inicial."""
+        return ft.View(
+            route="/home",
+            appbar=mobile_appbar.create_appbar("SupaFit", show_back_button=False),
+            controls=[Homepage(page, supabase)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_community_view():
+        """Constrói a view da comunidade."""
+        return ft.View(
+            route="/community",
+            appbar=mobile_appbar.create_appbar("Comunidade", show_back_button=True),
+            controls=[CommunityTab(page, supabase)],
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_trainer_view():
+        """Constrói a view do treinador."""
+        return ft.View(
+            route="/trainer",
+            appbar=mobile_appbar.create_appbar("Treinador", show_back_button=True),
+            controls=[TrainerTab(page, supabase, openai)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_profile_settings_view():
+        """Constrói a view de configurações do perfil."""
+        return ft.View(
+            route="/profile_settings",
+            appbar=mobile_appbar.create_appbar("Perfil", show_back_button=True),
+            controls=[ProfileSettingsPage(page)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_history_view():
+        """Constrói a view do histórico."""
+        return ft.View(
+            route="/history",
+            appbar=mobile_appbar.create_appbar("Histórico", show_back_button=True),
+            controls=[HistoryPage(page, supabase)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_treino_view(day: str, user_id: str):
+        """Constrói a view de treino para um dia específico."""
+        return ft.View(
+            route=f"/treino/{day}",
+            appbar=mobile_appbar.create_appbar(
+                f"Treino - {day.capitalize()}", show_back_button=True
+            ),
+            controls=[Treinopage(page, supabase, day, user_id)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def route_change(e: ft.RouteChangeEvent):
+        """
+        Manipulador principal de mudanças de rota.
+        Segue o padrão recomendado pela documentação do Flet.
+        """
+        try:
+            print(f"INFO - routes: Navegando para: {e.route}")
+            build_views_for_route(e.route)
+            page.update()
+            print(f"INFO - routes: Página atualizada para rota: {e.route}")
+        except Exception as ex:
+            print(f"ERROR - routes: Erro ao processar rota {e.route}: {str(ex)}")
+            show_snackbar(f"Erro ao carregar página: {str(ex)}")
+            # Em caso de erro, redireciona para login
+            page.views.clear()
+            page.views.append(build_root_view())
+            page.views.append(build_login_view())
+            page.update()
+
+    def view_pop(e: ft.ViewPopEvent):
+        """
+        Manipula o evento de voltar das views.
+        Segue o padrão recomendado pela documentação do Flet.
+        """
+        try:
+            if len(page.views) > 1:
+                page.views.pop()
+                top_view = page.views[-1]
                 page.go(top_view.route)
+                print(f"INFO - routes: View pop, navegando para: {top_view.route}")
             else:
+                # Se não há views suficientes, vai para login
                 page.go("/login")
-        else:
+                print("INFO - routes: View pop, redirecionando para /login")
+        except Exception as ex:
+            print(f"ERROR - routes: Erro no view_pop: {str(ex)}")
             page.go("/login")
 
+        page.update()
+
+    # Configuração dos manipuladores de eventos
     page.on_route_change = route_change
     page.on_view_pop = view_pop
+
+    # Inicia a navegação para a rota atual
     page.go(page.route)
