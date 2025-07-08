@@ -71,7 +71,6 @@ class BaseStep(ABC):
         """
         pass
 
-
     def show_snackbar(self, message: str, color: str = ft.Colors.RED):
         """Exibe uma SnackBar com feedback para o usuário."""
         self.page.snack_bar = ft.SnackBar(
