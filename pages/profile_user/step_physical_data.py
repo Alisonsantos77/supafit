@@ -151,13 +151,13 @@ class StepPhysicalData(BaseStep):
             [
                 ft.Text(
                     "Suas medidas corporais",
-                    style=ft.TextThemeStyle.HEADLINE_MEDIUM,
+                    theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM,
                     weight=ft.FontWeight.BOLD,
                     color=ft.Colors.PRIMARY,
                 ),
                 ft.Text(
                     "Precisamos dessas informações para calcular seu treino ideal",
-                    style=ft.TextThemeStyle.BODY_MEDIUM,
+                    theme_style=ft.TextThemeStyle.BODY_MEDIUM,
                     color=ft.Colors.GREY_600,
                     text_align=ft.TextAlign.CENTER,
                 ),

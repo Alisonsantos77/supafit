@@ -78,9 +78,7 @@ class StepPersonalData(BaseStep):
             self.age_display.value = f"Idade: {idade} anos"
             self.age_display.color = ft.Colors.PRIMARY
             self.profile_data["age"] = idade
-            self.profile_data["birth_date"] = f"{ano}-{mes:02d}-{dia:02d}"
             self.page.update()
-            logger.info(f"Idade calculada: {idade}")
 
     def build_step_progress(self) -> ft.Control:
         steps = []
@@ -151,13 +149,13 @@ class StepPersonalData(BaseStep):
             [
                 ft.Text(
                     "Comece sua transformação!",
-                    style=ft.TextThemeStyle.HEADLINE_MEDIUM,
+                    theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM,
                     weight=ft.FontWeight.BOLD,
                     color=ft.Colors.PRIMARY,
                 ),
                 ft.Text(
                     "Crie seu perfil para treinos personalizados no SupaFit",
-                    style=ft.TextThemeStyle.BODY_MEDIUM,
+                    theme_style=ft.TextThemeStyle.BODY_MEDIUM,
                     color=ft.Colors.GREY_600,
                     text_align=ft.TextAlign.CENTER,
                 ),

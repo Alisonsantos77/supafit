@@ -1,36 +1,21 @@
 import flet as ft
 import time
-from .step1_name import Step1Name
-from .step2_age import Step2Age
-from .step3_gender import Step3Gender
-from .step4_weight import Step4Weight
-from .step5_height import Step5Height
-from .step6_goal import Step6Goal
-from .step7_restrictions import Step7Restrictions
-from .step8_review import Step8Review
+import asyncio
+from .step_personal_data import StepPersonalData
+from .step_physical_data import StepPhysicalData
+from .step_goal_restrictions import StepGoalRestrictions
+from .step_review import StepReview
 from utils.logger import get_logger
 
-logger = get_logger("supabafit.profile_user.create_profile")
+logger = get_logger("supafit.profile_user.create_profile")
 
 
 def CreateProfilePage(page: ft.Page, supabase_service):
-    """Página principal para criação de perfil do usuário.
-
-    Orquestra as etapas de criação de perfil, gerenciando navegação e dados.
-
-    Args:
-        page (ft.Page): Página Flet para interação com o usuário.
-        supabase_service: Serviço Supabase para operações de banco de dados.
-
-    Returns:
-        ft.Container: Contêiner com as etapas do formulário.
-    """
-    last_event_time = [0]  # Para debounce
-    current_step = [0]  # Rastrear etapa atual
-    profile_data = {}  # Armazenar dados do perfil
+    last_event_time = [0]
+    current_step = [0]
+    profile_data = {}
 
     def show_loading():
-        """Exibe um diálogo de carregamento."""
         if hasattr(page, "dialog") and page.dialog and page.dialog.open:
             logger.info("Diálogo de carregamento já exibido, ignorando")
             return page.dialog
@@ -49,14 +34,12 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         return loading_dialog
 
     def hide_loading(dialog):
-        """Fecha o diálogo de carregamento."""
         if dialog and dialog.open:
             page.close(dialog)
             page.dialog = None
             logger.info("Diálogo de carregamento fechado")
 
     def show_snackbar(message: str, color: str = ft.Colors.RED):
-        """Exibe uma SnackBar com feedback para o usuário."""
         page.snack_bar = ft.SnackBar(
             content=ft.Text(message, color=ft.Colors.WHITE),
             bgcolor=color,
@@ -67,37 +50,34 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         logger.info(f"SnackBar exibida: {message}")
 
     def reset_form():
-        """Reinicia o formulário e os dados do perfil."""
         logger.info(f"Antes de resetar profile_data: {profile_data}")
         profile_data.clear()
         current_step[0] = 0
         for step in steps:
-            if hasattr(step, "name_input") and step.name_input:
-                step.name_input.value = ""
-                step.name_input.error_text = None
-            if hasattr(step, "age_input") and step.age_input:
-                step.age_input.value = ""
-                step.age_input.error_text = None
-            if hasattr(step, "gender_radio_group") and step.gender_radio_group:
-                step.gender_radio_group.value = "Masculino"
-            if hasattr(step, "weight_input") and step.weight_input:
-                step.weight_input.value = ""
-                step.weight_input.error_text = None
-            if hasattr(step, "height_input") and step.height_input:
-                step.height_input.value = ""
-                step.height_input.error_text = None
-            if hasattr(step, "goal_radio_group") and step.goal_radio_group:
-                step.goal_radio_group.value = "Manter forma"
-            if hasattr(step, "restrictions_input") and step.restrictions_input:
-                step.restrictions_input.value = ""
-                step.restrictions_input.error_text = None
-            if hasattr(step, "review_text") and step.review_text:
-                step.review_text.value = ""
-        logger.info("Formulário de perfil reiniciado.")
+            # limpa inputs e erros de cada etapa
+            for attr in (
+                "name_input",
+                "weight_input",
+                "height_input",
+                "restrictions_input",
+            ):
+                control = getattr(step, attr, None)
+                if control:
+                    control.value = ""
+                    control.error_text = None
+            # reset sliders e dropdowns
+            if hasattr(step, "weight_slider"):
+                step.weight_slider.value = 70
+            if hasattr(step, "height_slider"):
+                step.height_slider.value = 170
+            if hasattr(step, "goal_dropdown"):
+                step.goal_dropdown.value = "Manter forma física"
+            if hasattr(step, "gender_dropdown"):
+                step.gender_dropdown.value = "Masculino"
         update_view()
+        logger.info("Formulário de perfil reiniciado.")
 
-
-    def next_step(e):
+    async def next_step(e):
         nonlocal last_event_time
         current_time = time.time()
         if current_time - last_event_time[0] < 0.5:
@@ -107,57 +87,76 @@ def CreateProfilePage(page: ft.Page, supabase_service):
         logger.info(
             f"Tentando avançar da etapa {current_step[0]}, profile_data: {profile_data}"
         )
-        if steps[current_step[0]].validate():
+        valid = await steps[current_step[0]].validate()
+        logger.info(
+            f"Resultado da validação da etapa {current_step[0]}: {valid} | profile_data agora: {profile_data}"
+        )
+        if valid:
             current_step[0] += 1
-            if current_step[0] == 7:
-                steps[7].update_review()  # Chama a atualização do carrossel
             update_view()
             logger.info(
                 f"Avançou para a etapa {current_step[0]}, profile_data: {profile_data}"
             )
         else:
             logger.warning("Validação falhou na etapa atual.")
-        
-    def previous_step(e):
-        """Volta para a etapa anterior."""
+
+    def previous_step(e, step=None):
         nonlocal last_event_time
         current_time = time.time()
         if current_time - last_event_time[0] < 0.5:
             logger.info("Debounce: Evento ignorado por 500ms")
             return
         last_event_time[0] = current_time
-        logger.info(
-            f"Tentando voltar da etapa {current_step[0]}, profile_data: {profile_data}"
-        )
-        if current_step[0] > 0:
+        if step is not None:
+            current_step[0] = step
+        elif current_step[0] > 0:
             current_step[0] -= 1
-            update_view()
-            logger.info(
-                f"Retrocedeu para a etapa {current_step[0]}, profile_data: {profile_data}"
-            )
+        update_view()
+        logger.info(
+            f"Retrocedeu para a etapa {current_step[0]}, profile_data: {profile_data}"
+        )
 
     def create_profile(e):
-        """Cria o perfil do usuário no Supabase."""
         nonlocal last_event_time
         current_time = time.time()
         if current_time - last_event_time[0] < 0.5:
             logger.info("Debounce: Evento ignorado por 500ms")
             return
         last_event_time[0] = current_time
-        logger.info(f"Enviando dados do perfil: {profile_data}")
-        user_id = page.client_storage.get("supafit.user_id")
-        level = page.client_storage.get("supafit.level")
 
+        logger.info(f"Iniciando criação de perfil com dados: {profile_data}")
+        user_id = page.client_storage.get("supafit.user_id")
+        level = page.client_storage.get("supafit.level", "iniciante")
         if not user_id:
-            logger.warning("Tentativa de criar perfil sem user_id")
-            show_snackbar("Erro: Usuário não autenticado.", ft.Colors.RED)
-            page.go("/login")
+            logger.error("user_id não encontrado no armazenamento do cliente.")
+            page.open(ft.SnackBar(
+                content=ft.Text("Erro: usuário não autenticado.", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_600,
+                duration=3000,
+            ))
             return
 
-        profile_data["user_id"] = user_id
-        profile_data["level"] = level if level else "iniciante"
-        profile_data["terms_accepted"] = True
-        profile_data["first_workout"] = False
+        profile_data.update(
+            {
+                "user_id": user_id,
+                "name": profile_data.get("name", "Usuário Desconhecido"),
+                "age": profile_data.get("age", 18),
+                "weight": float(
+                    profile_data.get("weight", "70.0")
+                ),
+                "height": profile_data.get("height", 170),
+                "goal": profile_data.get("goal", "Manter forma física"),
+                "terms_accepted": profile_data.get("terms_accepted", True),
+                "level": level,
+                "first_workout": profile_data.get("first_workout", True),
+                "rest_duration": 60,
+                "theme": "dark",
+                "primary_color": "BLUE",
+                "font_family": "Barlow",
+                "gender": profile_data.get("gender", "Masculino"),
+                "restrictions": profile_data.get("restrictions", "Nenhuma"),
+            }
+        )
 
         loading_dialog = show_loading()
         page.update()
@@ -166,88 +165,52 @@ def CreateProfilePage(page: ft.Page, supabase_service):
             supabase_service.create_profile(user_id, profile_data)
             page.client_storage.set("supafit.profile_created", True)
             hide_loading(loading_dialog)
-            show_snackbar("Perfil criado com sucesso!", ft.Colors.GREEN_400)
+            page.open(ft.SnackBar(
+                content=ft.Text("Perfil criado com sucesso!", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.GREEN_600,
+                duration=3000,
+            ))
             logger.info(f"Perfil criado para user_id: {user_id}")
             reset_form()
             page.go("/home")
             page.update()
         except Exception as ex:
             hide_loading(loading_dialog)
-            show_snackbar(f"Erro ao criar perfil: {str(ex)}", ft.Colors.RED)
-            logger.error(f"Erro ao criar perfil: {str(ex)}")
+            page.open(ft.SnackBar(
+                content=ft.Text(
+                    "Erro ao criar perfil. Tente novamente mais tarde.",
+                    color=ft.Colors.WHITE,
+                ),
+                bgcolor=ft.Colors.RED_600,
+                duration=3000,
+            ))
+            logger.error(f"Erro ao criar perfil: {ex}")
             page.update()
 
     def update_view():
-        """Atualiza a visibilidade das etapas."""
-        for index, step in enumerate(steps):
-            step.view.visible = index == current_step[0]
-            # Atualizar revisão apenas quando a etapa 7 for visível
-            if index == 7 and step.view.visible:
-                step.update_review()
+        for idx, step in enumerate(steps):
+            step.view.visible = idx == current_step[0]
+            if isinstance(step, StepReview) and step.view.visible:
+                step.update_review_data()
         page.update()
         logger.info(f"View atualizada para a etapa {current_step[0]}")
 
-    steps = []
-    try:
-        steps.append(
-            Step1Name(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step2Age(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step3Gender(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step4Weight(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step5Height(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step6Goal(page, profile_data, current_step, next_step, previous_step)
-        )
-        steps.append(
-            Step7Restrictions(
-                page, profile_data, current_step, next_step, previous_step
-            )
-        )
-        steps.append(
-            Step8Review(
-                page,
-                profile_data,
-                current_step,
-                next_step,
-                previous_step,
-                supabase_service,
-                create_profile,
-            )
-        )
-    except Exception as e:
-        logger.error(f"Erro ao inicializar etapas: {str(e)}")
-        show_snackbar(
-            "Erro ao carregar formulário de perfil. Tente novamente mais tarde.",
-            ft.Colors.RED,
-        )
-        return ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text(
-                        "Erro ao carregar o formulário",
-                        size=20,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.RED,
-                    ),
-                    ft.Text("Por favor, tente novamente ou faça login novamente."),
-                    ft.ElevatedButton(
-                        "Voltar para Login", on_click=lambda _: page.go("/login")
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            alignment=ft.alignment.center,
-        )
+    steps = [
+        StepPersonalData(page, profile_data, current_step, next_step, previous_step),
+        StepPhysicalData(page, profile_data, current_step, next_step, previous_step),
+        StepGoalRestrictions(
+            page, profile_data, current_step, next_step, previous_step
+        ),
+        StepReview(
+            page,
+            profile_data,
+            current_step,
+            next_step,
+            previous_step,
+            supabase_service,
+            create_profile,
+        ),
+    ]
 
     container_steps = ft.Container(
         content=ft.Column(

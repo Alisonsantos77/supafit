@@ -146,20 +146,18 @@ class StepGoalRestrictions(BaseStep):
                 ),
             ],
             spacing=5,
-            auto_scroll=False,
-            height=100,
         )
         return ft.Column(
             [
                 ft.Text(
                     "Defina sua jornada fitness!",
-                    style=ft.TextThemeStyle.HEADLINE_MEDIUM,
+                    theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM,
                     weight=ft.FontWeight.BOLD,
                     color=ft.Colors.PRIMARY,
                 ),
                 ft.Text(
                     "Escolha o objetivo que move você e personalize seu treino",
-                    style=ft.TextThemeStyle.BODY_MEDIUM,
+                    theme_style=ft.TextThemeStyle.BODY_MEDIUM,
                     color=ft.Colors.GREY_600,
                     text_align=ft.TextAlign.CENTER,
                 ),
@@ -288,5 +286,7 @@ class StepGoalRestrictions(BaseStep):
         self.restrictions_input.error_text = None
         self.profile_data["restrictions"] = restrictions if restrictions else "Nenhuma"
         logger.info(f"Restrições coletadas: {self.profile_data['restrictions']}")
-        logger.info(f"Após validação em StepGoalRestrictions, profile_data: {self.profile_data}")
+        logger.info(
+            f"Após validação em StepGoalRestrictions, profile_data: {self.profile_data}"
+        )
         return True
