@@ -7,7 +7,6 @@ import json
 from .message import Message, ChatMessage
 from services.supabase import SupabaseService
 from services.openai import OpenAIService
-from utils.alerts import CustomAlertDialog
 from postgrest.exceptions import APIError
 from utils.quebra_mensagem import integrate_with_chat
 from services.trainer_functions import TOOLS
@@ -18,17 +17,17 @@ cached_history = {}
 
 COOLDOWN_SECONDS = 2
 
-
 def filtered(history):
     """Filtra mensagens de ferramenta do histórico."""
     return [msg for msg in history if msg.get("role") != "tool"]
-
 
 async def load_chat_history(
     supabase_service: SupabaseService,
     user_id: str,
     chat_container: ft.ListView,
     page: ft.Page,
+    haptic_feedback: ft.HapticFeedback,
+    user_data: dict
 ) -> list:
     """Carrega o histórico de conversa com animação de entrada."""
     try:
@@ -43,6 +42,7 @@ async def load_chat_history(
                     show_avatar=True,
                 ),
                 page,
+                haptic_feedback,
             )
         )
 
@@ -80,18 +80,33 @@ async def load_chat_history(
             print(f"INFO: Histórico carregado do Supabase para user_id: {user_id}")
 
         for msg in history:
-            if msg["role"] == "tool":
+            if msg.get("role") == "tool":
                 continue
+
+            # Tenta pegar o campo de data; se não existir, assume None
+            created_at = msg.get("timestamp") or msg.get("created_at")
+
+            # Loga se nenhum dos campos estiver presente
+            if created_at is None:
+                print("⚠️ Mensagem sem campo de data:", msg)
+
             chat_container.controls.append(
                 ChatMessage(
                     Message(
-                        user_name="Você" if msg["role"] == "user" else "Treinador",
-                        text=msg["content"] or "Mensagem vazia",
-                        user_type=msg["role"],
-                        created_at=msg["timestamp"],
-                        show_avatar=False,
+                        user_name="Você" if msg.get("role") == "user" else "Treinador",
+                        text=msg.get("content") or "Mensagem vazia",
+                        user_type=msg.get("role", "user"),
+                        created_at=created_at,
+                        show_avatar=True,
+                        gender=(
+                            user_data.get("gender", "neutro")
+                            if msg.get("role") == "user"
+                            else "neutro"
+                        ),
+                        user_id=user_id if msg.get("role") == "user" else None,
                     ),
                     page,
+                    haptic_feedback,
                 )
             )
 
@@ -104,44 +119,40 @@ async def load_chat_history(
                 page.go(page.route)
                 return []
             else:
+                haptic_feedback.heavy_impact()
                 page.open(
-                    ft.SnackBar(
-                        ft.Text(
-                            "Sessão expirada. Faça login novamente.",
-                            color=ft.Colors.WHITE,
-                        ),
-                        bgcolor=ft.Colors.RED_700,
-                    )
+                    ft.SnackBar(ft.Text("Sessão expirada. Faça login novamente."))
                 )
                 page.update()
                 page.go("/login")
                 return []
         print(f"ERROR: Erro ao carregar histórico para user_id: {user_id} - {e}")
-        page.open(
-            ft.SnackBar(
-                ft.Text(f"Erro ao carregar histórico: {str(e)}", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED_700,
-            )
-        )
+        haptic_feedback.heavy_impact()
+        page.open(ft.SnackBar(ft.Text(f"Erro ao carregar histórico: {str(e)}")))
         page.update()
         return []
-
 
 async def clear_chat(
     supabase_service: SupabaseService,
     user_id: str,
     chat_container: ft.ListView,
     page: ft.Page,
+    haptic_feedback: ft.HapticFeedback,
 ):
     """Limpa o histórico com confirmação visual."""
+    print(f"INFO: Iniciando clear_chat para user_id: {user_id}")
 
     async def confirm_clear(e):
+        print(f"INFO: Botão clicado no diálogo: {e.control.text}")
         if e.control.text == "Sim":
             try:
+                print("INFO: Executando DELETE no Supabase")
                 supabase_service.client.table("trainer_qa").delete().eq(
                     "user_id", user_id
                 ).execute()
+                print(f"INFO: Controles antes da limpeza: {len(chat_container.controls)}")
                 chat_container.controls.clear()
+                print(f"INFO: Controles após limpeza: {len(chat_container.controls)}")
                 chat_container.controls.append(
                     ChatMessage(
                         Message(
@@ -152,61 +163,57 @@ async def clear_chat(
                             show_avatar=True,
                         ),
                         page,
+                        haptic_feedback,
                     )
                 )
                 page.update()
-                page.open(
-                    ft.SnackBar(
-                        ft.Text("Chat limpo com sucesso!", color=ft.Colors.WHITE),
-                        bgcolor=ft.Colors.GREEN_700,
-                    )
-                )
+                haptic_feedback.light_impact()
+                page.open(ft.SnackBar(ft.Text("Chat limpo com sucesso!")))
+                page.update()
+                print(f"INFO: Cache antes da limpeza: {user_id in cached_history}")
                 cached_history.pop(user_id, None)
-                print(f"INFO: Chat limpo para user_id: {user_id}")
+                print(f"INFO: Cache após a limpeza: {user_id in cached_history}")
             except APIError as ex:
+                print(f"ERROR: Erro ao limpar chat para user_id: {user_id} - {ex}")
                 if ex.code == "42501":
                     if supabase_service.refresh_session():
                         page.go(page.route)
                     else:
+                        haptic_feedback.heavy_impact()
                         page.open(
                             ft.SnackBar(
-                                ft.Text(
-                                    "Sessão expirada. Faça login novamente.",
-                                    color=ft.Colors.WHITE,
-                                ),
-                                bgcolor=ft.Colors.RED_700,
+                                ft.Text("Sessão expirada. Faça login novamente.")
                             )
                         )
                         page.update()
                         page.go("/login")
                 else:
-                    print(f"ERROR: Erro ao limpar chat para user_id: {user_id} - {ex}")
-                    page.open(
-                        ft.SnackBar(
-                            ft.Text(
-                                f"Erro ao limpar chat: {str(ex)}", color=ft.Colors.WHITE
-                            ),
-                            bgcolor=ft.Colors.RED_700,
-                        )
-                    )
+                    haptic_feedback.heavy_impact()
+                    page.open(ft.SnackBar(ft.Text(f"Erro ao limpar chat: {str(ex)}")))
                     page.update()
             finally:
                 page.close(confirm_dialog)
                 page.update()
         else:
+            print("INFO: Diálogo fechado sem ação")
             page.close(confirm_dialog)
             page.update()
 
-    confirm_dialog = CustomAlertDialog(
+    confirm_dialog = ft.AlertDialog(
+        title=ft.Text("Confirmar Limpeza"),
         content=ft.Text("Tem certeza que deseja limpar todo o histórico de mensagens?"),
         bgcolor=ft.Colors.GREY_900,
+        actions=[
+            ft.TextButton("Sim", on_click=confirm_clear),
+            ft.TextButton("Não", on_click=confirm_clear),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        modal=True,
     )
-    confirm_dialog.actions = [
-        ft.TextButton("Sim", on_click=confirm_clear),
-        ft.TextButton("Não", on_click=confirm_clear),
-    ]
-    confirm_dialog.show(page)
-
+    print("INFO: Exibindo diálogo de confirmação")
+    page.open(confirm_dialog)
+    print("DEBUG: Após chamar page.open para confirm_dialog")
+    page.update()
 
 async def ask_question(
     e,
@@ -220,18 +227,16 @@ async def ask_question(
     user_id: str,
     last_question_time: list,
     history_cache: list,
+    haptic_feedback: ft.HapticFeedback,
 ):
     """Processa pergunta do usuário, lida com function calling e atualiza o chat e o plano de treino."""
     current_time = time.time()
     if current_time - last_question_time[0] < COOLDOWN_SECONDS:
         print(f"WARNING: Tentativa antes do cooldown de {COOLDOWN_SECONDS}s")
+        haptic_feedback.medium_impact()
         page.open(
             ft.SnackBar(
-                ft.Text(
-                    f"Espere {COOLDOWN_SECONDS} segundos antes de outra pergunta.",
-                    color=ft.Colors.WHITE,
-                ),
-                bgcolor=ft.Colors.RED_700,
+                ft.Text(f"Espere {COOLDOWN_SECONDS} segundos antes de outra pergunta.")
             )
         )
         page.update()
@@ -249,12 +254,8 @@ async def ask_question(
         return
     if await openai.is_sensitive_question(question):
         print("INFO: Pergunta sensível detectada")
-        page.open(
-            ft.SnackBar(
-                ft.Text("Pergunta sensível detectada.", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.RED_700,
-            )
-        )
+        haptic_feedback.medium_impact()
+        page.open(ft.SnackBar(ft.Text("Pergunta sensível detectada.")))
         page.update()
         return
 
@@ -274,9 +275,11 @@ async def ask_question(
                     text=question,
                     user_type="user",
                     created_at=datetime.now().isoformat(),
-                    show_avatar=False,
+                    show_avatar=True,
+                    gender=user_data.get("gender", "neutro"),
                 ),
                 page,
+                haptic_feedback,
             )
         )
         if len(chat_container.controls) > 50:
@@ -460,9 +463,10 @@ async def ask_question(
                         chunk.strip(),
                         "assistant",
                         datetime.now().isoformat(),
-                        False,
+                        True,
                     ),
                     page,
+                    haptic_feedback,
                 )
             )
             if len(chat_container.controls) > 50:
@@ -480,12 +484,8 @@ async def ask_question(
         except Exception as err:
             print(f"ERROR: Falha ao salvar histórico: {err}")
 
-        page.open(
-            ft.SnackBar(
-                ft.Text("Pergunta enviada com sucesso!", color=ft.Colors.WHITE),
-                bgcolor=ft.Colors.GREEN_700,
-            )
-        )
+        haptic_feedback.light_impact()
+        page.open(ft.SnackBar(ft.Text("Pergunta enviada com sucesso!")))
         page.update()
         last_question_time[0] = current_time
 
@@ -494,11 +494,8 @@ async def ask_question(
         import traceback
 
         print(f"ERROR: Traceback completo: {traceback.format_exc()}")
-        page.open(
-            ft.SnackBar(
-                ft.Text(f"Erro: {ex}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED_700
-            )
-        )
+        haptic_feedback.heavy_impact()
+        page.open(ft.SnackBar(ft.Text(f"Erro: {ex}")))
         page.update()
 
     finally:

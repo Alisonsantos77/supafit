@@ -7,3 +7,4 @@ flet-lottie
 cryptography
 flet-video
 openai
+groq
