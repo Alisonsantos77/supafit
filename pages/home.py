@@ -1,6 +1,9 @@
 import flet as ft
 from components.components import WorkoutTile
 from datetime import datetime
+import os
+from groq import Groq
+from dotenv import load_dotenv
 
 # Mapeamento de título para imagem local
 IMAGE_MAP = {
@@ -27,78 +30,77 @@ WEEK_DAYS_ORDER = [
     "domingo",
 ]
 
+load_dotenv()
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+def detect_image_key(workout_name: str, exercise_names: list[str]) -> str:
+    prompt = (
+        f"Analise o treino:\n"
+        f"Título: {workout_name}\n"
+        f"Exercícios: {', '.join(exercise_names)}\n"
+        f"Responda apenas com uma das chaves: {', '.join(IMAGE_MAP.keys())}"
+    )
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=10,
+        )
+        key = response.choices[0].message.content.strip().lower()
+        return key if key in IMAGE_MAP else "descanso"
+    except Exception as e:
+        print(f"ERROR — Groq AI: {e}")
+        return "descanso"
+
 
 def Homepage(page: ft.Page, supabase_service):
     user_id = page.client_storage.get("supafit.user_id")
     if not user_id:
-        print(
-            "DEBUG — User ID não encontrado no client_storage. Redirecionando para /login."
-        )
         page.go("/login")
         return ft.Container()
 
     def load_workouts():
-        try:
-            resp = (
-                supabase_service.client.table("user_plans")
-                .select(
-                    "day, title, plan_exercises(order, sets, reps, exercicios(nome))"
-                )
-                .eq("user_id", user_id)
-                .order("order", desc=False, foreign_table="plan_exercises")
-                .execute()
+        resp = (
+            supabase_service.client.table("user_plans")
+            .select("day, title, plan_exercises(order, sets, reps, exercicios(nome))")
+            .eq("user_id", user_id)
+            .order("order", desc=False, foreign_table="plan_exercises")
+            .execute()
+        )
+        data = resp.data or []
+        workouts_by_day = {day: None for day in WEEK_DAYS_ORDER}
+
+        for plan in data:
+            day_key = plan.get("day", "").strip().lower()
+            if day_key not in workouts_by_day:
+                continue
+
+            title = plan.get("title", "").strip()
+            exercises = sorted(
+                plan.get("plan_exercises", []), key=lambda x: x.get("order", 0)
             )
-            data = resp.data or []
-            print(
-                f"DEBUG — Dados brutos retornados de user_plans ({len(data)} registros):",
-                data,
-            )
+            ex_names = [ex["exercicios"]["nome"] for ex in exercises]
 
-            workouts_by_day = {day: None for day in WEEK_DAYS_ORDER}
+            # aqui usamos IA para escolher a imagem
+            img_key = detect_image_key(title, ex_names)
+            img = IMAGE_MAP[img_key]
 
-            for plan in data:
-                raw_day = plan.get("day", "")
-                day_key = raw_day.strip().lower()
-                if day_key not in workouts_by_day:
-                    print(f"WARNING — dia desconhecido no banco: '{raw_day}'")
-                    continue
+            workouts_by_day[day_key] = {
+                "day": day_key,
+                "name": title,
+                "exercises": [
+                    {"name": n, "sets": ex.get("sets"), "reps": ex.get("reps")}
+                    for n, ex in zip(ex_names, exercises)
+                ],
+                "image_url": img,
+            }
 
-                title = plan.get("title", "").lower()
-                exercises = sorted(
-                    plan.get("plan_exercises", []), key=lambda x: x.get("order", 0)
-                )
-                ex_list = [
-                    {
-                        "name": ex["exercicios"]["nome"],
-                        "sets": ex.get("sets"),
-                        "reps": ex.get("reps"),
-                    }
-                    for ex in exercises
-                ]
-                img = IMAGE_MAP.get(title, "mascote_supafit/treino_padrao.png")
-
-                workouts_by_day[day_key] = {
-                    "day": day_key,
-                    "name": title,
-                    "exercises": ex_list,
-                    "image_url": img,
-                }
-                print(
-                    f"DEBUG — Plano carregado para '{day_key}':",
-                    workouts_by_day[day_key],
-                )
-
-            workouts = [wk for wk in workouts_by_day.values() if wk]
-            print(f"INFO — Homepage: {len(workouts)} treinos agregados para exibição.")
-            return workouts
-
-        except Exception as e:
-            print(f"ERROR — Homepage: erro ao carregar treinos do Supabase: {e}")
-            return []
+        return [wk for wk in workouts_by_day.values() if wk]
 
     workouts = load_workouts()
 
-    # Mapeia dia atual
     today_en = datetime.now().strftime("%A").lower()
     day_map = {
         "monday": "segunda",
@@ -110,7 +112,6 @@ def Homepage(page: ft.Page, supabase_service):
         "sunday": "domingo",
     }
     current_day = day_map.get(today_en, "segunda")
-    print(f"DEBUG — Hoje é '{today_en}', mapeado para '{current_day}'.")
 
     workout_grid = ft.ResponsiveRow(
         controls=[
