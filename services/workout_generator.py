@@ -291,25 +291,27 @@ class WorkoutGenerator:
     def generate_plan_with_groq(self, exercises, user_data):
         """Gera plano usando Groq AI - VERSÃO SÍNCRONA"""
         try:
+            # Converter dados para JSON strings como esperado pela função
             exercises_json = json.dumps(exercises, ensure_ascii=False)
             user_json = json.dumps(user_data, ensure_ascii=False)
 
+            # Definição corrigida da função tool
             tools = [
                 {
                     "type": "function",
                     "function": {
                         "name": "create_workout_plan",
-                        "description": "Cria um plano de treino personalizado baseado no perfil do usuário",
+                        "description": "Cria um plano de treino personalizado",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "exercises_data": {
                                     "type": "string",
-                                    "description": "Dados dos exercícios disponíveis em formato JSON",
+                                    "description": "Lista de exercícios em formato JSON",
                                 },
                                 "user_profile": {
                                     "type": "string",
-                                    "description": "Perfil do usuário com objetivo, idade, peso, etc.",
+                                    "description": "Perfil do usuário em formato JSON",
                                 },
                             },
                             "required": ["exercises_data", "user_profile"],
@@ -318,73 +320,104 @@ class WorkoutGenerator:
                 }
             ]
 
+            # Prompt simplificado e direto
+            system_prompt = """Você é um treinador personal. Sua única tarefa é criar um plano de treino personalizado usando a função create_workout_plan.
+
+INSTRUÇÃO: Sempre use a função create_workout_plan com os dados fornecidos pelo usuário."""
+
+            # Prompt do usuário mais direto
+            user_prompt = f"""Crie um plano de treino personalizado para este usuário usando a função create_workout_plan:
+
+Perfil: {json.dumps(user_data, ensure_ascii=False)}
+Exercícios disponíveis: {len(exercises)} exercícios
+
+Use a função create_workout_plan agora."""
+
             messages = [
-                {
-                    "role": "system",
-                    "content": """Você é um treinador personal experiente especializado em criar planos de treino personalizados. 
-                    Considere sempre o objetivo, idade, gênero, peso, altura e restrições do usuário.
-                    Use a ferramenta create_workout_plan para gerar planos seguros e eficazes.
-                    Priorize a progressão gradual e a forma correta dos exercícios.""",
-                },
-                {
-                    "role": "user",
-                    "content": f"""Crie um plano de treino personalizado para o usuário com os seguintes dados:
-                    {user_json}
-                    
-                    Considere:
-                    - Objetivo principal do usuário
-                    - Nível de condicionamento físico
-                    - Restrições médicas ou físicas
-                    - Gênero e idade para ajustar intensidade
-                    - Variação de exercícios para evitar monotonia""",
-                },
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ]
 
             logger.info("Enviando requisição para Groq AI...")
+            logger.info(f"Dados do usuário: {user_data}")
+            logger.info(f"Quantidade de exercícios: {len(exercises)}")
 
             response = self.groq_client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 tools=tools,
-                tool_choice="auto",
+                tool_choice={
+                    "type": "function",
+                    "function": {"name": "create_workout_plan"},
+                },
                 max_completion_tokens=4096,
-                temperature=0.3,
+                temperature=0.1,
             )
 
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
 
             if tool_calls:
-                messages.append(response_message)
+                logger.info(f"Groq AI chamou {len(tool_calls)} função(ões)")
 
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
-                    function_args = json.loads(tool_call.function.arguments)
+                    logger.info(f"Função chamada: {function_name}")
 
                     if function_name == "create_workout_plan":
-                        function_response = self.create_workout_plan(
-                            exercises_data=exercises_json, user_profile=user_json
-                        )
+                        try:
+                            function_args = json.loads(tool_call.function.arguments)
+                            logger.info("Argumentos da função parseados com sucesso")
 
-                        messages.append(
-                            {
-                                "tool_call_id": tool_call.id,
-                                "role": "tool",
-                                "name": function_name,
-                                "content": function_response,
-                            }
-                        )
+                            # Executar a função
+                            function_response = self.create_workout_plan(
+                                exercises_data=exercises_json, user_profile=user_json
+                            )
+
+                            # Verificar se a resposta é válida
+                            try:
+                                result = json.loads(function_response)
+                                if "error" in result:
+                                    logger.error(
+                                        f"Erro na função create_workout_plan: {result['error']}"
+                                    )
+                                    return result
+                                else:
+                                    logger.info("Plano de treino gerado com sucesso")
+                                    return result
+                            except json.JSONDecodeError:
+                                logger.error("Erro ao decodificar resposta da função")
+                                return {"error": "Erro ao processar resposta da função"}
+
+                        except json.JSONDecodeError as e:
+                            logger.error(
+                                f"Erro ao decodificar argumentos da função: {str(e)}"
+                            )
+                            return {"error": "Erro ao processar argumentos da função"}
+                    else:
+                        logger.warning(f"Função desconhecida chamada: {function_name}")
+                        return {"error": f"Função desconhecida: {function_name}"}
+            else:
+                logger.warning("Nenhuma função foi chamada pela IA")
+                # Se a IA não chamou a função, chamar diretamente
+                logger.info("Chamando função create_workout_plan diretamente")
+                function_response = self.create_workout_plan(
+                    exercises_data=exercises_json, user_profile=user_json
+                )
 
                 try:
                     result = json.loads(function_response)
-                    logger.info("Plano de treino gerado com sucesso")
-                    return result
+                    if "error" in result:
+                        logger.error(
+                            f"Erro na função create_workout_plan: {result['error']}"
+                        )
+                        return result
+                    else:
+                        logger.info("Plano de treino gerado com sucesso (fallback)")
+                        return result
                 except json.JSONDecodeError:
-                    logger.error("Erro ao decodificar resposta JSON")
-                    return {"error": "Erro ao processar resposta da IA"}
-
-            logger.warning("Nenhuma ferramenta foi chamada pela IA")
-            return {"error": "Nenhuma resposta válida da IA"}
+                    logger.error("Erro ao decodificar resposta da função")
+                    return {"error": "Erro ao processar resposta da função"}
 
         except Exception as e:
             logger.error(f"Erro na API Groq: {str(e)}")
@@ -480,22 +513,25 @@ def clear_temporary_workout(page):
 def generate_and_store_workout(page, supabase_service, user_data, groq_api_key):
     """Gera treino e armazena temporariamente - VERSÃO SÍNCRONA"""
     try:
-        # Buscar exercícios do banco
         exercises = supabase_service.get_all_exercises()
         if not exercises:
-            raise Exception("Nenhum exercício encontrado no banco de dados")
+            logger.error("Nenhum exercício encontrado no banco de dados")
+            return False
 
-        # Gerar treino
+        logger.info(f"Exercícios carregados: {len(exercises)}")
+
         generator = WorkoutGenerator(groq_api_key)
         workout_plan = generator.generate_plan_with_groq(exercises, user_data)
 
         if "error" in workout_plan:
-            raise Exception(workout_plan["error"])
+            logger.error(f"Erro ao gerar treino: {workout_plan['error']}")
+            return False
 
         # Armazenar temporariamente
         success = store_workout_temporarily(page, workout_plan)
         if not success:
-            raise Exception("Erro ao armazenar treino temporariamente")
+            logger.error("Erro ao armazenar treino temporariamente")
+            return False
 
         logger.info("Treino gerado e armazenado temporariamente com sucesso")
         return True
@@ -511,14 +547,16 @@ def save_workout_to_database(page, supabase_service, user_id):
         # Recuperar treino temporário
         workout_data = get_temporary_workout(page)
         if not workout_data:
-            raise Exception("Nenhum treino temporário encontrado")
+            logger.error("Nenhum treino temporário encontrado")
+            return False
 
         # Formatar para banco
-        generator = WorkoutGenerator("")  # Não precisa do API key para formatação
+        generator = WorkoutGenerator("")
         formatted_data = generator.format_plan_for_database(workout_data, user_id)
 
         if "error" in formatted_data:
-            raise Exception(formatted_data["error"])
+            logger.error(f"Erro ao formatar dados: {formatted_data['error']}")
+            return False
 
         # Salvar no banco
         for plan_data in formatted_data["plans"]:
@@ -529,7 +567,6 @@ def save_workout_to_database(page, supabase_service, user_id):
             for plan_exercise in plan_data["plan_exercises"]:
                 supabase_service.create_plan_exercise(plan_exercise)
 
-        # Limpar treino temporário
         clear_temporary_workout(page)
 
         logger.info(f"Treino salvo no banco para user_id: {user_id}")

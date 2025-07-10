@@ -14,17 +14,24 @@ db: Client = create_client(efr_url, efr_key)
 
 
 def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
+    """
+    Página de treino que carrega exercícios do Supabase para o dia informado,
+    com cache local e timer de treino.
+    """
+
     def load_exercises(day: str, user_id: str):
         cache_key = f"exercises_{user_id}_{day}"
         try:
             cached = page.client_storage.get(cache_key)
             if cached:
-                print(
-                    f"INFO - treino: Carregando exercícios de {day} para user_id {user_id} do cache"
-                )
+                print(f"INFO - treino: Carregando exercícios de {day} para user_id {user_id} do cache")
                 return cached
         except Exception as e:
             print(f"WARNING - treino: Erro ao verificar cache para {day}: {str(e)}")
+
+        # Normaliza 'day' para corresponder ao formato no banco (ex: 'Segunda', 'Terça', etc.)
+        raw_day = day.capitalize()
+        print(f"DEBUG - treino: Filtrando exercícios para day = '{raw_day}' (via raw param '{day}')")
 
         try:
             response = (
@@ -33,14 +40,17 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                     "plan_id, plan_exercises(exercise_id, sets, reps, order, exercicios(nome, url_video))"
                 )
                 .eq("user_id", user_id)
-                .eq("day", day.lower())
+                .eq("day", raw_day)
                 .order("order", desc=False, foreign_table="plan_exercises")
                 .execute()
             )
 
+            data = response.data or []
+            print(f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}': {data}")
+
             exercises = []
-            if response.data and response.data[0].get("plan_exercises"):
-                for plan_ex in response.data[0]["plan_exercises"]:
+            if data and data[0].get("plan_exercises"):
+                for plan_ex in data[0]["plan_exercises"]:
                     exercise = plan_ex.get("exercicios", {})
                     exercises.append(
                         {
@@ -52,18 +62,18 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                         }
                     )
                 print(
-                    f"INFO - treino: Carregados {len(exercises)} exercícios para {day} e user_id {user_id}"
+                    f"INFO - treino: Carregados {len(exercises)} exercícios para {raw_day} e user_id {user_id}"
                 )
             else:
                 print(
-                    f"WARNING - treino: Nenhum exercício encontrado para {day} e user_id {user_id}"
+                    f"WARNING - treino: Nenhum exercício encontrado para {raw_day} e user_id {user_id}"
                 )
                 return []
 
             try:
                 page.client_storage.set(cache_key, exercises)
                 print(
-                    f"INFO - treino: Exercícios de {day} salvos no cache: {len(exercises)}"
+                    f"INFO - treino: Exercícios de {raw_day} salvos no cache: {len(exercises)}"
                 )
             except Exception as e:
                 print(f"ERROR - treino: Erro ao salvar exercícios no cache: {str(e)}")
@@ -98,7 +108,11 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             )
             return 60
 
+    # Carrega dados
     rest_duration = load_rest_duration(user_id)
+    exercises = load_exercises(day, user_id)
+
+    # Elementos do timer
     training_started = False
     training_time = 0
     training_running = False
@@ -114,6 +128,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             await asyncio.sleep(1)
             print(f"DEBUG - treino: Tempo de treino atualizado: {m:02d}:{s:02d}")
 
+    # Controles de treino (iniciar, pausar, retomar, finalizar)
     def start_training(e):
         nonlocal training_started, training_running
         training_started = True
@@ -187,7 +202,6 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
         )
         page.update()
 
-    exercises = load_exercises(day, user_id)
     exercise_list = ft.ListView(
         expand=True,
         spacing=10,
@@ -204,29 +218,22 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                     f"INFO - treino: Carga salva para {ex['name']}: {v}kg"
                 ),
                 page=page,
-                rest_duration=rest_duration,  # Passa o rest_duration para ExerciseTile
+                rest_duration=rest_duration,
             )
             for ex in exercises
         ],
     )
 
-    start_btn = ft.ElevatedButton(
-        "Iniciar Treino", on_click=start_training, ref=ft.Ref()
-    )
-    pause_btn = ft.IconButton(
-        ft.Icons.PAUSE, on_click=pause_training, visible=False, ref=ft.Ref()
-    )
-    resume_btn = ft.IconButton(
-        ft.Icons.PLAY_ARROW, on_click=resume_training, visible=False, ref=ft.Ref()
-    )
-    finish_btn = ft.ElevatedButton(
-        "Finalizar Treino", on_click=stop_training, visible=False, ref=ft.Ref()
-    )
+    # Botões de controle
+    start_btn = ft.ElevatedButton("Iniciar Treino", on_click=start_training)
+    pause_btn = ft.IconButton(ft.Icons.PAUSE, on_click=pause_training, visible=False)
+    resume_btn = ft.IconButton(ft.Icons.PLAY_ARROW, on_click=resume_training, visible=False)
+    finish_btn = ft.ElevatedButton("Finalizar Treino", on_click=stop_training, visible=False)
 
+    # Barra de controle
     control_bar = ft.Container(
         content=ft.ResponsiveRow(
             [
-                ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: page.go("/home")),
                 ft.Text(ref=training_timer_ref, value="Tempo: 00:00", size=16),
                 ft.Row(
                     [pause_btn, resume_btn, finish_btn],
@@ -240,6 +247,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
         border=ft.border.only(bottom=ft.BorderSide(1, ft.Colors.GREY_300)),
     )
 
+    # Composição final da página
     return ft.Column(
         [
             control_bar,

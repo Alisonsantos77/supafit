@@ -31,7 +31,9 @@ WEEK_DAYS_ORDER = [
 def Homepage(page: ft.Page, supabase_service):
     user_id = page.client_storage.get("supafit.user_id")
     if not user_id:
-        print("User ID não encontrado no client_storage. Redirecionando para login.")
+        print(
+            "DEBUG — User ID não encontrado no client_storage. Redirecionando para /login."
+        )
         page.go("/login")
         return ft.Container()
 
@@ -47,10 +49,20 @@ def Homepage(page: ft.Page, supabase_service):
                 .execute()
             )
             data = resp.data or []
+            print(
+                f"DEBUG — Dados brutos retornados de user_plans ({len(data)} registros):",
+                data,
+            )
 
             workouts_by_day = {day: None for day in WEEK_DAYS_ORDER}
 
             for plan in data:
+                raw_day = plan.get("day", "")
+                day_key = raw_day.strip().lower()
+                if day_key not in workouts_by_day:
+                    print(f"WARNING — dia desconhecido no banco: '{raw_day}'")
+                    continue
+
                 title = plan.get("title", "").lower()
                 exercises = sorted(
                     plan.get("plan_exercises", []), key=lambda x: x.get("order", 0)
@@ -65,21 +77,23 @@ def Homepage(page: ft.Page, supabase_service):
                 ]
                 img = IMAGE_MAP.get(title, "mascote_supafit/treino_padrao.png")
 
-                workouts_by_day[plan.get("day")] = {
-                    "day": plan.get("day"),
+                workouts_by_day[day_key] = {
+                    "day": day_key,
                     "name": title,
                     "exercises": ex_list,
                     "image_url": img,
                 }
+                print(
+                    f"DEBUG — Plano carregado para '{day_key}':",
+                    workouts_by_day[day_key],
+                )
 
-            workouts = [
-                workouts_by_day[day] for day in WEEK_DAYS_ORDER if workouts_by_day[day]
-            ]
-            print(f"INFO - Homepage: {len(workouts)} treinos carregados do Supabase.")
+            workouts = [wk for wk in workouts_by_day.values() if wk]
+            print(f"INFO — Homepage: {len(workouts)} treinos agregados para exibição.")
             return workouts
 
         except Exception as e:
-            print(f"ERROR - Homepage: Erro ao carregar treinos do Supabase: {e}")
+            print(f"ERROR — Homepage: erro ao carregar treinos do Supabase: {e}")
             return []
 
     workouts = load_workouts()
@@ -96,6 +110,7 @@ def Homepage(page: ft.Page, supabase_service):
         "sunday": "domingo",
     }
     current_day = day_map.get(today_en, "segunda")
+    print(f"DEBUG — Hoje é '{today_en}', mapeado para '{current_day}'.")
 
     workout_grid = ft.ResponsiveRow(
         controls=[

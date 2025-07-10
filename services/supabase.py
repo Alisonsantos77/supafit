@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from utils.alerts import CustomSnackBar, CustomAlertDialog
 
 
-
 class SupabaseService:
     """Versão melhorada do serviço Supabase com autenticação simplificada."""
 
@@ -268,4 +267,70 @@ class SupabaseService:
         except Exception as e:
             print(f"ERROR: Erro ao recuperar treinos: {str(e)}")
             self._safe_show_snackbar(f"Erro ao recuperar treinos: {str(e)}")
+            raise
+
+    def get_all_exercises(self):
+        """Recupera todos os exercícios disponíveis."""
+        print("INFO: Recuperando todos os exercícios")
+        try:
+            response = self.client.table("exercicios").select("*").execute()
+            print(f"INFO: {len(response.data)} exercícios recuperados")
+            return response.data
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar exercícios: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao recuperar exercícios: {str(e)}")
+            raise
+
+    def create_user_plan(self, plan_data: dict):
+        """Cria um plano de treino do usuário."""
+        print(f"INFO: Criando plano de treino: {plan_data.get('title', 'Sem título')}")
+        try:
+            response = self.client.table("user_plans").insert(plan_data).execute()
+            print("INFO: Plano de treino criado com sucesso.")
+            return response.data
+        except Exception as e:
+            print(f"ERROR: Erro ao criar plano de treino: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao criar plano de treino: {str(e)}")
+            raise
+
+    def create_plan_exercise(self, exercise_data: dict):
+        """Cria um exercício do plano."""
+        print(f"INFO: Criando exercício do plano: {exercise_data.get('exercise_id')}")
+        try:
+            response = self.client.table("plan_exercises").insert(exercise_data).execute()
+            print("INFO: Exercício do plano criado com sucesso.")
+            return response.data
+        except Exception as e:
+            print(f"ERROR: Erro ao criar exercício do plano: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao criar exercício do plano: {str(e)}")
+            raise
+
+    def get_user_plans(self, user_id: str):
+        """Recupera planos de treino do usuário."""
+        print(f"INFO: Recuperando planos de treino para user_id: {user_id}")
+        try:
+            response = (
+                self.client.table("user_plans").select("*").eq("user_id", user_id).execute()
+            )
+            return response
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar planos de treino: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao recuperar planos de treino: {str(e)}")
+            raise
+
+    def get_plan_exercises(self, plan_id: str):
+        """Recupera exercícios de um plano específico."""
+        print(f"INFO: Recuperando exercícios do plano: {plan_id}")
+        try:
+            response = (
+                self.client.table("plan_exercises")
+                .select("*, exercicios(*)")
+                .eq("plan_id", plan_id)
+                .order("order")
+                .execute()
+            )
+            return response
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar exercícios do plano: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao recuperar exercícios do plano: {str(e)}")
             raise
