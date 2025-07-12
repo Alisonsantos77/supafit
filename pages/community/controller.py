@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import List
@@ -74,7 +75,6 @@ class CommunityController:
 
         return success
 
-
     def delete_victory(self, victory_id: str, user_id: str) -> tuple[bool, str]:
         """Deleta uma vitória se o usuário for o autor"""
         try:
@@ -109,7 +109,7 @@ class CommunityController:
             # Pequeno atraso para consistência eventual
             import time
 
-            time.sleep(0.2)
+            asyncio.sleep(0.2)
 
             # Verifica se ainda existe
             check_victory = (

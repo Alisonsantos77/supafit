@@ -111,6 +111,8 @@ class MobileAppBar:
         """Cria AppBar otimizado para mobile com design moderno."""
         user_id = self.page.client_storage.get("supafit.user_id")
 
+        should_show_back = show_back_button and self.page.route != "/home"
+
         leading = (
             ft.IconButton(
                 icon=ft.Icons.ARROW_BACK,
@@ -121,7 +123,7 @@ class MobileAppBar:
                 icon_size=24,
                 style=ft.ButtonStyle(color=ft.Colors.PRIMARY),
             )
-            if show_back_button
+            if should_show_back
             else None
         )
 

@@ -19,6 +19,14 @@ class StepPersonalData(BaseStep):
         supabase_service=None,
         on_create=None,
     ):
+        # Configurar idioma para português brasileiro
+        page.locale_configuration = ft.LocaleConfiguration(
+            supported_locales=[
+                ft.Locale("pt", "BR"),  # Português
+            ],
+            current_locale=ft.Locale("pt", "BR"),
+        )
+
         self.name_input = ft.TextField(
             label="Username",
             width=320,
@@ -28,11 +36,15 @@ class StepPersonalData(BaseStep):
             hint_text="Escolha como você será chamado no SupaFit!",
             on_change=self.validate_username,
         )
+
+        # limite até a data atual
         self.date_picker = ft.CupertinoDatePicker(
             date_picker_mode=ft.CupertinoDatePickerMode.DATE,
             on_change=self.handle_date_change,
-            maximum_year=date.today().year,
+            first_date=date(date.today().year - 100, 1, 1),
+            last_date=date.today(),
         )
+
         self.age_display = ft.Text(
             "Idade: Não selecionada",
             size=16,
@@ -74,10 +86,26 @@ class StepPersonalData(BaseStep):
             mes = e.control.value.month
             dia = e.control.value.day
             hoje = date.today()
+
+            # Verifica se a data não é no futuro
+            data_selecionada = date(ano, mes, dia)
+            if data_selecionada > hoje:
+                self.age_display.value = "Idade: Data não pode ser no futuro"
+                self.age_display.color = ft.Colors.RED
+                self.page.update()
+                return
+
             idade = hoje.year - ano - ((hoje.month, hoje.day) < (mes, dia))
-            self.age_display.value = f"Idade: {idade} anos"
-            self.age_display.color = ft.Colors.PRIMARY
-            self.profile_data["age"] = idade
+
+            # Verifica se a idade está em um range válido
+            if idade < 10 or idade > 100:
+                self.age_display.value = f"Idade: {idade} anos (inválida)"
+                self.age_display.color = ft.Colors.RED
+            else:
+                self.age_display.value = f"Idade: {idade} anos"
+                self.age_display.color = ft.Colors.PRIMARY
+                self.profile_data["age"] = idade
+
             self.page.update()
 
     def build_step_progress(self) -> ft.Control:
@@ -162,7 +190,7 @@ class StepPersonalData(BaseStep):
                 self.build_step_progress(),
                 ft.Container(
                     content=ft.Image(
-                        src="mascote_supafit/step_username.png",
+                        src="mascote_supafit/step_name.png",
                         width=150,
                         height=150,
                         fit=ft.ImageFit.CONTAIN,

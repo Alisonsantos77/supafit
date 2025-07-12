@@ -6,15 +6,36 @@ from services.supabase import SupabaseService
 from services.openai import OpenAIService
 
 
-def check_internet_connection():
+def check_internet_connection(page: ft.Page) -> bool:
     try:
         response = requests.get("https://www.google.com", timeout=5)
         response.raise_for_status()
+        if response.status_code == 200:
+            print("Conexão com a internet está ativa.")
+            page.open(
+                ft.SnackBar(
+                    content=ft.Text(
+                        "Conexão com a internet está ativa.", color=ft.Colors.WHITE
+                    ),
+                    bgcolor=ft.Colors.GREEN_600,
+                )
+            )
+            page.update()
         return True
     except requests.RequestException as e:
         print(
             "ERROR: Sem conexão com a internet. Verifique sua conexão e tente novamente."
         )
+        page.open(
+            ft.SnackBar(
+                content=ft.Text(
+                    "Sem conexão com a internet. Verifique sua conexão e tente novamente.",
+                    color=ft.Colors.WHITE,
+                ),
+                bgcolor=ft.Colors.RED,
+            )
+        )
+        page.update()
         return False
 
 
@@ -35,7 +56,15 @@ def main(page: ft.Page):
         supabase = SupabaseService.get_instance(page)
     except Exception as e:
         print(f"ERROR: Não foi possível inicializar o Supabase: {str(e)}")
-        page.add(ft.Text(f"Erro ao inicializar Supabase: {str(e)}"))
+        page.open(
+            ft.SnackBar(
+                content=ft.Text(
+                    "Erro ao inicializar Supabase: " + str(e), color=ft.Colors.WHITE
+                ),
+                bgcolor=ft.Colors.RED,
+            )
+        )
+        page.update()
         page.go("/login")
         return
 
@@ -60,12 +89,27 @@ def main(page: ft.Page):
             if profile_response.data and len(profile_response.data) > 0:
                 profile = profile_response.data[0]
                 print(f"Perfil carregado: {profile}")
+                page.open(
+                    ft.SnackBar(
+                        content=ft.Text("Perfil carregado com sucesso!"),
+                        bgcolor=ft.Colors.GREEN_600,
+                    )
+                )
+                page.update()
                 page.client_storage.set("supafit.profile_created", True)
             else:
                 print("Perfil não encontrado, redirecionando para criação de perfil.")
+                page.open(
+                    ft.SnackBar(
+                        content=ft.Text(
+                            "Perfil não encontrado. Por favor, crie um perfil."
+                        ),
+                        bgcolor=ft.Colors.ORANGE_600,
+                    )
+                )
+                page.update()
                 page.client_storage.set("supafit.profile_created", False)
                 page.go("/create_profile")
-                page.update()
                 return
         except Exception as e:
             print(f"Erro ao carregar perfil: {str(e)}")

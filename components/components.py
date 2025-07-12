@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 import threading
 import time
@@ -66,9 +67,7 @@ class AvatarComponent(ft.CircleAvatar):
                 raise ValueError(
                     "user_id é obrigatório se image_url não for fornecido."
                 )
-            self.image_url = (
-                "mascote_supafit/coachito.png"
-            )
+            self.image_url = "mascote_supafit/coachito.png"
         super().__init__(foreground_image_src=self.image_url, radius=radius, **kwargs)
         self.on_click = self.handle_click
 
@@ -430,7 +429,7 @@ class TimerDialog(ft.AlertDialog):
                 self.timer_text_ref.current.update()
                 self.timer_progress_ref.current.update()
                 self.timer_seconds -= 1
-                time.sleep(1)
+                asyncio.sleep(1)
         if self.timer_seconds == 0 and self.timer_running.is_set():
             self.haptic.light_impact()
             self.page.snack_bar = ft.SnackBar(
