@@ -8,3 +8,4 @@ cryptography
 flet-video
 openai
 groq
+pytz
