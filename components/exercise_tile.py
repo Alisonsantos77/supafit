@@ -34,25 +34,12 @@ class ExerciseTile(ft.Container):
         self.rest_duration = rest_duration  
 
         def get_video_source():
-            """Obtém a fonte do vídeo (local, client storage ou Supabase)."""
-            try:
-                cache_key = f"video_path_{self.exercise_name}"
-                local_path = self.page.client_storage.get(cache_key)
-                if local_path and os.path.exists(local_path.replace("file://", "")):
-                    logger.info(
-                        f"Carregando vídeo LOCAL para {self.exercise_name}: {local_path}"
-                    )
-                    return local_path
-                logger.info(
-                    f"Carregando vídeo REMOTO do Supabase para {self.exercise_name}: {self.video_url}"
-                )
-                return self.video_url
-            except Exception as e:
-                logger.error(
-                    f"Erro ao obter fonte do vídeo para {self.exercise_name}: {str(e)}"
-                )
-                logger.info(f"Fallback para vídeo REMOTO do Supabase: {self.video_url}")
-                return self.video_url
+            """Usa diretamente a URL do Supabase"""
+            logger.info(
+                f"Carregando vídeo diretamente do Supabase para {self.exercise_name}: {self.video_url}"
+            )
+            return self.video_url
+
 
         url = get_video_source()
         if url:
@@ -61,7 +48,7 @@ class ExerciseTile(ft.Container):
                 expand=True,
                 aspect_ratio=16 / 9,
                 fit=ft.ImageFit.COVER,
-                autoplay=False,
+                autoplay=True,
                 show_controls=True,
                 filter_quality=ft.FilterQuality.MEDIUM,
                 on_loaded=lambda e: logger.info(

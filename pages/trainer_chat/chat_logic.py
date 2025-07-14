@@ -83,13 +83,11 @@ async def load_chat_history(
             if msg.get("role") == "tool":
                 continue
 
-            # Tenta pegar o campo de data; se não existir, assume None
             created_at = msg.get("timestamp") or msg.get("created_at")
-
-            # Loga se nenhum dos campos estiver presente
+            
             if created_at is None:
                 print("⚠️ Mensagem sem campo de data:", msg)
-
+                created_at = datetime.now().isoformat()
             chat_container.controls.append(
                 ChatMessage(
                     Message(

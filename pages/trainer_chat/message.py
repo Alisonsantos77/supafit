@@ -1,5 +1,6 @@
 import flet as ft
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 
 
 class Message:
@@ -42,10 +43,6 @@ class ChatMessage(ft.Container):
 
         self.time_str = self._format_timestamp(message.created_at)
 
-        cs = page.theme.color_scheme
-        text_color = cs.on_surface
-        time_color = ft.Colors.with_opacity(0.7, cs.on_surface)
-
         self.message_text_ref = ft.Ref[ft.Markdown]()
         self.time_display_ref = ft.Ref[ft.Text]()
 
@@ -65,7 +62,6 @@ class ChatMessage(ft.Container):
             ref=self.time_display_ref,
             value=self.time_str,
             size=11,
-            color=time_color,
             text_align=ft.TextAlign.RIGHT,
             weight=ft.FontWeight.W_400,
         )
@@ -76,7 +72,6 @@ class ChatMessage(ft.Container):
                 message.user_name,
                 size=15,
                 weight=ft.FontWeight.W_600,
-                color=text_color,
             ),
             subtitle=ft.Column(
                 [
@@ -85,9 +80,6 @@ class ChatMessage(ft.Container):
                 ],
                 tight=True,
                 spacing=6,
-            ),
-            bgcolor=(
-                ft.Colors.with_opacity(0.04, cs.on_surface) if self.is_user else None
             ),
             content_padding=ft.padding.symmetric(horizontal=12, vertical=8),
             dense=False,
@@ -100,7 +92,13 @@ class ChatMessage(ft.Container):
         self.alignment = (
             ft.alignment.center_right if self.is_user else ft.alignment.center_left
         )
-        self.width = min(page.window.width * 0.85, 450)
+
+        # CORREÇÃO: Verificar se page.window existe antes de acessar width
+        window_width = 800  # Valor padrão
+        if page.window and hasattr(page.window, "width") and page.window.width:
+            window_width = page.window.width
+
+        self.width = min(window_width * 0.85, 450)
         self.expand = True
         self.clip_behavior = ft.ClipBehavior.HARD_EDGE
         self.animate_opacity = ft.Animation(400, ft.AnimationCurve.EASE_OUT)
@@ -114,18 +112,16 @@ class ChatMessage(ft.Container):
         seed = message.user_id or message.user_name or "anon"
 
         # Sanitizar o seed para URL
-        seed = "".join(c for c in str(seed) if c.isalnum() or c in "-_")[:20]
+        seed = "".join(c for c in str(seed) if c.isalnum() or c in "-_")[:36]
 
-        # Definir estilo baseado no gênero
-        if gender == "masculino":
-            style = "adventurer"
-        elif gender == "feminino":
-            style = "avataaars"
+        # Definir estilo baseado no gênero - URLs ATUALIZADAS
+        if "masc" in gender:
+            style = "notionists-neutral"
         else:
-            style = "identicon"
+            style = "lorelei-neutral"
 
-        # URL principal da DiceBear (atualizada para v8)
-        primary_url = f"https://api.dicebear.com/8.x/{style}/svg?seed={seed}"
+        # URL principal da DiceBear (atualizada para v9)
+        primary_url = f"https://api.dicebear.com/9.x/{style}/svg?seed={seed}"
 
         # Debug: imprimir URL gerada
         print(f"DEBUG: Avatar URL gerada: {primary_url}")
@@ -235,22 +231,73 @@ class ChatMessage(ft.Container):
         self.update()
 
     def _format_timestamp(self, created_at: str) -> str:
-        if created_at:
+        """Formata timestamp com tratamento robusto de erros e timezone do Brasil"""
+        if not created_at:
+            # Se não há timestamp, usar horário atual do Brasil
             try:
-                return datetime.fromisoformat(
-                    created_at.replace("Z", "+00:00")
-                ).strftime("%H:%M")
-            except:
-                pass
-        return "Horário desconhecido"
+                br_tz = pytz.timezone("America/Sao_Paulo")
+                now_br = datetime.now(br_tz)
+                return now_br.strftime("%H:%M")
+            except Exception:
+                return datetime.now().strftime("%H:%M")
+
+        try:
+            # Tenta diferentes formatos de data
+            if created_at.endswith("Z"):
+                # Formato ISO com Z
+                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            elif "+" in created_at or created_at.endswith("00"):
+                # Formato ISO com timezone
+                dt = datetime.fromisoformat(created_at)
+            else:
+                # Formato ISO simples - assumir UTC e converter para Brasil
+                dt = datetime.fromisoformat(created_at)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+
+            # Converter para timezone do Brasil
+            br_tz = pytz.timezone("America/Sao_Paulo")
+            dt_br = dt.astimezone(br_tz)
+
+            return dt_br.strftime("%H:%M")
+
+        except (ValueError, TypeError) as e:
+            print(f"WARNING: Erro ao formatar timestamp '{created_at}': {e}")
+            # Fallback para horário atual do Brasil
+            try:
+                br_tz = pytz.timezone("America/Sao_Paulo")
+                now_br = datetime.now(br_tz)
+                return now_br.strftime("%H:%M")
+            except Exception:
+                return datetime.now().strftime("%H:%M")
 
     def update_text(self, new_text: str):
-        self.message_text_ref.current.opacity = 0
-        self.message_text_ref.current.value = new_text
-        self.message.text = new_text
-        self.message_text_ref.current.opacity = 1
-        self.message.created_at = datetime.now().isoformat()
-        self.time_display_ref.current.value = self._format_timestamp(
-            self.message.created_at
-        )
-        self.page.update()
+        """Atualiza o texto da mensagem com verificações de segurança"""
+        if not new_text:
+            print("WARNING: Tentativa de atualizar com texto vazio")
+            return
+
+        try:
+            if self.message_text_ref.current:
+                self.message_text_ref.current.opacity = 0
+                self.message_text_ref.current.value = new_text
+                self.message.text = new_text
+                self.message_text_ref.current.opacity = 1
+
+            # Atualizar timestamp com timezone do Brasil
+            try:
+                br_tz = pytz.timezone("America/Sao_Paulo")
+                now_br = datetime.now(br_tz)
+                self.message.created_at = now_br.isoformat()
+            except Exception:
+                self.message.created_at = datetime.now().isoformat()
+
+            if self.time_display_ref.current:
+                self.time_display_ref.current.value = self._format_timestamp(
+                    self.message.created_at
+                )
+
+            if self.page:
+                self.page.update()
+        except Exception as e:
+            print(f"ERROR: Falha ao atualizar texto da mensagem: {e}")

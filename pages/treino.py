@@ -19,19 +19,16 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
     com cache local e timer de treino.
     """
 
-    def load_exercises(day: str, user_id: str):
-        cache_key = f"exercises_{user_id}_{day}"
-        try:
-            cached = page.client_storage.get(cache_key)
-            if cached:
-                print(f"INFO - treino: Carregando exercícios de {day} para user_id {user_id} do cache")
-                return cached
-        except Exception as e:
-            print(f"WARNING - treino: Erro ao verificar cache para {day}: {str(e)}")
 
-        # Normaliza 'day' para corresponder ao formato no banco (ex: 'Segunda', 'Terça', etc.)
+    def load_exercises(day: str, user_id: str):
+        print(
+            f"INFO - treino: Ignorando cache. Carregando exercícios diretamente do Supabase para {day} e user_id {user_id}"
+        )
+
         raw_day = day.capitalize()
-        print(f"DEBUG - treino: Filtrando exercícios para day = '{raw_day}' (via raw param '{day}')")
+        print(
+            f"DEBUG - treino: Filtrando exercícios para day = '{raw_day}' (via raw param '{day}')"
+        )
 
         try:
             response = (
@@ -46,7 +43,7 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             )
 
             data = response.data or []
-            print(f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}': {data}")
+            print(f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}':\n{data}")
 
             exercises = []
             if data and data[0].get("plan_exercises"):
@@ -69,14 +66,6 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                     f"WARNING - treino: Nenhum exercício encontrado para {raw_day} e user_id {user_id}"
                 )
                 return []
-
-            try:
-                page.client_storage.set(cache_key, exercises)
-                print(
-                    f"INFO - treino: Exercícios de {raw_day} salvos no cache: {len(exercises)}"
-                )
-            except Exception as e:
-                print(f"ERROR - treino: Erro ao salvar exercícios no cache: {str(e)}")
 
             return exercises
         except Exception as e:
