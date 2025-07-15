@@ -83,11 +83,9 @@ async def load_chat_history(
             if msg.get("role") == "tool":
                 continue
 
-            created_at = msg.get("timestamp") or msg.get("created_at")
+            created_at = msg.get("timestamp") or msg.get("created_at") or datetime.now().isoformat()
+            print(f"DEBUG: Mensagem processada - role: {msg.get('role')}, created_at: {created_at}")
             
-            if created_at is None:
-                print("⚠️ Mensagem sem campo de data:", msg)
-                created_at = datetime.now().isoformat()
             chat_container.controls.append(
                 ChatMessage(
                     Message(

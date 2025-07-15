@@ -1,6 +1,5 @@
 import flet as ft
-from datetime import datetime, timezone
-import pytz
+from datetime import datetime
 
 
 class Message:
@@ -33,7 +32,7 @@ class ChatMessage(ft.Container):
         self.haptic_feedback = haptic_feedback
         self.is_user = message.user_type == "user"
 
-        # Criar avatar com fallback robusto
+        # Criar avatar com fallback
         avatar = None
         if message.show_avatar:
             if self.is_user:
@@ -93,7 +92,6 @@ class ChatMessage(ft.Container):
             ft.alignment.center_right if self.is_user else ft.alignment.center_left
         )
 
-        # CORREÇÃO: Verificar se page.window existe antes de acessar width
         window_width = 800  # Valor padrão
         if page.window and hasattr(page.window, "width") and page.window.width:
             window_width = page.window.width
@@ -106,60 +104,33 @@ class ChatMessage(ft.Container):
         self.offset = ft.Offset(0.2 if self.is_user else -0.2, 0)
         self.opacity = 0
 
-    def _create_user_avatar(self, message: Message) -> ft.Container:
-        """Cria avatar do usuário com múltiplas opções de fallback"""
-        gender = (message.gender or "neutro").lower()
+
+
+    def _create_user_avatar(self, message: Message) -> ft.CircleAvatar:
+        """Cria avatar do usuário usando a API thumbs da DiceBear"""
         seed = message.user_id or message.user_name or "anon"
-
-        # Sanitizar o seed para URL
         seed = "".join(c for c in str(seed) if c.isalnum() or c in "-_")[:36]
+        
+        avatar_url = f"https://api.dicebear.com/8.x/thumbs/png?seed={seed}"
 
-        # Definir estilo baseado no gênero - URLs ATUALIZADAS
-        if "masc" in gender:
-            style = "notionists-neutral"
-        else:
-            style = "lorelei-neutral"
+        print(f"DEBUG: Avatar URL gerada: {avatar_url}")
+        print(f"DEBUG: Seed: {seed}, user_id: {message.user_id}, user_name: {message.user_name}")
 
-        # URL principal da DiceBear (atualizada para v9)
-        primary_url = f"https://api.dicebear.com/9.x/{style}/svg?seed={seed}"
-
-        # Debug: imprimir URL gerada
-        print(f"DEBUG: Avatar URL gerada: {primary_url}")
-        print(f"DEBUG: Seed: {seed}, Gender: {gender}, Style: {style}")
-
-        # Criar avatar com fallback robusto
-        avatar_image = ft.Image(
-            src=primary_url,
-            width=36,
-            height=36,
-            fit=ft.ImageFit.COVER,
-            error_content=ft.Container(
-                content=ft.Text(
-                    self._get_initials(message.user_name),
-                    size=14,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.WHITE,
-                    text_align=ft.TextAlign.CENTER,
-                ),
-                width=36,
-                height=36,
-                bgcolor=self._get_avatar_color(seed),
-                border_radius=50,
-                alignment=ft.alignment.center,
+        avatar = ft.CircleAvatar(
+            foreground_image_src=avatar_url,
+            content=ft.Text(
+                message.user_name[:2].upper() if message.user_name else "AN",
+                size=14,
+                weight=ft.FontWeight.BOLD,
+                color=ft.Colors.WHITE,
+                text_align=ft.TextAlign.CENTER,
             ),
+            bgcolor=ft.Colors.BLUE_600,
+            radius=18,
+            on_image_error=lambda e: print(f"ERROR: Falha ao carregar avatar: {e.data}"),
         )
-
-        # Container principal do avatar
-        avatar_container = ft.Container(
-            content=avatar_image,
-            width=36,
-            height=36,
-            border_radius=50,
-            clip_behavior=ft.ClipBehavior.HARD_EDGE,
-        )
-
-        return avatar_container
-
+        return avatar    
+    
     def _create_trainer_avatar(self) -> ft.Container:
         """Cria avatar do treinador com fallback"""
         return ft.Container(
@@ -187,39 +158,6 @@ class ChatMessage(ft.Container):
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
         )
 
-    def _get_avatar_color(self, seed: str) -> str:
-        """Gera cor consistente baseada no seed"""
-        colors = [
-            ft.Colors.BLUE_600,
-            ft.Colors.GREEN_600,
-            ft.Colors.PURPLE_600,
-            ft.Colors.ORANGE_600,
-            ft.Colors.RED_600,
-            ft.Colors.TEAL_600,
-            ft.Colors.INDIGO_600,
-            ft.Colors.PINK_600,
-        ]
-        # Usar hash do seed para selecionar cor consistente
-        hash_value = hash(str(seed)) % len(colors)
-        return colors[hash_value]
-
-    def _get_initials(self, name: str) -> str:
-        """Extrai iniciais do nome"""
-        if not name:
-            return "?"
-
-        # Remover espaços extras e dividir por espaços
-        parts = name.strip().split()
-
-        if len(parts) == 1:
-            # Uma palavra: primeira letra
-            return parts[0][0].upper()
-        elif len(parts) >= 2:
-            # Duas ou mais palavras: primeira letra de cada
-            return (parts[0][0] + parts[1][0]).upper()
-        else:
-            return "?"
-
     def _handle_link_tap(self, e):
         if self.haptic_feedback:
             self.haptic_feedback.light_impact()
@@ -231,46 +169,30 @@ class ChatMessage(ft.Container):
         self.update()
 
     def _format_timestamp(self, created_at: str) -> str:
-        """Formata timestamp com tratamento robusto de erros e timezone do Brasil"""
+        """Formata timestamp com fuso horário local ou UTC"""
         if not created_at:
-            # Se não há timestamp, usar horário atual do Brasil
-            try:
-                br_tz = pytz.timezone("America/Sao_Paulo")
-                now_br = datetime.now(br_tz)
-                return now_br.strftime("%H:%M")
-            except Exception:
-                return datetime.now().strftime("%H:%M")
+            return datetime.now().strftime("%H:%M")
 
         try:
-            # Tenta diferentes formatos de data
+            # diferentes formatos de data
             if created_at.endswith("Z"):
-                # Formato ISO com Z
+                # Formato ISO com Z (UTC)
                 dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             elif "+" in created_at or created_at.endswith("00"):
                 # Formato ISO com timezone
                 dt = datetime.fromisoformat(created_at)
             else:
-                # Formato ISO simples - assumir UTC e converter para Brasil
+                # Formato ISO simples, assume UTC
                 dt = datetime.fromisoformat(created_at)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
 
-            # Converter para timezone do Brasil
-            br_tz = pytz.timezone("America/Sao_Paulo")
-            dt_br = dt.astimezone(br_tz)
-
-            return dt_br.strftime("%H:%M")
+            # Retorna hora formatada no fuso local
+            return dt.strftime("%H:%M")
 
         except (ValueError, TypeError) as e:
             print(f"WARNING: Erro ao formatar timestamp '{created_at}': {e}")
-            # Fallback para horário atual do Brasil
-            try:
-                br_tz = pytz.timezone("America/Sao_Paulo")
-                now_br = datetime.now(br_tz)
-                return now_br.strftime("%H:%M")
-            except Exception:
-                return datetime.now().strftime("%H:%M")
-
+            # Fallback para horário atual local
+            return datetime.now().strftime("%H:%M")    
+        
     def update_text(self, new_text: str):
         """Atualiza o texto da mensagem com verificações de segurança"""
         if not new_text:
@@ -284,13 +206,8 @@ class ChatMessage(ft.Container):
                 self.message.text = new_text
                 self.message_text_ref.current.opacity = 1
 
-            # Atualizar timestamp com timezone do Brasil
-            try:
-                br_tz = pytz.timezone("America/Sao_Paulo")
-                now_br = datetime.now(br_tz)
-                self.message.created_at = now_br.isoformat()
-            except Exception:
-                self.message.created_at = datetime.now().isoformat()
+            # Atualizar timestamp usando datetime
+            self.message.created_at = datetime.now().isoformat()
 
             if self.time_display_ref.current:
                 self.time_display_ref.current.value = self._format_timestamp(

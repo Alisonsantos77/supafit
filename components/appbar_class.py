@@ -9,39 +9,6 @@ class MobileAppBar:
     def __init__(self, page: ft.Page):
         self.page = page
 
-    def show_snackbar(
-        self, message: str, color: str = ft.Colors.RED_700, icon: str = None
-    ):
-        """Exibe SnackBar com ícone opcional e estilo moderno."""
-        content = ft.Row(
-            [
-                (
-                    ft.Icon(icon, color=ft.Colors.WHITE, size=20)
-                    if icon
-                    else ft.Container()
-                ),
-                ft.Text(
-                    message,
-                    color=ft.Colors.WHITE,
-                    size=14,
-                    weight=ft.FontWeight.BOLD,
-                ),
-            ],
-            spacing=8,
-            alignment=ft.MainAxisAlignment.CENTER,
-        )
-        self.page.snack_bar = ft.SnackBar(
-            content=content,
-            bgcolor=color,
-            duration=3000,
-            padding=12,
-            shape=ft.RoundedRectangleBorder(radius=8),
-            elevation=0,
-        )
-        self.page.snack_bar.open = True
-        self.page.update()
-        logger.info(f"SnackBar: {message}")
-
     def handle_menu_item(self, e):
         """Manipula ações do menu com navegação e logout."""
         user_id = self.page.client_storage.get("supafit.user_id")
@@ -50,9 +17,7 @@ class MobileAppBar:
         )
 
         if not user_id:
-            self.show_snackbar(
-                "Faça login para continuar.", ft.Colors.BLUE_400, ft.Icons.LOGIN
-            )
+            print("[APPBAR]: Usuário não encontrado, voltando para login.")
             self.page.go("/login")
             return
 
@@ -74,19 +39,9 @@ class MobileAppBar:
                     try:
                         supabase_service = SupabaseService.get_instance(self.page)
                         supabase_service.logout()
-                        self.show_snackbar(
-                            "Logout realizado com sucesso.",
-                            ft.Colors.GREEN_600,
-                            ft.Icons.CHECK,
-                        )
                         self.page.go("/login")
                     except Exception as ex:
                         logger.error(f"Erro ao realizar logout: {str(ex)}")
-                        self.show_snackbar(
-                            "Erro ao realizar logout.",
-                            ft.Colors.RED_700,
-                            ft.Icons.ERROR,
-                        )
                 self.page.close(confirm_dialog)
                 self.page.update()
 
@@ -141,6 +96,7 @@ class MobileAppBar:
             leading=leading,
             elevation=0,
             bgcolor=ft.Colors.SURFACE,
+            automatically_imply_leading=False,
             actions=[
                 ft.Container(
                     content=ft.PopupMenuButton(
