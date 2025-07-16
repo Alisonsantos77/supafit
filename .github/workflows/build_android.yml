@@ -54,7 +54,6 @@ jobs:
           --project SupaFit \
           --product "SupaFit" \
           --description "App fitness com IA, gerenciamento de treinos e comunidade" \
-          --icon "icon.png" \
           --splash-color "#0A1A2F" \
           --splash-dark-color "#0A1A2F" \
           --compile-app \
