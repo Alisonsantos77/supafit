@@ -43,15 +43,25 @@ jobs:
     - name: 🔎 Verificação do Flutter
       run: flutter doctor -v
 
+    - name: 🔐 Garantir variáveis no ambiente de build
+      run: |
+        echo "🔸 SUPABASE_URL=$SUPABASE_URL"
+        echo "🔸 OPENAI_API_KEY=$OPENAI_API_KEY"
+
     - name: 🚀 Build APK com Flet
       run: |
-        echo "Iniciando build APK SupaFit..."
         flet build apk \
           --project SupaFit \
           --product "SupaFit" \
           --description "App fitness com IA, gerenciamento de treinos e comunidade" \
+          --icon "icon.png" \
+          --splash-color "#0A1A2F" \
+          --splash-dark-color "#0A1A2F" \
           --compile-app \
-          --split-per-abi
+          --split-per-abi \
+          --no-web-splash \
+          --no-ios-splash \
+          --no-android-splash
 
     - name: 📁 Mostrar arquivos gerados
       run: ls -R build/apk || echo "Nenhum arquivo encontrado"
