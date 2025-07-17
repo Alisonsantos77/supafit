@@ -26,7 +26,7 @@ jobs:
     - name: 🐍 Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13.3'
 
     - name: 📦 Instalar dependências Python do SupaFit
       run: |
@@ -58,6 +58,15 @@ jobs:
         echo "🔸 OPENAI_API_KEY=$OPENAI_API_KEY"
         echo "🔸 GROQ_API_KEY=$GROQ_API_KEY"
 
+    - name: 📁 Verificar estrutura de arquivos
+      run: |
+        echo "🔍 Verificando estrutura do projeto:"
+        ls -la
+        echo "🔍 Verificando pasta assets:"
+        ls -la assets/ || echo "Pasta assets não encontrada"
+        echo "🔍 Verificando pubspec.yaml:"
+        cat pubspec.yaml
+
     - name: 🚀 Build APK com Flet
       run: |
         flet build apk \
@@ -73,7 +82,12 @@ jobs:
           --no-android-splash
 
     - name: 📁 Mostrar arquivos gerados
-      run: ls -R build/apk || echo "Nenhum arquivo encontrado"
+      run: |
+        echo "📦 Estrutura do build:"
+        ls -R build/ || echo "Pasta build não encontrada"
+        
+        echo "📱 APKs gerados:"
+        find build/ -name "*.apk" -exec ls -lh {} \; || echo "Nenhum APK encontrado"
 
     - name: 📤 Upload do APK
       uses: actions/upload-artifact@v4
