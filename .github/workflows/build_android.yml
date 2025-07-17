@@ -43,10 +43,20 @@ jobs:
     - name: 🔎 Verificação do Flutter
       run: flutter doctor -v
 
+    - name: 🔐 Criar arquivo .env para o build
+      run: |
+        echo "SUPABASE_URL=$SUPABASE_URL" > .env
+        echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+        echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
+        echo "LOTTIE_LOGIN=$LOTTIE_LOGIN" >> .env
+        echo "LOTTIE_REGISTER=$LOTTIE_REGISTER" >> .env
+
     - name: 🔐 Garantir variáveis no ambiente de build
       run: |
         echo "🔸 SUPABASE_URL=$SUPABASE_URL"
         echo "🔸 OPENAI_API_KEY=$OPENAI_API_KEY"
+        echo "🔸 GROQ_API_KEY=$GROQ_API_KEY"
 
     - name: 🚀 Build APK com Flet
       run: |
