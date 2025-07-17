@@ -152,7 +152,5 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /URL shortener/assets/manifest.json
-storage
 teste.py
 *json
-*png
