@@ -32,7 +32,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install "flet[all]==0.28.3"
-        pip install httpx python-dotenv requests supabase flet-lottie flet-video openai groq
+        pip install httpx python-dotenv requests supabase flet-lottie flet-video groq openai==1.92.2 pydantic==2.29.0 pydantic-core==2.29.0
 
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2
@@ -76,7 +76,7 @@ jobs:
           --splash-color "#0A1A2F" \
           --splash-dark-color "#0A1A2F" \
           --compile-app \
-          --split-per-abi \
+          --split-per-abi
 
     - name: 📁 Mostrar arquivos gerados
       run: |
