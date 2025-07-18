@@ -37,8 +37,14 @@ jobs:
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.32.2'
+        flutter-version: '3.29.2'
         channel: stable
+
+    - name: 🔧 Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: 🔐 Aceitar licenças do Android
+      run: yes | sdkmanager --licenses
 
     - name: 🔎 Verificação do Flutter
       run: flutter doctor -v
@@ -51,6 +57,22 @@ jobs:
         echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
         echo "LOTTIE_LOGIN=$LOTTIE_LOGIN" >> .env
         echo "LOTTIE_REGISTER=$LOTTIE_REGISTER" >> .env
+
+    - name: 📦 Criar requirements.txt compatível com Android
+      run: |
+        cat > requirements.txt << EOF
+        flet==0.28.3
+        httpx
+        python-dotenv
+        requests
+        supabase
+        flet-lottie
+        flet-video
+        groq
+        openai==1.92.2
+        pydantic==2.29.0
+        pydantic-core==2.29.0
+        EOF
 
     - name: 🔐 Garantir variáveis no ambiente de build
       run: |
@@ -65,7 +87,9 @@ jobs:
         echo "🔍 Verificando pasta assets:"
         ls -la assets/ || echo "Pasta assets não encontrada"
         echo "🔍 Verificando pubspec.yaml:"
-        cat pubspec.yaml
+        cat pubspec.yaml || echo "pubspec.yaml não encontrado"
+        echo "🔍 Verificando requirements.txt:"
+        cat requirements.txt
 
     - name: 🚀 Build APK com Flet
       run: |
