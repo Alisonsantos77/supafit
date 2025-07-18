@@ -77,9 +77,6 @@ jobs:
           --splash-dark-color "#0A1A2F" \
           --compile-app \
           --split-per-abi \
-          --no-web-splash \
-          --no-ios-splash \
-          --no-android-splash
 
     - name: 📁 Mostrar arquivos gerados
       run: |
