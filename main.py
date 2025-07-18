@@ -3,6 +3,7 @@ import asyncio
 from dotenv import load_dotenv
 from core.healthcheck import check_supabase_connection, check_openai_key
 from core.startup import initialize_services
+from core.load_user_preferences import apply_user_preferences
 from routes import setup_routes
 import traceback
 
@@ -127,7 +128,6 @@ class AppInitializer:
             self.show_error_screen("Erro na inicialização dos serviços", str(e))
             return False
 
-
     def handle_authentication(self) -> str:
         """Gerencia a autenticação e direcionamento do usuário."""
         try:
@@ -146,6 +146,7 @@ class AppInitializer:
                     if profile_response.data and len(profile_response.data) > 0:
                         profile = profile_response.data[0]
                         print(f"[APP] Perfil encontrado: {profile.get('name', 'Usuário')}")
+                        apply_user_preferences(self.page, profile)
                         self.page.client_storage.set("supafit.user_id", user_id)
                         self.page.client_storage.set("supafit.profile_created", True)
                         self.page.client_storage.set(

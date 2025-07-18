@@ -121,7 +121,6 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             training_timer_ref.current.value = f"Tempo: {m:02d}:{s:02d}"
             training_timer_ref.current.update()
             await asyncio.sleep(1)
-            print(f"DEBUG - treino: Tempo de treino atualizado: {m:02d}:{s:02d}")
 
     # Controles de treino (iniciar, pausar, retomar, finalizar)
     def start_training(e):

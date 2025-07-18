@@ -1,5 +1,4 @@
 import flet as ft
-
 from services.supabase import SupabaseService
 import logging
 
@@ -12,127 +11,118 @@ logger.addHandler(handler)
 
 
 def TermsPage(page: ft.Page, supabase, openai):
-    # Conteúdo dos Termos de Uso em Markdown
     terms_markdown = """
-# Termos de Uso do DebtManager
+# Termos de Uso do SupaFit
 
-Bem-vindo ao DebtManager! Antes de usar nossa ferramenta, por favor, leia atentamente estes Termos de Uso. Ao utilizar o DebtManager, você concorda com todas as condições aqui descritas. Caso não concorde, não poderá usar a aplicação.
+Bem-vindo ao **SupaFit**! Antes de iniciar sua jornada fitness, leia atentamente estes Termos de Uso. Ao utilizar o SupaFit, você concorda com todas as condições aqui descritas. Caso não concorde, não poderá usar a aplicação.
 
-## 1. O que é o DebtManager?
+## 1. O que é o SupaFit?
 
-O DebtManager é uma ferramenta que ajuda você a gerenciar dívidas e enviar notificações automáticas via WhatsApp. Extraímos dados de PDFs, enviamos mensagens para seus clientes e fornecemos um dashboard para acompanhar tudo de forma fácil, rápida e direta.
+O SupaFit é uma plataforma fitness inovadora que utiliza inteligência artificial para criar treinos personalizados, rastrear seu progresso e oferecer uma experiência interativa. Desenvolvida por **Alison Santos**, a aplicação integra **Flet**, **Supabase**, **Groq** e **OpenAI** para proporcionar planos de treino adaptados ao seu perfil (idade, peso, altura, objetivo e restrições físicas) e um dashboard para acompanhar sua evolução.
 
 ## 2. Uso Responsável
 
-- Use o DebtManager apenas para fins legais e legítimos, como enviar notificações de dívidas válidas.
-- É proibido usar a aplicação para spam, assédio ou qualquer uso indevido (ex.: enviar mensagens para contatos não autorizados). Caso isso ocorra, sua conta poderá ser suspensa ou encerrada imediatamente.
+- Utilize o SupaFit apenas para fins legítimos, como criar, seguir e acompanhar planos de treino personalizados.
+- É proibido usar a aplicação para spam, assédio, compartilhamento de conteúdo sensível (ex.: linguagem ofensiva ou dados pessoais não autorizados) ou qualquer atividade ilegal. Violações podem resultar na suspensão ou encerramento imediato da conta.
 - Respeite as leis brasileiras, incluindo a [LGPD (Lei Geral de Proteção de Dados)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm).
 
-## 3. Limites de Uso
+## 3. Funcionalidades e Limites
 
-Cada plano possui limites mensais de mensagens e PDFs:
+- **Geração de Treinos**: Crie planos personalizados com base em seus objetivos (ex.: hipertrofia, perda de peso, resistência) e perfil.
+- **Rastreamento de Progresso**: Registre e acompanhe o progresso de exercícios, incluindo cargas e histórico de treinos.
+- **Moderação por IA**: Perguntas e restrições são verificadas pela OpenAI para garantir conteúdo seguro e apropriado.
+- **Limites de Uso**: O uso está sujeito a quotas de APIs de terceiros (ex.: Groq, OpenAI). Exceder limites pode temporariamente restringir funcionalidades, conforme políticas dos provedores.
 
-- **Básico:** 100 mensagens, 5 PDFs.
-- **Pro:** 200 mensagens, 15 PDFs.
-- **Enterprise:** 500 mensagens, 30 PDFs.
+## 4. Cadastro e Autenticação
 
-Se você exceder o limite, sua conta poderá ser bloqueada até que um upgrade de plano seja realizado. Tentar burlar os limites (ex.: criar múltiplas contas) pode resultar em suspensão permanente.
-
-## 4. Pagamento e Upgrades
-
-- Nossos planos são pagos, com os seguintes valores:  
-  - **Básico:** R$150/mês.  
-  - **Pro:** R$250/mês.  
-  - **Enterprise:** R$400/mês.
-- Upgrades de plano requerem validação manual por meio de um código enviado ao suporte.
-- Não há reembolso após a ativação do plano, então escolha com cuidado!
-- A renovação é manual e pode ser solicitada a qualquer momento na página de perfil.
+- Para usar o SupaFit, você deve criar uma conta com email e senha, gerenciada pelo Supabase.
+- Mantenha suas credenciais seguras. Você é responsável por atividades realizadas em sua conta.
+- A restauração de sessões é automática via `client_storage`, mas sessões expiradas exigem novo login.
 
 ## 5. Responsabilidade
 
-- Fazemos o possível para manter o DebtManager funcionando perfeitamente, mas não nos responsabilizamos por falhas de serviços de terceiros (ex.: Twilio para mensagens, Supabase para dados, Openai para extração de PDFs).
-- Se você usar a aplicação de forma incorreta (ex.: enviar dados errados nos PDFs), a responsabilidade é sua.
-- O DebtManager não garante que todas as notificações serão entregues (devido a falhas de rede ou bloqueios), mas notificaremos você em caso de problemas.
+- O SupaFit se esforça para oferecer um serviço estável, mas não se responsabiliza por falhas de terceiros (ex.: Supabase para dados, Groq/OpenAI para IA).
+- Você é responsável por fornecer informações precisas (ex.: restrições físicas) e por seguir os treinos de forma segura. Consulte um profissional de saúde antes de iniciar qualquer programa fitness.
+- Não garantimos resultados específicos de treino, pois dependem de fatores individuais (ex.: adesão, alimentação).
 
 ## 6. Suspensão do Serviço
 
-- Podemos suspender o DebtManager para manutenção ou atualizações sem aviso prévio. Faremos o possível para ser breve!
-- Em caso de violação destes Termos, sua conta poderá ser suspensa ou encerrada sem aviso.
+- Podemos suspender o SupaFit para manutenção ou atualizações sem aviso prévio, buscando minimizar transtornos.
+- Violações destes Termos podem resultar em suspensão ou encerramento da conta sem notificação.
 
 ## 7. Suporte
 
-- Enfrentando problemas? Entre em contato por email ([Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com)) ou [WhatsApp](https://wa.link/oebrg2).
-- Nosso suporte é técnico e não cobre mau uso da aplicação ou problemas fora do nosso controle.
+- Problemas? Contate-nos por email ([Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com)) ou [WhatsApp](https://wa.link/oebrg2).
+- O suporte é técnico e não cobre mau uso, questões de saúde ou problemas fora do nosso controle.
 
 ## 8. Mudanças nos Termos
 
-- Podemos atualizar estes Termos periodicamente. Você será notificado na aplicação ou por email. Continuar usando o DebtManager após as mudanças significa que você aceita os novos termos.
+- Podemos atualizar os Termos periodicamente. Você será notificado na aplicação ou por email. Continuar usando o SupaFit após mudanças implica aceitação dos novos termos.
 
 ## 9. Lei Aplicável
 
-- Estes Termos são regidos pelas leis do Brasil. Qualquer disputa será resolvida nos tribunais de Bastos/SP.
+- Estes Termos são regidos pelas leis do Brasil. Disputas serão resolvidas nos tribunais de Bastos/SP.
 
-**Dúvidas?** Fale com a gente!
+**Dúvidas?** Vamos treinar juntos! 💪
     """
 
-    # Conteúdo da Política de Privacidade em Markdown
     privacy_markdown = """
-# Política de Privacidade do DebtManager
+# Política de Privacidade do SupaFit
 
-No DebtManager, levamos sua privacidade a sério! Como lidamos com dados sensíveis, esta Política explica como coletamos, usamos e protegemos suas informações, em conformidade com a [LGPD (Lei Geral de Proteção de Dados – Lei nº 13.709/2018)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm). Leia com atenção para entender tudo!
+No SupaFit, sua privacidade é nossa prioridade! Esta Política explica como coletamos, usamos e protegemos seus dados, em conformidade com a [LGPD (Lei nº 13.709/2018)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm).
 
 ## 1. Que dados coletamos?
 
-- **Dados fornecidos por você:** Nome de usuário, email, plano escolhido (no cadastro) e dados dos PDFs enviados (nome dos clientes, contatos, valores de dívidas, datas de vencimento).
-- **Dados automáticos:** Uso da aplicação (quantidade de mensagens enviadas, PDFs processados) e logs de acesso (para segurança).
-- **O que não coletamos:** Dados financeiros diretos (como número de cartão), apenas os valores de dívidas informados nos PDFs.
+- **Dados fornecidos por você**: Nome, email, idade, peso, altura, objetivo fitness, nível de condicionamento e restrições físicas (no cadastro e perfil).
+- **Dados automáticos**: Uso da aplicação (treinos criados, exercícios registrados, progresso, logs de acesso para segurança) e preferências salvas via `client_storage` (ex.: treinos temporários).
+- **O que não coletamos**: Dados financeiros ou informações sensíveis não relacionadas ao fitness.
 
 ## 2. Para que usamos esses dados?
 
-- Para fazer a aplicação funcionar: extrair dados de PDFs, enviar notificações via WhatsApp e exibir seu uso no dashboard.
-- Para melhorar o DebtManager: analisar o uso da aplicação e aprimorar a experiência.
-- Para suporte: ajudar você em caso de problemas.
-- Para cumprir a lei: responder a autoridades, se necessário, conforme a LGPD.
+- Criar e gerenciar treinos personalizados com base no seu perfil.
+- Rastrear progresso de exercícios e exibir estatísticas no dashboard.
+- Melhorar a experiência por meio de análises de uso.
+- Moderar conteúdo (ex.: perguntas, restrições) via OpenAI para garantir segurança.
+- Cumprir obrigações legais, conforme a LGPD.
 
 ## 3. Como armazenamos e protegemos seus dados?
 
-- Seus dados são armazenados no Supabase, um serviço de banco de dados seguro.
-- Utilizamos criptografia para proteger informações sensíveis (como no nosso código, com `flet.security.encrypt`).
-- Apenas nossa equipe e os serviços necessários (como Twilio e Openai) têm acesso aos dados, e somente para o funcionamento da aplicação.
+- Dados são armazenados no **Supabase**, com criptografia para informações sensíveis (ex.: `flet.security.encrypt`).
+- Apenas a equipe do SupaFit e serviços essenciais (Supabase, Groq, OpenAI) acessam os dados, exclusivamente para operar a aplicação.
+- Logs de acesso são mantidos para segurança e debugging, conforme necessário.
 
 ## 4. Com quem compartilhamos seus dados?
 
-- **Serviços de terceiros:** Usamos Twilio para enviar mensagens, Supabase para armazenar dados e Openai para extrair dados de PDFs. Eles recebem apenas o necessário para operar.
-- **Sem vendas:** Não vendemos nem compartilhamos seus dados com terceiros para fins de marketing, a menos que você autorize.
-- **Autoridades:** Em caso de ordem judicial, podemos compartilhar dados, mas apenas o exigido por lei.
+- **Serviços de terceiros**: Supabase (armazenamento), Groq/OpenAI (geração de treinos e moderação de conteúdo). Eles recebem apenas o necessário.
+- **Sem vendas**: Não compartilhamos dados para marketing sem sua autorização.
+- **Autoridades**: Dados podem ser compartilhados em caso de ordem judicial, conforme exigido por lei.
 
-## 5. Seus direitos (de acordo com a LGPD)
+## 5. Seus direitos (LGPD)
 
-- Você pode solicitar acesso, correção ou exclusão de seus dados a qualquer momento. Envie um email para [Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com).
-- Você também pode pedir para interrompermos o uso de seus dados (mas isso pode impedir o funcionamento da aplicação para você).
-- Respondemos às suas solicitações em até 15 dias, conforme a LGPD.
+- Solicite acesso, correção ou exclusão de seus dados por email ([Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com)).
+- Você pode interromper o uso de seus dados, mas isso pode limitar o funcionamento da aplicação.
+- Respondemos em até 15 dias, conforme a LGPD.
 
 ## 6. Por quanto tempo guardamos seus dados?
 
-- Mantemos seus dados enquanto sua conta estiver ativa. Se você encerrar a conta, excluímos tudo em até 30 dias, exceto o que a lei exige manter (ex.: logs de uso por 1 ano).
-- Dados dos PDFs (como contatos de clientes) são criptografados e mantidos apenas enquanto necessários na aplicação.
+- Dados são mantidos enquanto sua conta estiver ativa. Após encerramento, excluímos tudo em até 30 dias, exceto logs exigidos por lei (mantidos por 1 ano).
+- Dados de treinos e progresso são criptografados e armazenados apenas enquanto necessários.
 
 ## 7. Cookies e tecnologias similares
 
-- Usamos o `client_storage` do Flet para salvar preferências (ex.: tema, avatar, uso de mensagens). Isso não é um cookie, mas funciona de forma semelhante, apenas para melhorar a experiência na aplicação.
-- Não usamos cookies de terceiros para rastreamento ou anúncios.
+- Usamos `client_storage` do Flet para salvar preferências (ex.: tema, treinos temporários), sem cookies de terceiros para rastreamento.
 
 ## 8. Mudanças na Política
 
-- Podemos atualizar esta Política periodicamente. Você será notificado na aplicação ou por email. Continuar usando o DebtManager após as mudanças significa que você aceita a nova política.
+- Atualizações na Política serão notificadas na aplicação ou por email. Continuar usando o SupaFit implica aceitação.
 
 ## 9. Contato
 
-- Dúvidas sobre sua privacidade? Envie um email para [Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com) ou fale conosco no [WhatsApp](https://wa.link/oebrg2).
+- Dúvidas? Envie um email para [Alisondev77@hotmail.com](mailto:Alisondev77@hotmail.com) ou contate-nos no [WhatsApp](https://wa.link/oebrg2).
 
-Estamos aqui para ajudar você a organizar suas finanças com segurança!
+**Treine com segurança e confiança!** 💪
     """
-    # Monta o conteúdo da página com Markdown
+
     terms_content = ft.Column(
         [
             ft.ResponsiveRow(
@@ -141,8 +131,6 @@ Estamos aqui para ajudar você a organizar suas finanças com segurança!
                         ft.Container(
                             content=ft.Image(
                                 src="icon.png",
-                                width=200,
-                                height=200,
                                 fit=ft.ImageFit.CONTAIN,
                             )
                         ),

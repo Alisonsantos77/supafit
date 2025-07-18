@@ -260,8 +260,6 @@ def RegisterPage(page: ft.Page):
             repeat=True,
             fit=ft.ImageFit.CONTAIN,
         ),
-        width=400,
-        height=400,
     )
 
     layout_register = ft.ResponsiveRow(
@@ -275,9 +273,9 @@ def RegisterPage(page: ft.Page):
             ft.Column(
                 col={"sm": 6, "md": 5, "lg": 4},
                 controls=[
-                    ft.Container(height=20),
+                    # ft.Container(height=20),
                     ft.Text(
-                        "Crie sua Conta",
+                        "Faça seu registro",
                         size=28,
                         weight=ft.FontWeight.BOLD,
                         text_align=ft.TextAlign.CENTER,

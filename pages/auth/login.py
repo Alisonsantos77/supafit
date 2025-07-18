@@ -2,9 +2,9 @@ import flet as ft
 import flet_lottie as fl
 import os
 from time import sleep
+import time
 from services.supabase import SupabaseService
 from utils.alerts import CustomAlertDialog
-
 
 
 def LoginPage(page: ft.Page):
@@ -13,8 +13,6 @@ def LoginPage(page: ft.Page):
 
     login_lottie = fl.Lottie(
         src=lottie_url,
-        width=400,
-        height=400,
         repeat=True,
         animate=True,
         background_loading=True,
@@ -24,6 +22,7 @@ def LoginPage(page: ft.Page):
 
     email_field = ft.TextField(
         label="Email",
+        color=ft.Colors.BLUE,
         width=320,
         border="underline",
         filled=True,
@@ -35,6 +34,7 @@ def LoginPage(page: ft.Page):
     )
     password_field = ft.TextField(
         label="Senha",
+        color=ft.Colors.BLUE,
         width=320,
         border="underline",
         filled=True,
@@ -107,29 +107,43 @@ def LoginPage(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
     )
 
-    def show_loading():
-        loading_dialog = CustomAlertDialog(
+    def show_loading(message="Carregando..."):
+        if hasattr(page, "dialog") and page.dialog and page.dialog.open:
+            print("INFO - Login: Diálogo de carregamento já exibido, ignorando")
+            return page.dialog
+
+        loading_dialog = ft.AlertDialog(
             content=ft.Container(
-                content=ft.ProgressRing(color=ft.Colors.BLUE_400, width=50, height=50),
+                content=ft.Column(
+                    [
+                        ft.ProgressRing(color=ft.Colors.BLUE_400),
+                        ft.Text(message, size=16, text_align=ft.TextAlign.CENTER),
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
                 alignment=ft.alignment.center,
-                padding=20,
+                width=200,
+                height=100,
             ),
-            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
+            bgcolor=ft.Colors.TRANSPARENT,
             modal=True,
+            disabled=True,
         )
         page.dialog = loading_dialog
         page.open(loading_dialog)
         page.update()
-        print("INFO - Login: Diálogo de carregamento exibido")
+        print(f"INFO - Login: Diálogo de carregamento exibido: {message}")
         return loading_dialog
 
     def hide_loading(dialog):
-        page.close(dialog)
-        page.update()
-        print("INFO - Login: Diálogo de carregamento fechado")
+        if dialog and dialog.open:
+            page.close(dialog)
+            page.dialog = None
+            page.update()
+            print("INFO - Login: Diálogo de carregamento fechado")
 
     def show_success_and_redirect(route, message="Sucesso!"):
-        success_dialog = CustomAlertDialog(
+        success_dialog = ft.AlertDialog(
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -140,7 +154,7 @@ def LoginPage(page: ft.Page):
                             message,
                             size=16,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.WHITE,
+                            color=ft.Colors.BLACK,
                             text_align=ft.TextAlign.CENTER,
                         ),
                     ],
@@ -151,7 +165,7 @@ def LoginPage(page: ft.Page):
                 alignment=ft.alignment.center,
                 padding=20,
             ),
-            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.GREY_900),
+            bgcolor=ft.Colors.TRANSPARENT,
             modal=True,
         )
         page.dialog = success_dialog
@@ -168,11 +182,22 @@ def LoginPage(page: ft.Page):
             page.client_storage.set("supafit.email", email)
             if level:
                 page.client_storage.set("supafit.level", level)
-            print(f"INFO - Login: Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}")
+            print(
+                f"INFO - Login: Dados salvos no client_storage: user_id={user_id}, email={email}, level={level}"
+            )
         except Exception as ex:
             print(f"ERROR - Login: Erro ao salvar dados no client_storage: {str(ex)}")
 
+    last_event_time = [0]  # Variável para debounce
+
     def login(e):
+        nonlocal last_event_time
+        current_time = time.time()
+        if current_time - last_event_time[0] < 0.5:
+            print("INFO - Login: Clique ignorado por debounce (menos de 500ms)")
+            return
+        last_event_time[0] = current_time
+
         email = email_field.value.strip()
         password = password_field.value.strip()
 
@@ -183,7 +208,7 @@ def LoginPage(page: ft.Page):
             print("WARNING - Login: Tentativa de login com campos vazios")
             return
 
-        loading_dialog = show_loading()
+        loading_dialog = show_loading("Fazendo login...")
 
         try:
             response = supabase_service.login(email, password)
@@ -194,7 +219,9 @@ def LoginPage(page: ft.Page):
                 profile_exists = bool(
                     profile_response.data and len(profile_response.data) > 0
                 )
-                print(f"INFO - Login: Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}.")
+                print(
+                    f"INFO - Login: Verificando perfil para user_id: {response.user.id}, perfil {'encontrado' if profile_exists else 'não encontrado'}."
+                )
                 level = (
                     profile_response.data[0].get("level", "iniciante")
                     if profile_exists
@@ -205,12 +232,16 @@ def LoginPage(page: ft.Page):
                 hide_loading(loading_dialog)
 
                 if not profile_exists:
-                    print(f"INFO - Login: Perfil não encontrado, redirecionando para /create_profile.")
+                    print(
+                        f"INFO - Login: Perfil não encontrado, redirecionando para /create_profile."
+                    )
                     show_success_and_redirect(
                         "/create_profile", "Login realizado! Vamos criar seu perfil."
                     )
                 else:
-                    print(f"INFO - Login: Perfil encontrado, redirecionando para /home.")
+                    print(
+                        f"INFO - Login: Perfil encontrado, redirecionando para /home."
+                    )
                     show_success_and_redirect("/home", "Login realizado!")
             else:
                 raise Exception("Resposta inválida do Supabase Auth")
@@ -243,9 +274,9 @@ def LoginPage(page: ft.Page):
             ft.Column(
                 col={"sm": 6, "md": 5, "lg": 4},
                 controls=[
-                    ft.Container(height=20),
+                    # ft.Container(height=20),
                     ft.Text(
-                        "Login",
+                        "Acesse sua conta",
                         size=28,
                         weight=ft.FontWeight.BOLD,
                         text_align=ft.TextAlign.CENTER,
@@ -255,12 +286,11 @@ def LoginPage(page: ft.Page):
                     forgot_password_row,
                     status_text,
                     login_button,
-                    ft.Container(height=10),
                     register_row,
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=15,
+                spacing=10,
             ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
