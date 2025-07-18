@@ -297,7 +297,9 @@ class SupabaseService:
         """Cria um exercício do plano."""
         print(f"INFO: Criando exercício do plano: {exercise_data.get('exercise_id')}")
         try:
-            response = self.client.table("plan_exercises").insert(exercise_data).execute()
+            response = (
+                self.client.table("plan_exercises").insert(exercise_data).execute()
+            )
             print("INFO: Exercício do plano criado com sucesso.")
             return response.data
         except Exception as e:
@@ -310,7 +312,10 @@ class SupabaseService:
         print(f"INFO: Recuperando planos de treino para user_id: {user_id}")
         try:
             response = (
-                self.client.table("user_plans").select("*").eq("user_id", user_id).execute()
+                self.client.table("user_plans")
+                .select("*")
+                .eq("user_id", user_id)
+                .execute()
             )
             return response
         except Exception as e:
@@ -333,4 +338,142 @@ class SupabaseService:
         except Exception as e:
             print(f"ERROR: Erro ao recuperar exercícios do plano: {str(e)}")
             self._safe_show_snackbar(f"Erro ao recuperar exercícios do plano: {str(e)}")
+            raise
+
+    def save_exercise_progress(
+        self, user_id: str, plan_id: str, exercise_id: str, load: float
+    ):
+        """Salva ou atualiza o progresso de carga de um exercício."""
+        print(
+            f"INFO: Salvando progresso - user_id: {user_id}, plan_id: {plan_id}, exercise_id: {exercise_id}, load: {load}kg"
+        )
+        try:
+            # Validação dos parâmetros
+            if not user_id:
+                raise ValueError("user_id é obrigatório")
+            if not exercise_id:
+                raise ValueError("exercise_id é obrigatório")
+            if load < 0:
+                raise ValueError("load não pode ser negativo")
+
+            # Primeiro, verifica se já existe um registro para este exercício
+            existing_response = (
+                self.client.table("progress")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("exercise_id", exercise_id)
+                .order("recorded_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            progress_data = {
+                "user_id": user_id,
+                "exercise_id": exercise_id,
+                "load": float(load),
+            }
+
+            # Adiciona plan_id apenas se fornecido
+            if plan_id:
+                progress_data["plan_id"] = plan_id
+
+            print(f"INFO: Dados a serem processados: {progress_data}")
+
+            # Se existe um registro, atualiza. Senão, insere novo
+            if existing_response.data and len(existing_response.data) > 0:
+                # Atualiza o registro mais recente
+                existing_id = existing_response.data[0]["id"]
+                print(f"INFO: Atualizando registro existente: {existing_id}")
+
+                response = (
+                self.client.table("progress")
+                .update({"load": float(load)})
+                .eq("id", existing_id)
+                .execute()
+            )
+            else:
+                # Insere novo registro
+                print("INFO: Inserindo novo registro")
+                response = self.client.table("progress").insert(progress_data).execute()
+
+            if response.data:
+                print(f"INFO: Progresso salvo com sucesso: {response.data}")
+                return response.data
+            else:
+                print("WARNING: Resposta vazia do banco de dados")
+                return None
+
+        except Exception as e:
+            print(f"ERROR: Erro ao salvar progresso: {str(e)}")
+            print(f"ERROR: Tipo do erro: {type(e)}")
+            if hasattr(e, "details"):
+                print(f"ERROR: Detalhes do erro: {e.details}")
+            self._safe_show_snackbar(f"Erro ao salvar progresso: {str(e)}")
+            raise
+
+    def get_latest_exercise_load(self, user_id: str, exercise_id: str):
+        """Recupera a última carga registrada para um exercício."""
+        print(
+            f"INFO: Recuperando última carga para user_id: {user_id}, exercise_id: {exercise_id}"
+        )
+        try:
+            response = (
+                self.client.table("progress")
+                .select("load, recorded_at")
+                .eq("user_id", user_id)
+                .eq("exercise_id", exercise_id)
+                .order("recorded_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            if response.data and len(response.data) > 0:
+                load = response.data[0]["load"]
+                print(f"INFO: Última carga encontrada: {load}kg")
+                return load
+            else:
+                print("INFO: Nenhuma carga anterior encontrada")
+                return 0.0
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar carga: {str(e)}")
+            return 0.0
+
+    def get_exercise_progress_history(
+        self, user_id: str, exercise_id: str, limit: int = 10
+    ):
+        """Recupera histórico de progresso de um exercício."""
+        print(
+            f"INFO: Recuperando histórico de progresso para user_id: {user_id}, exercise_id: {exercise_id}"
+        )
+        try:
+            response = (
+                self.client.table("progress")
+                .select("load, recorded_at")
+                .eq("user_id", user_id)
+                .eq("exercise_id", exercise_id)
+                .order("recorded_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
+            return response.data
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar histórico: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao recuperar histórico: {str(e)}")
+            raise
+
+    def get_user_progress_summary(self, user_id: str):
+        """Recupera resumo do progresso do usuário."""
+        print(f"INFO: Recuperando resumo de progresso para user_id: {user_id}")
+        try:
+            response = (
+                self.client.table("progress")
+                .select("exercise_id, load, recorded_at, exercicios(nome)")
+                .eq("user_id", user_id)
+                .order("recorded_at", desc=True)
+                .execute()
+            )
+            return response.data
+        except Exception as e:
+            print(f"ERROR: Erro ao recuperar resumo de progresso: {str(e)}")
+            self._safe_show_snackbar(f"Erro ao recuperar resumo de progresso: {str(e)}")
             raise

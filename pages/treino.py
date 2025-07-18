@@ -19,7 +19,6 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
     com cache local e timer de treino.
     """
 
-
     def load_exercises(day: str, user_id: str):
         print(
             f"INFO - treino: Ignorando cache. Carregando exercícios diretamente do Supabase para {day} e user_id {user_id}"
@@ -43,10 +42,13 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
             )
 
             data = response.data or []
-            print(f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}':\n{data}")
+            print(
+                f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}':\n{data}"
+            )
 
             exercises = []
             if data and data[0].get("plan_exercises"):
+                plan_id = data[0].get("plan_id")
                 for plan_ex in data[0]["plan_exercises"]:
                     exercise = plan_ex.get("exercicios", {})
                     exercises.append(
@@ -54,8 +56,12 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                             "name": exercise.get("nome", ""),
                             "series": plan_ex.get("sets", 0),
                             "repetitions": plan_ex.get("reps", ""),
-                            "load": 0,
+                            "load": supabase.get_latest_exercise_load(
+                                user_id, plan_ex.get("exercise_id", "")
+                            ),
                             "video_url": exercise.get("url_video", None),
+                            "exercise_id": plan_ex.get("exercise_id", ""),
+                            "plan_id": plan_id,
                         }
                     )
                 print(
@@ -202,11 +208,15 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                 repetitions=ex["repetitions"],
                 load=ex["load"],
                 video_url=ex["video_url"],
+                exercise_id=ex["exercise_id"],
+                plan_id=ex["plan_id"],
+                user_id=user_id,
                 on_favorite_click=favorite_ex,
-                on_load_save=lambda v: print(
-                    f"INFO - treino: Carga salva para {ex['name']}: {v}kg"
+                on_load_save=lambda v, name=ex["name"]: print(
+                    f"INFO - treino: Carga salva para {name}: {v}kg"
                 ),
                 page=page,
+                supabase=supabase,
                 rest_duration=rest_duration,
             )
             for ex in exercises
@@ -216,8 +226,12 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
     # Botões de controle
     start_btn = ft.ElevatedButton("Iniciar Treino", on_click=start_training)
     pause_btn = ft.IconButton(ft.Icons.PAUSE, on_click=pause_training, visible=False)
-    resume_btn = ft.IconButton(ft.Icons.PLAY_ARROW, on_click=resume_training, visible=False)
-    finish_btn = ft.ElevatedButton("Finalizar Treino", on_click=stop_training, visible=False)
+    resume_btn = ft.IconButton(
+        ft.Icons.PLAY_ARROW, on_click=resume_training, visible=False
+    )
+    finish_btn = ft.ElevatedButton(
+        "Finalizar Treino", on_click=stop_training, visible=False
+    )
 
     # Barra de controle
     control_bar = ft.Container(

@@ -259,10 +259,21 @@ class ExerciseCard(ft.Stack):
 
 # Componentes de Edição
 class LoadEditor(ft.Row):
-    def __init__(self, initial_load, exercise_id, on_save, supabase, enabled=False):
+    def __init__(
+        self,
+        initial_load,
+        exercise_id,
+        plan_id,
+        user_id,
+        on_save,
+        supabase,
+        enabled=False,
+    ):
         super().__init__()
         self.initial_load = initial_load
         self.exercise_id = exercise_id
+        self.plan_id = plan_id
+        self.user_id = user_id
         self.on_save = on_save
         self.supabase = supabase
         self.enabled = enabled
@@ -315,13 +326,12 @@ class LoadEditor(ft.Row):
             if e.control.text == "Sim":
                 try:
                     load = float(self.load_field.value) if self.load_field.value else 0
-                    self.supabase.client.table("progress").insert(
-                        {
-                            "exercise_id": self.exercise_id,
-                            "load": load,
-                            "date": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-                    ).execute()
+                    self.supabase.save_exercise_progress(
+                        user_id=self.user_id,
+                        plan_id=self.plan_id,
+                        exercise_id=self.exercise_id,
+                        load=load,
+                    )
                     self.load_text.value = f"{load}kg"
                     self.on_save(load)
                     e.page.snack_bar = ft.SnackBar(

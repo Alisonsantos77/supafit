@@ -17,29 +17,35 @@ class ExerciseTile(ft.Container):
         load: float,
         video_url: str = None,
         image_url: str = None,
+        exercise_id: str = None,
+        plan_id: str = None,
+        user_id: str = None,
         on_favorite_click=None,
         on_load_save=None,
         page=None,
-        rest_duration: int = 60,  
+        supabase=None,
+        rest_duration: int = 60,
     ):
         """Inicializa o componente de exercício com nome, séries, repetições, carga e mídia."""
         self.exercise_name = exercise_name
         self.series = series
         self.repetitions = repetitions
+        self.exercise_id = exercise_id
+        self.plan_id = plan_id
+        self.user_id = user_id
         self.video_url = video_url
         self.image_url = image_url or "https://picsum.photos/200"
         self.page = page
+        self.supabase = supabase
         self.on_favorite_click = on_favorite_click
         self.on_load_save = on_load_save
-        self.rest_duration = rest_duration  
+        self.rest_duration = rest_duration
 
         def get_video_source():
-            """Usa diretamente a URL do Supabase"""
             logger.info(
                 f"Carregando vídeo diretamente do Supabase para {self.exercise_name}: {self.video_url}"
             )
             return self.video_url
-
 
         url = get_video_source()
         if url:
@@ -91,9 +97,11 @@ class ExerciseTile(ft.Container):
 
         load_editor = LoadEditor(
             initial_load=load,
-            exercise_id=None,
+            exercise_id=self.exercise_id,
+            plan_id=self.plan_id,
+            user_id=self.user_id,
             on_save=on_load_save,
-            supabase=None,
+            supabase=self.supabase,
             enabled=False,
         )
 
@@ -146,7 +154,6 @@ class ExerciseTile(ft.Container):
         self.is_favorited = False
 
     def toggle_favorite(self):
-        """Alterna o estado de favorito do exercício."""
         self.is_favorited = not self.is_favorited
         self.favorite_icon.name = (
             ft.Icons.STAR if self.is_favorited else ft.Icons.STAR_BORDER
@@ -160,14 +167,12 @@ class ExerciseTile(ft.Container):
         self.update()
 
     def enable_controls(self):
-        """Habilita controles de carga e intervalo."""
         self.load_editor.enable()
         self.interval_button.disabled = False
         logger.debug(f"Controles habilitados para {self.exercise_name}")
         self.update()
 
     def disable_controls(self):
-        """Desabilita controles de carga e intervalo."""
         self.load_editor.disable()
         self.interval_button.disabled = True
         logger.debug(f"Controles desabilitados para {self.exercise_name}")
