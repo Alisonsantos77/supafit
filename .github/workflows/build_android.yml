@@ -31,7 +31,9 @@ jobs:
     - name: 📦 Instalar dependências Python do SupaFit
       run: |
         pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install "flet[all]==0.28.3"
+        pip install supabase==2.16.0
+        pip install httpx python-dotenv requests flet-lottie flet-video
 
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2
@@ -75,7 +77,10 @@ jobs:
           --splash-color "#0A1A2F" \
           --splash-dark-color "#0A1A2F" \
           --compile-app \
-          --split-per-abi 
+          --split-per-abi
+
+
+
 
     - name: 📁 Mostrar arquivos gerados
       run: |
