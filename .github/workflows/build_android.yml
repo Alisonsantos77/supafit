@@ -7,7 +7,8 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+
 
     env:
       PYTHONIOENCODING: utf-8
@@ -31,8 +32,8 @@ jobs:
     - name: 📦 Instalar dependências Python do SupaFit
       run: |
         pip install --upgrade pip
-        pip install flet[all]==0.28.3 httpx python-dotenv requests supabase==2.16.0 flet-lottie flet-video openai groq
-
+        pip install "flet[all]==0.28.3"
+        pip install httpx python-dotenv requests supabase flet-lottie flet-video openai groq
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2
       with:
@@ -50,13 +51,11 @@ jobs:
         echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
         echo "LOTTIE_LOGIN=$LOTTIE_LOGIN" >> .env
         echo "LOTTIE_REGISTER=$LOTTIE_REGISTER" >> .env
-
     - name: 🔐 Garantir variáveis no ambiente de build
       run: |
         echo "🔸 SUPABASE_URL=$SUPABASE_URL"
         echo "🔸 OPENAI_API_KEY=$OPENAI_API_KEY"
         echo "🔸 GROQ_API_KEY=$GROQ_API_KEY"
-
     - name: 📁 Verificar estrutura de arquivos
       run: |
         echo "🔍 Verificando estrutura do projeto:"
@@ -65,7 +64,6 @@ jobs:
         ls -la assets/ || echo "Pasta assets não encontrada"
         echo "🔍 Verificando pubspec.yaml:"
         cat pubspec.yaml
-
     - name: 🚀 Build APK com Flet
       run: |
         flet build apk \
@@ -76,10 +74,6 @@ jobs:
           --splash-dark-color "#0A1A2F" \
           --compile-app \
           --split-per-abi
-
-
-
-
     - name: 📁 Mostrar arquivos gerados
       run: |
         echo "📦 Estrutura do build:"
@@ -87,7 +81,6 @@ jobs:
         
         echo "📱 APKs gerados:"
         find build/ -name "*.apk" -exec ls -lh {} \; || echo "Nenhum APK encontrado"
-
     - name: 📤 Upload do APK
       uses: actions/upload-artifact@v4
       with:
