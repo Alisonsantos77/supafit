@@ -1,9 +1,0 @@
-flet[all]==0.28.3
-httpx
-python-dotenv
-requests
-supabase==2.16.0
-flet-lottie
-flet-video
-openai
-groq
