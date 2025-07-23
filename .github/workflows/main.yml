@@ -1,0 +1,113 @@
+name: 📱 Build Android APK - SupaFit
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+jobs:
+  build-android:
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: 1
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LOTTIE_LOGIN: ${{ secrets.LOTTIE_LOGIN }}
+      LOTTIE_REGISTER: ${{ secrets.LOTTIE_REGISTER }}
+    steps:
+    - name: 🧾 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.3'
+        
+    - name: 📦 Instalar dependências Python do SupaFit
+      run: |
+        pip install --upgrade pip
+        pip install flet[all]==0.28.3 httpx python-dotenv requests supabase flet-lottie flet-video openai groq
+        
+    - name: ✅ Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.2'
+        channel: stable
+        
+    - name: 🔧 Configurar Android SDK e aceitar licenças
+      run: |
+        # Instalar cmdline-tools se necessário
+        $env:ANDROID_HOME = "$env:USERPROFILE\AppData\Local\Android\Sdk"
+        $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+        $env:PATH = "$env:PATH;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:ANDROID_HOME\platform-tools"
+        
+        # Aceitar licenças do Android
+        flutter doctor --android-licenses --android-sdk="$env:ANDROID_HOME" || echo "Tentativa de aceitar licenças realizada"
+        
+    - name: 🔎 Verificação do Flutter
+      run: flutter doctor -v
+      
+    - name: 🔐 Criar arquivo .env para o build
+      run: |
+        echo "SUPABASE_URL=$env:SUPABASE_URL" > .env
+        echo "SUPABASE_KEY=$env:SUPABASE_KEY" >> .env
+        echo "OPENAI_API_KEY=$env:OPENAI_API_KEY" >> .env
+        echo "GROQ_API_KEY=$env:GROQ_API_KEY" >> .env
+        echo "LOTTIE_LOGIN=$env:LOTTIE_LOGIN" >> .env
+        echo "LOTTIE_REGISTER=$env:LOTTIE_REGISTER" >> .env
+        
+    - name: 🔐 Garantir variáveis no ambiente de build
+      run: |
+        echo "🔸 SUPABASE_URL=$env:SUPABASE_URL"
+        echo "🔸 OPENAI_API_KEY=$env:OPENAI_API_KEY"
+        echo "🔸 GROQ_API_KEY=$env:GROQ_API_KEY"
+        
+    - name: 📁 Verificar estrutura de arquivos
+      run: |
+        echo "🔍 Verificando estrutura do projeto:"
+        Get-ChildItem -Name
+        echo "🔍 Verificando pasta assets:"
+        if (Test-Path "assets") { Get-ChildItem "assets" -Name } else { echo "Pasta assets não encontrada" }
+        echo "🔍 Verificando pubspec.yaml:"
+        if (Test-Path "pubspec.yaml") { Get-Content "pubspec.yaml" } else { echo "pubspec.yaml não encontrado" }
+        
+    - name: 🚀 Build APK com Flet
+      run: |
+        flet build apk `
+          --module-name main.py `
+          --project SupaFit `
+          --org com.aldev `
+          --product "SupaFit" `
+          --split-per-abi `
+          --description "App fitness com IA, gerenciamento de treinos e comunidade" `
+          --compile-app `
+          --splash-color "#0A1A2F" `
+          --splash-dark-color "#0A1A2F" `
+          -v
+          
+    - name: 📁 Mostrar arquivos gerados
+      run: |
+        echo "📦 Estrutura do build:"
+        if (Test-Path "build") { 
+          Get-ChildItem -Recurse "build" -Name 
+        } else { 
+          echo "Pasta build não encontrada" 
+        }
+        echo "📱 APKs gerados:"
+        Get-ChildItem -Recurse "build" -Filter "*.apk" -ErrorAction SilentlyContinue | ForEach-Object {
+          $sizeInMB = [math]::Round($_.Length / 1MB, 2)
+          Write-Output "APK: $($_.FullName) - Tamanho: ${sizeInMB}MB"
+        }
+        if (-not (Get-ChildItem -Recurse "build" -Filter "*.apk" -ErrorAction SilentlyContinue)) {
+          echo "Nenhum APK encontrado"
+        }
+        
+    - name: 📤 Upload do APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: apk-supafit
+        path: build/apk/**/*.apk
+        
+    - name: ✅ Finalizado!
+      run: echo "APK gerado com sucesso! Verifique na aba Actions → Artifacts"
