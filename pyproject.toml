@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supafit"
+version = "1.0.0"
+description = "App fitness com IA, gerenciamento de treinos e comunidade"
+authors = [
+    { name = "Alison santos", email = "Alisondev77@hotmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "flet[all]==0.28.3",
+  "httpx",
+  "python-dotenv",
+  "requests",
+  "supabase==2.16.0",
+  "flet-lottie",
+  "flet-video",
+  "openai",
+  "groq",
+  "watchdog>=4.0.0,<5.0.0"
+]
+
+[tool.flet]
+org = "com.aldev"
+product = "SupaFit"
+company = "Alison"
+copyright = "Copyright (C) 2025 by Alison"
+
+permissions = [
+  "camera", 
+  "request_install_packages",
+  "notification",
+  "microphone",
+  "access_notification_policy",
+  "bluetooth",
+  "bluetooth_advertise",
+  "bluetooth_connect",
+  "bluetooth_scan",
+  "post_notifications",
+  "vibrate",
+  "wake_lock",
+  "foreground_service"
+]
+
+[tool.flet.android.permission]
+"android.permission.CAMERA" = true
+"android.permission.RECORD_AUDIO" = true
+"android.permission.INTERNET" = true
+"android.permission.ACCESS_NOTIFICATION_POLICY" = true
+"android.permission.POST_NOTIFICATIONS" = true
+"android.permission.VIBRATE" = true
+"android.permission.WAKE_LOCK" = true
+"android.permission.FOREGROUND_SERVICE" = true
+"android.permission.BLUETOOTH" = true
+"android.permission.BLUETOOTH_ADMIN" = true
+"android.permission.BLUETOOTH_ADVERTISE" = true
+"android.permission.BLUETOOTH_CONNECT" = true
+"android.permission.BLUETOOTH_SCAN" = true
+"android.permission.ACCESS_FINE_LOCATION" = true
+"android.permission.ACCESS_COARSE_LOCATION" = true
+
+[tool.flet.app]
+path = "."
+
+[tool.poetry]
+package-mode = false
