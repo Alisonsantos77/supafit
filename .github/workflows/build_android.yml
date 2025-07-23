@@ -7,8 +7,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: windows-latest
-
+    runs-on: ubuntu-latest
 
     env:
       PYTHONIOENCODING: utf-8
@@ -24,16 +23,16 @@ jobs:
     - name: 🧾 Checkout do código
       uses: actions/checkout@v4
 
-    - name: 🐍 Setup Python
+    - name: 🐍 Setup Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13.3'
+        python-version: '3.11'
 
-    - name: 📦 Instalar dependências Python do SupaFit
+    - name: 📦 Instalar dependências Python via pyproject.toml
       run: |
-        pip install --upgrade pip
-        pip install "flet[all]==0.28.3"
-        pip install httpx python-dotenv requests supabase flet-lottie flet-video openai groq
+        python -m pip install --upgrade pip setuptools wheel
+        pip install .
+
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2
       with:
@@ -51,19 +50,13 @@ jobs:
         echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
         echo "LOTTIE_LOGIN=$LOTTIE_LOGIN" >> .env
         echo "LOTTIE_REGISTER=$LOTTIE_REGISTER" >> .env
+
     - name: 🔐 Garantir variáveis no ambiente de build
       run: |
         echo "🔸 SUPABASE_URL=$SUPABASE_URL"
         echo "🔸 OPENAI_API_KEY=$OPENAI_API_KEY"
         echo "🔸 GROQ_API_KEY=$GROQ_API_KEY"
-    - name: 📁 Verificar estrutura de arquivos
-      run: |
-        echo "🔍 Verificando estrutura do projeto:"
-        ls -la
-        echo "🔍 Verificando pasta assets:"
-        ls -la assets/ || echo "Pasta assets não encontrada"
-        echo "🔍 Verificando pubspec.yaml:"
-        cat pubspec.yaml
+
     - name: 🚀 Build APK com Flet
       run: |
         flet build apk \
@@ -74,11 +67,9 @@ jobs:
           --splash-dark-color "#0A1A2F" \
           --compile-app \
           --split-per-abi
+
     - name: 📁 Mostrar arquivos gerados
-      run: |
-        echo "📦 Estrutura do build:"
-        ls -R build/ || echo "Pasta build não encontrada"
-        
+      run: ls -R build/apk || echo "Nenhum arquivo encontrado"
         echo "📱 APKs gerados:"
         find build/ -name "*.apk" -exec ls -lh {} \; || echo "Nenhum APK encontrado"
     - name: 📤 Upload do APK
