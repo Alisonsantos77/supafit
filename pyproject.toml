@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "supafit"
 version = "1.0.0"
@@ -12,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-  "flet[all]==0.28.3",
+  "flet==0.28.3",
   "httpx",
   "python-dotenv",
   "requests",
@@ -21,7 +17,6 @@ dependencies = [
   "flet-video",
   "openai",
   "groq",
-  "watchdog>=4.0.0,<5.0.0"
 ]
 
 [tool.flet]
@@ -65,6 +60,13 @@ permissions = [
 
 [tool.flet.app]
 path = "."
+
+[tool.flet.assets]
+assets = ["assets"]
+
+[tool.flet.flutter.dependencies]
+flet_lottie = "*"
+flet_video = "*"
 
 [tool.poetry]
 package-mode = false
