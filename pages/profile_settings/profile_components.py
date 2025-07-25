@@ -195,11 +195,20 @@ class ProfileSections:
             ft.dropdown.Option("Manrope"),
         ]
         color_options = [
-            ft.dropdown.Option("GREEN", text="Verde"),
-            ft.dropdown.Option("BLUE", text="Azul"),
-            ft.dropdown.Option("RED", text="Vermelho"),
-            ft.dropdown.Option("PURPLE", text="Roxo"),
+            ft.dropdown.Option("BLUE_700", text="Azul Royal"),
+            ft.dropdown.Option("CYAN_ACCENT_400", text="Azul Neon"),
+            ft.dropdown.Option("DEEP_ORANGE_ACCENT_400", text="Laranja Neon"),
+            ft.dropdown.Option("PURPLE_700", text="Roxo Vibrante"),
+            ft.dropdown.Option("PINK_ACCENT_200", text="Rosa Neon"),
+            ft.dropdown.Option("GREEN_500", text="Verde Esmeralda"),
+            ft.dropdown.Option("RED_600", text="Vermelho Coral"),
+            ft.dropdown.Option("TEAL_400", text="Turquesa"),
+            ft.dropdown.Option("INDIGO_500", text="Indigo"),
+            ft.dropdown.Option("PINK_300", text="Rosa Claro"),
+            ft.dropdown.Option("DEEP_PURPLE_700", text="Roxo Escuro"),
+            ft.dropdown.Option("TEAL_900", text="Azul Petróleo"),
         ]
+
         controller.theme_switch.current = fields.create_switch(
             "Tema Escuro", profile.get("theme", "light") == "dark"
         )

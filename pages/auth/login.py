@@ -154,7 +154,6 @@ def LoginPage(page: ft.Page):
                             message,
                             size=16,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.BLACK,
                             text_align=ft.TextAlign.CENTER,
                         ),
                     ],

@@ -39,8 +39,8 @@ class CommunityController:
             return False
 
         # Validação de tamanho
-        if len(content) > 200:
-            SnackBarHelper.show_error(self.page, "Limite de 200 caracteres excedido!")
+        if len(content) > 50:
+            SnackBarHelper.show_error(self.page, "Limite de 50 caracteres excedido!")
             return False
 
         # Criar vitória

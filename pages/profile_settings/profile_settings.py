@@ -138,7 +138,6 @@ class ProfileSettingsController:
             NotificationHelper.show_success(
                 self.page, "Perfil salvo com sucesso!", form_data["primary_color"]
             )
-            self.page.go("/home")
         except ValueError as ve:
             logger.warning(f"Validação falhou: {str(ve)}")
             NotificationHelper.show_error(self.page, str(ve))

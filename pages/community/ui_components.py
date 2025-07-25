@@ -47,7 +47,10 @@ class VictoryCard:
                 [
                     ft.ListTile(
                         leading=AvatarComponent(
-                            self.victory.user_id, radius=20, is_trainer=False
+                            user_id=self.victory.user_id,
+                            radius=20,
+                            is_trainer=False,
+                            user_name=self.victory.author_name,
                         ),
                         title=ft.Text(
                             self.victory.author_name,

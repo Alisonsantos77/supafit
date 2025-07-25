@@ -55,27 +55,94 @@ class CustomAppBar(ft.AppBar):
         page.go("/login")
 
 
-# Componentes de Avatares
 class AvatarComponent(ft.CircleAvatar):
     def __init__(
-        self, user_id=None, radius=20, is_trainer=False, image_url=None, **kwargs
+        self,
+        user_id=None,
+        radius=20,
+        is_trainer=False,
+        image_url=None,
+        user_name=None,
+        **kwargs,
     ):
+        # Determinar a fonte da imagem
         if image_url:
-            self.image_url = image_url
+            # Se uma URL específica foi fornecida, usar ela
+            foreground_image_src = image_url
+        elif is_trainer:
+            # Se é um treinador, usar a imagem do mascote
+            foreground_image_src = "mascote_supafit/coachito.png"
+        elif user_id:
+            # Se é um usuário, gerar URL do DiceBear
+            seed = "".join(c for c in str(user_id) if c.isalnum() or c in "-_")[:36]
+            foreground_image_src = (
+                f"https://api.dicebear.com/8.x/thumbs/png?seed={seed}"
+            )
         else:
-            if not user_id:
-                raise ValueError(
-                    "user_id é obrigatório se image_url não for fornecido."
-                )
-            self.image_url = "mascote_supafit/coachito.png"
-        super().__init__(foreground_image_src=self.image_url, radius=radius, **kwargs)
-        self.on_click = self.handle_click
+            # Fallback: sem imagem
+            foreground_image_src = None
 
-    def handle_click(self, e):
-        print("Avatar clicked!")
+        # conteúdo de fallback
+        if user_name:
+            fallback_text = user_name[:2].upper()
+        elif user_id:
+            fallback_text = str(user_id)[:2].upper()
+        else:
+            fallback_text = "SF"
 
-    def build(self):
-        return self
+        fallback_content = ft.Text(
+            fallback_text,
+            size=max(12, radius * 0.6),
+            weight=ft.FontWeight.BOLD,
+            color=ft.Colors.WHITE,
+            text_align=ft.TextAlign.CENTER,
+        )
+
+        # Cor de fundo baseada no tipo
+        if is_trainer:
+            bg_color = ft.Colors.BLUE_600
+        else:
+            bg_color = ft.Colors.GREY_600
+
+        super().__init__(
+            foreground_image_src=foreground_image_src,
+            content=fallback_content,
+            bgcolor=bg_color,
+            radius=radius,
+            on_image_error=self._handle_image_error,
+            **kwargs,
+        )
+
+        self.user_id = user_id
+        self.is_trainer = is_trainer
+        self.user_name = user_name
+
+    def _handle_image_error(self, e):
+        """Handler para quando a imagem falha ao carregar"""
+        print(f"AVATAR ERROR: Falha ao carregar imagem para user_id: {self.user_id}")
+        print(
+            f"AVATAR ERROR: Detalhes do erro: {e.data if hasattr(e, 'data') else 'Sem detalhes'}"
+        )
+        if hasattr(self, "update"):
+            self.update()
+
+
+def create_avatar(user_id=None, radius=20, is_trainer=False, user_name=None):
+    """
+    Função helper para criar avatares de forma consistente.
+
+    Args:
+        user_id: ID do usuário (usado para gerar avatar único)
+        radius: Raio do avatar
+        is_trainer: Se True, usa imagem do treinador
+        user_name: Nome do usuário (usado para fallback text)
+
+    Returns:
+        AvatarComponent configurado
+    """
+    return AvatarComponent(
+        user_id=user_id, radius=radius, is_trainer=is_trainer, user_name=user_name
+    )
 
 
 class WorkoutTile(ft.ExpansionTile):
