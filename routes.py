@@ -1,4 +1,5 @@
 import flet as ft
+from pages.auth.update_password import UpdatePasswordPage
 from pages.home import Homepage
 from pages.treino import Treinopage
 from pages.profile_settings.profile_settings import ProfileSettingsPage
@@ -18,7 +19,13 @@ def setup_routes(page: ft.Page, supabase, openai):
     """Sistema de rotas melhorado seguindo as melhores práticas do Flet."""
 
     # Configurações de rotas
-    PUBLIC_ROUTES = ["/login", "/register", "/terms", "/forgot_password"]
+    PUBLIC_ROUTES = [
+        "/login",
+        "/register",
+        "/terms",
+        "/forgot_password",
+        "/update_password",
+    ]
     PROFILE_REQUIRED_ROUTES = [
         "/home",
         "/",
@@ -63,6 +70,10 @@ def setup_routes(page: ft.Page, supabase, openai):
             else:
                 page.views.append(build_login_view())
                 return
+
+        # Rota de reset de senha - tratamento especial para deep links
+        elif route.startswith("/update_password"):
+            page.views.append(build_update_password_view())
 
         # Rotas públicas
         elif route in PUBLIC_ROUTES:
@@ -178,6 +189,17 @@ def setup_routes(page: ft.Page, supabase, openai):
                 "Recuperar Senha", show_back_button=True
             ),
             controls=[ForgotPasswordPage(page)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+            padding=20,
+        )
+
+    def build_update_password_view():
+        return ft.View(
+            route="/update_password",
+            appbar=mobile_appbar.create_appbar("Nova Senha", show_back_button=False),
+            controls=[UpdatePasswordPage(page)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO,

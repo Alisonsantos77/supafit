@@ -25,6 +25,10 @@ product = "SupaFit"
 company = "Alison"
 copyright = "Copyright (C) 2025 by Alison"
 
+[tool.flet.android.deep_linking]
+scheme = "https"
+host = "alisondeveloper.com"
+
 permissions = [
   "camera", 
   "request_install_packages",

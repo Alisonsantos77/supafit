@@ -144,14 +144,21 @@ def ForgotPasswordPage(page: ft.Page):
         loading_dialog = show_loading()
 
         try:
-            response = supabase_service.client.auth.reset_password_for_email(email)
+            # URL de redirecionamento que vai capturar os tokens e fazer deep link para o app
+            redirect_url = "https://alisondeveloper.com/reset-password"
+            
+            response = supabase_service.client.auth.reset_password_for_email(
+                email, 
+                {"redirect_to": redirect_url}
+            )
             logger.info(
                 f"Solicitação de redefinição de senha enviada para o email: {email}"
             )
 
             hide_loading(loading_dialog)
             show_success_and_redirect(
-                "/login", "Link de redefinição enviado! Verifique seu email."
+                "/login", 
+                "Link de redefinição enviado! Verifique seu email e clique no link para continuar."
             )
         except Exception as ex:
             hide_loading(loading_dialog)
@@ -184,6 +191,13 @@ def ForgotPasswordPage(page: ft.Page):
                         weight=ft.FontWeight.BOLD,
                         text_align=ft.TextAlign.CENTER,
                     ),
+                    ft.Text(
+                        "Digite seu email para receber o link de redefinição de senha.",
+                        size=14,
+                        color=ft.Colors.BLUE_GREY_600,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Container(height=10),
                     email_field,
                     status_text,
                     reset_button,
