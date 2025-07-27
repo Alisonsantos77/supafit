@@ -104,12 +104,12 @@ class Step7Restrictions(BaseStep):
         restrictions = self.restrictions_input.value.strip()
 
         # Verificar comprimento
-        if len(restrictions) > 500:
+        if len(restrictions) > 50:
             self.restrictions_input.error_text = (
-                "Descrição muito longa (máx. 500 caracteres)."
+                "Descrição muito longa (máx. 50 caracteres)."
             )
             self.restrictions_input.update()
-            self.show_snackbar("Descrição muito longa (máx. 500 caracteres).")
+            self.show_snackbar("Descrição muito longa (máx. 50 caracteres).")
             logger.warning("Restrições excedem o limite de caracteres.")
             return False
 

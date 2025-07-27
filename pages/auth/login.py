@@ -89,23 +89,6 @@ def LoginPage(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
     )
 
-    forgot_password_row = ft.Row(
-        controls=[
-            ft.Text("Esqueceu sua senha?", size=14, color=ft.Colors.BLUE_GREY_600),
-            ft.TextButton(
-                "Recuperar",
-                style=ft.ButtonStyle(
-                    color={
-                        ft.ControlState.HOVERED: ft.Colors.BLUE_400,
-                        ft.ControlState.DEFAULT: ft.Colors.BLUE_700,
-                    },
-                ),
-                on_click=lambda _: page.go("/forgot_password"),
-            ),
-        ],
-        spacing=5,
-        alignment=ft.MainAxisAlignment.CENTER,
-    )
 
     def show_loading(message="Carregando..."):
         if hasattr(page, "dialog") and page.dialog and page.dialog.open:
@@ -273,7 +256,6 @@ def LoginPage(page: ft.Page):
             ft.Column(
                 col={"sm": 6, "md": 5, "lg": 4},
                 controls=[
-                    # ft.Container(height=20),
                     ft.Text(
                         "Acesse sua conta",
                         size=28,
@@ -282,14 +264,12 @@ def LoginPage(page: ft.Page):
                     ),
                     email_field,
                     password_field,
-                    forgot_password_row,
                     status_text,
                     login_button,
                     register_row,
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=10,
             ),
         ],
         alignment=ft.MainAxisAlignment.CENTER,

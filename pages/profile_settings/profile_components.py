@@ -207,6 +207,8 @@ class ProfileSections:
             ft.dropdown.Option("PINK_300", text="Rosa Claro"),
             ft.dropdown.Option("DEEP_PURPLE_700", text="Roxo Escuro"),
             ft.dropdown.Option("TEAL_900", text="Azul Petróleo"),
+            ft.dropdown.Option("YELLOW_ACCENT_700", text="Amarelo Neon"),
+            ft.dropdown.Option("CYAN_ACCENT_200", text="Azul Claro"),
         ]
 
         controller.theme_switch.current = fields.create_switch(
@@ -294,35 +296,6 @@ class ProfileActions:
                             elevation=0,
                             shadow_color=ft.Colors.TRANSPARENT,
                             surface_tint_color=ft.Colors.TRANSPARENT,
-                            padding=ft.padding.symmetric(horizontal=24, vertical=16),
-                            shape=ft.RoundedRectangleBorder(radius=12),
-                        ),
-                        height=56,
-                        expand=True,
-                    ),
-                    ft.Container(width=16),
-                    ft.OutlinedButton(
-                        content=ft.Row(
-                            [
-                                ft.Icon(ft.Icons.ARROW_BACK, size=18),
-                                ft.Container(width=8),
-                                ft.Text("Voltar", size=14, weight=ft.FontWeight.W_600),
-                            ],
-                            alignment=ft.MainAxisAlignment.CENTER,
-                            tight=True,
-                            col={"sm": 12, "md": 6},
-                        ),
-                        on_click=back_callback,
-                        style=ft.ButtonStyle(
-                            overlay_color=ft.Colors.with_opacity(
-                                0.08, ft.Colors.ON_SURFACE
-                            ),
-                            side=ft.BorderSide(
-                                width=1,
-                                color=ft.Colors.with_opacity(
-                                    0.12, ft.Colors.ON_SURFACE
-                                ),
-                            ),
                             padding=ft.padding.symmetric(horizontal=24, vertical=16),
                             shape=ft.RoundedRectangleBorder(radius=12),
                         ),

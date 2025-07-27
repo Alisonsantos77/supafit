@@ -25,12 +25,12 @@ def create_question_input() -> ft.TextField:
         max_lines=3,
         shift_enter=True,
         filled=True,
-        border_color=ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE),
-        focused_border_color=ft.Colors.BLUE_400,
+        border_color=ft.Colors.with_opacity(0.1, ft.Colors.PRIMARY),
+        focused_border_color=ft.Colors.PRIMARY,
         content_padding=ft.padding.symmetric(horizontal=16, vertical=14),
         text_style=ft.TextStyle(size=16, height=1.4),
-        max_length=500,
-        counter_style=ft.TextStyle(color=ft.Colors.ON_SURFACE_VARIANT, size=12),
+        max_length=50,
+        counter_style=ft.TextStyle(color=ft.Colors.PRIMARY, size=12),
         on_change=lambda e: setattr(e.control, "error_text", None),
     )
 
@@ -47,7 +47,7 @@ def create_ask_button(
         ref=ft.Ref[ft.IconButton](),
         icon=ft.Icons.SEND_ROUNDED,
         icon_size=22,
-        icon_color=ft.Colors.BLUE_400,
+        icon_color=ft.Colors.PRIMARY,
         style=ft.ButtonStyle(
             padding=16,
             shape=ft.CircleBorder(),

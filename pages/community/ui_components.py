@@ -228,7 +228,7 @@ class VictoryDetailsDialog:
         dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text(self.victory.author_name),
-            icon=AvatarComponent(self.victory.user_id, radius=24, is_trainer=False),
+            icon=AvatarComponent(self.victory.user_id, radius=20, is_trainer=False),
             icon_padding=ft.padding.all(10),
             content=ft.Text(
                 self.victory.content,
@@ -329,10 +329,10 @@ class VictoryForm:
                         [
                             ft.TextField(
                                 ref=self.victory_input,
-                                label="Conte sobre sua conquista... (máx. 200 caracteres)",
+                                label="Conte sobre sua conquista... (máx. 50 caracteres)",
                                 multiline=True,
                                 max_lines=3,
-                                max_length=200,
+                                max_length=50,
                                 border_radius=8,
                                 filled=True,
                                 on_change=update_button_state,
@@ -418,12 +418,18 @@ class SnackBarHelper:
 
     @staticmethod
     def show_success(page: ft.Page, message: str):
-        CustomSnackBar(message, bgcolor=ft.Colors.GREEN_600).show(page)
+        CustomSnackBar(
+            message, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE
+        ).show(page)
 
     @staticmethod
     def show_error(page: ft.Page, message: str):
-        CustomSnackBar(message, bgcolor=ft.Colors.RED_600).show(page)
+        CustomSnackBar(message, bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE).show(
+            page
+        )
 
     @staticmethod
     def show_warning(page: ft.Page, message: str):
-        CustomSnackBar(message, bgcolor=ft.Colors.BLUE_600).show(page)
+        CustomSnackBar(message, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE).show(
+            page
+        )

@@ -132,18 +132,6 @@ def CommunityTab(page: ft.Page, supabase_service):
 
     return ft.Column(
         controls=[
-            ft.Row(
-                controls=[
-                    ft.Icon(ft.Icons.GROUPS, size=32, color=ft.Colors.BLUE_600),
-                    ft.Text(
-                        "Comunidade",
-                        size=24,
-                        weight=ft.FontWeight.BOLD,
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=8,
-            ),
             ft.ResponsiveRow(
                 controls=[
                     *victory_form.build_form_layout(),

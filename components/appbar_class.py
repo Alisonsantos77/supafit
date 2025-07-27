@@ -62,25 +62,23 @@ class MobileAppBar:
             )
             self.page.open(confirm_dialog)
 
-    def create_appbar(self, title: str, show_back_button: bool = False) -> ft.AppBar:
-        """Cria AppBar otimizado para mobile com design moderno."""
-        user_id = self.page.client_storage.get("supafit.user_id")
+    def create_appbar(self, title: str, show_back_button: bool = True) -> ft.AppBar:
+        """
+        Cria AppBar otimizado para mobile com design moderno.
 
-        should_show_back = show_back_button and self.page.route != "/home"
+        Args:
+            title: Título do AppBar
+            show_back_button: Se deve mostrar botão de voltar (padrão: True)
+                             False para telas principais como /home e /login
+        """
 
-        leading = (
-            ft.IconButton(
-                icon=ft.Icons.ARROW_BACK,
-                on_click=lambda _: self.page.go(
-                    self.page.views[-2].route if len(self.page.views) > 1 else "/home"
-                ),
-                tooltip="Voltar",
-                icon_size=24,
-                style=ft.ButtonStyle(color=ft.Colors.PRIMARY),
-            )
-            if should_show_back
-            else None
-        )
+        # Telas que nunca devem ter botão de voltar (pontos de entrada principais)
+        NO_BACK_BUTTON_ROUTES = ["/", "/home", "/login", "/register"]
+
+        # Se a rota atual está na lista de "sem botão de voltar", força show_back_button = False
+        current_route = self.page.route
+        if current_route in NO_BACK_BUTTON_ROUTES:
+            show_back_button = False
 
         return ft.AppBar(
             title=ft.Container(
@@ -90,13 +88,12 @@ class MobileAppBar:
                     weight=ft.FontWeight.W_600,
                     color=ft.Colors.PRIMARY,
                 ),
-                padding=ft.padding.symmetric(horizontal=16),  # Margem lateral no título
+                padding=ft.padding.symmetric(horizontal=16),
             ),
             center_title=True,
-            leading=leading,
             elevation=0,
             bgcolor=ft.Colors.SURFACE,
-            automatically_imply_leading=False,
+            automatically_imply_leading=show_back_button,
             actions=[
                 ft.Container(
                     content=ft.PopupMenuButton(
@@ -222,9 +219,7 @@ class MobileAppBar:
                         elevation=2,
                         shape=ft.RoundedRectangleBorder(radius=12),
                     ),
-                    padding=ft.padding.only(
-                        right=16
-                    ),  # Margem lateral no botão de ação
+                    padding=ft.padding.only(right=16),
                 ),
             ],
         )

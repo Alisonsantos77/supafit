@@ -192,14 +192,7 @@ def ProfileSettingsPage(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
         ),
         padding=ft.padding.all(32),
-        gradient=ft.LinearGradient(
-            colors=[
-                ft.Colors.BLUE_600,
-                ft.Colors.BLUE_800,
-            ],
-            begin=ft.alignment.top_left,
-            end=ft.alignment.bottom_right,
-        ),
+        bgcolor=ft.Colors.PRIMARY,
         border_radius=ft.border_radius.only(
             bottom_left=24,
             bottom_right=24,

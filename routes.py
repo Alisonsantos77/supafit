@@ -1,5 +1,4 @@
 import flet as ft
-from pages.auth.update_password import UpdatePasswordPage
 from pages.home import Homepage
 from pages.treino import Treinopage
 from pages.profile_settings.profile_settings import ProfileSettingsPage
@@ -11,7 +10,6 @@ from pages.community.community_tab import CommunityTab
 from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
 from pages.profile_user.create_profile import CreateProfilePage
-from pages.auth.forgot_password import ForgotPasswordPage
 from utils.alerts import CustomSnackBar
 
 
@@ -23,8 +21,6 @@ def setup_routes(page: ft.Page, supabase, openai):
         "/login",
         "/register",
         "/terms",
-        "/forgot_password",
-        "/update_password",
     ]
     PROFILE_REQUIRED_ROUTES = [
         "/home",
@@ -71,10 +67,6 @@ def setup_routes(page: ft.Page, supabase, openai):
                 page.views.append(build_login_view())
                 return
 
-        # Rota de reset de senha - tratamento especial para deep links
-        elif route.startswith("/update_password"):
-            page.views.append(build_update_password_view())
-
         # Rotas públicas
         elif route in PUBLIC_ROUTES:
             if route == "/login":
@@ -83,8 +75,6 @@ def setup_routes(page: ft.Page, supabase, openai):
                 page.views.append(build_register_view())
             elif route == "/terms":
                 page.views.append(build_terms_view())
-            elif route == "/forgot_password":
-                page.views.append(build_forgot_password_view())
 
         # Rota de criação de perfil (requer autenticação)
         elif route == "/create_profile":
@@ -110,7 +100,6 @@ def setup_routes(page: ft.Page, supabase, openai):
                 page.views.append(build_create_profile_view())
                 return
 
-            # Rotas específicas
             if route == "/home":
                 page.views.append(build_home_view())
             elif route == "/community":
@@ -131,7 +120,6 @@ def setup_routes(page: ft.Page, supabase, openai):
                     page.views.append(build_login_view())
                     return
 
-        # Rota não encontrada
         else:
             show_snackbar(
                 "Rota não encontrada. Redirecionando para login.", ft.Colors.RED_700
@@ -173,33 +161,10 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view de termos de uso."""
         return ft.View(
             route="/terms",
-            appbar=mobile_appbar.create_appbar("Termos de Uso", show_back_button=True),
-            controls=[TermsPage(page, supabase, openai)],
-            vertical_alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            scroll=ft.ScrollMode.AUTO,
-            padding=20,
-        )
-
-    def build_forgot_password_view():
-        """Constrói a view de recuperação de senha."""
-        return ft.View(
-            route="/forgot_password",
             appbar=mobile_appbar.create_appbar(
-                "Recuperar Senha", show_back_button=True
+                "Termos de Uso"
             ),
-            controls=[ForgotPasswordPage(page)],
-            vertical_alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            scroll=ft.ScrollMode.AUTO,
-            padding=20,
-        )
-
-    def build_update_password_view():
-        return ft.View(
-            route="/update_password",
-            appbar=mobile_appbar.create_appbar("Nova Senha", show_back_button=False),
-            controls=[UpdatePasswordPage(page)],
+            controls=[TermsPage(page, supabase, openai)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO,
@@ -210,7 +175,9 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view de criação de perfil."""
         return ft.View(
             route="/create_profile",
-            appbar=mobile_appbar.create_appbar("Criar Perfil", show_back_button=True),
+            appbar=mobile_appbar.create_appbar(
+                "Criar Perfil"
+            ),
             controls=[CreateProfilePage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -222,7 +189,9 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view da página inicial."""
         return ft.View(
             route="/home",
-            appbar=mobile_appbar.create_appbar("SupaFit", show_back_button=False),
+            appbar=mobile_appbar.create_appbar(
+                "SupaFit"
+            ),
             controls=[Homepage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -234,7 +203,9 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view da comunidade."""
         return ft.View(
             route="/community",
-            appbar=mobile_appbar.create_appbar("Comunidade", show_back_button=True),
+            appbar=mobile_appbar.create_appbar(
+                "Comunidade"
+            ),
             controls=[CommunityTab(page, supabase)],
             scroll=ft.ScrollMode.AUTO,
             padding=20,
@@ -244,19 +215,23 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view do treinador."""
         return ft.View(
             route="/trainer",
-            appbar=mobile_appbar.create_appbar("Treinador", show_back_button=True),
+            appbar=mobile_appbar.create_appbar(
+                "Treinador"
+            ),
             controls=[TrainerTab(page, supabase, openai)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO,
             padding=20,
         )
-
+        
     def build_profile_settings_view():
         """Constrói a view de configurações do perfil."""
         return ft.View(
             route="/profile_settings",
-            appbar=mobile_appbar.create_appbar("Perfil", show_back_button=True),
+            appbar=mobile_appbar.create_appbar(
+                "Perfil"
+            ),
             controls=[ProfileSettingsPage(page)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -268,7 +243,9 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view do histórico."""
         return ft.View(
             route="/history",
-            appbar=mobile_appbar.create_appbar("Histórico", show_back_button=True),
+            appbar=mobile_appbar.create_appbar(
+                "Histórico"
+            ),
             controls=[HistoryPage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -281,7 +258,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         return ft.View(
             route=f"/treino/{day}",
             appbar=mobile_appbar.create_appbar(
-                f"Treino - {day.capitalize()}", show_back_button=True
+                f"Treino - {day.capitalize()}"
             ),
             controls=[Treinopage(page, supabase, day, user_id)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,

@@ -35,7 +35,7 @@ async def load_chat_history(
         chat_container.controls.append(
             ChatMessage(
                 Message(
-                    user_name="Treinador",
+                    user_name="Treinador Coachito",
                     text="Olá! Como posso ajudar com seu treino hoje? 😄",
                     user_type="trainer",
                     created_at=datetime.now().isoformat(),
@@ -152,7 +152,7 @@ async def clear_chat(
                 chat_container.controls.append(
                     ChatMessage(
                         Message(
-                            user_name="Treinador",
+                            user_name="Treinador Coachito",
                             text="Olá! Como posso ajudar com seu treino hoje? 😄",
                             user_type="trainer",
                             created_at=datetime.now().isoformat(),
@@ -284,7 +284,7 @@ async def ask_question(
         typing = ft.AnimatedSwitcher(
             content=ft.Row(
                 [
-                    ft.Text("Treinador está digitando...", size=14, italic=True),
+                    ft.Text("Coachito está digitando...", size=14, italic=True),
                     ft.ProgressRing(width=16, height=16, stroke_width=2),
                 ],
                 alignment=ft.MainAxisAlignment.START,
@@ -455,7 +455,7 @@ async def ask_question(
             chat_container.controls.append(
                 ChatMessage(
                     Message(
-                        "Treinador",
+                        "Treinador Coachito",
                         chunk.strip(),
                         "assistant",
                         datetime.now().isoformat(),
