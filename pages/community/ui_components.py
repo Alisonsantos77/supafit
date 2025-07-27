@@ -99,16 +99,8 @@ class VictoryCard:
                                         animation_duration=200,
                                     ),
                                     icon_size=20,
-                                    on_click=lambda e: (
-                                        setattr(
-                                            e.control,
-                                            "selected",
-                                            not e.control.selected,
-                                        ),
-                                        self.on_like_click(
-                                            self.victory.id, e.control.selected
-                                        ),
-                                        self.page.update(),
+                                    on_click=lambda e: self.on_like_click(
+                                        self.victory.id, e.control.selected
                                     ),
                                 ),
                                 ft.Text(

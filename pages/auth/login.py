@@ -22,7 +22,7 @@ def LoginPage(page: ft.Page):
 
     email_field = ft.TextField(
         label="Email",
-        color=ft.Colors.BLUE,
+        color=ft.Colors.BLUE_400,
         width=320,
         border="underline",
         filled=True,
@@ -34,7 +34,7 @@ def LoginPage(page: ft.Page):
     )
     password_field = ft.TextField(
         label="Senha",
-        color=ft.Colors.BLUE,
+        color=ft.Colors.BLUE_400,
         width=320,
         border="underline",
         filled=True,
@@ -88,7 +88,6 @@ def LoginPage(page: ft.Page):
         spacing=5,
         alignment=ft.MainAxisAlignment.CENTER,
     )
-
 
     def show_loading(message="Carregando..."):
         if hasattr(page, "dialog") and page.dialog and page.dialog.open:

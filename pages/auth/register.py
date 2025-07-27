@@ -22,7 +22,6 @@ def RegisterPage(page: ft.Page):
     supabase_service = SupabaseService.get_instance(page)
     page.scroll = ft.ScrollMode.AUTO
 
-    # Referências dos controles
     register_btn = ft.Ref[ft.ElevatedButton]()
     form_container = ft.Ref[ft.Container]()
 
@@ -41,6 +40,7 @@ def RegisterPage(page: ft.Page):
         prefix_icon=ft.Icons.EMAIL,
         disabled=False,
         animate_opacity=AnimationPresets.fade_in(),
+        color=ft.Colors.BLUE_400,
     )
 
     password_field = ft.TextField(
@@ -57,6 +57,7 @@ def RegisterPage(page: ft.Page):
         can_reveal_password=True,
         disabled=False,
         animate_opacity=AnimationPresets.fade_in(),
+        color=ft.Colors.BLUE_400,
     )
 
     password_confirmation_field = ft.TextField(
@@ -73,6 +74,7 @@ def RegisterPage(page: ft.Page):
         can_reveal_password=True,
         disabled=False,
         animate_opacity=AnimationPresets.fade_in(),
+        color=ft.Colors.BLUE_400,
     )
 
     level_dropdown = ft.Dropdown(
@@ -230,7 +232,6 @@ def RegisterPage(page: ft.Page):
                 else:
                     AnimationHelpers.animate_form_error(password_field, page)
 
-            # Mostrar snackbar animado
             SnackbarAnimations.show_animated_snackbar(
                 page, error_message, "red", icon=ft.Icons.ERROR
             )
@@ -240,7 +241,6 @@ def RegisterPage(page: ft.Page):
 
     def register(e):
         """Função principal de registro"""
-        # Animar clique do botão
         AnimationHelpers.animate_button_click(register_button, page)
 
         # Validação client-side
@@ -251,7 +251,6 @@ def RegisterPage(page: ft.Page):
         password = password_field.value.strip()
         level = level_dropdown.value
 
-        # Mostrar diálogo de carregamento animado
         loading_dialog = DialogAnimations.create_loading_dialog("Criando sua conta...")
         DialogAnimations.show_dialog_with_animation(page, loading_dialog)
 
@@ -269,10 +268,8 @@ def RegisterPage(page: ft.Page):
 
             page.close(loading_dialog)
 
-            # Limpar formulário
             clear_form()
 
-            # Exibir diálogo de sucesso animado
             success_dialog = DialogAnimations.create_success_dialog(
                 "Conta criada com sucesso!", "Verifique seu email para ativar a conta."
             )
@@ -358,7 +355,6 @@ def RegisterPage(page: ft.Page):
 
     register_button.on_click = register
 
-    # Container do Lottie com animação usando AnimationPresets
     lottie_container = ft.Container(
         content=fl.Lottie(
             src=LOTTIE_REGISTER,
@@ -371,7 +367,6 @@ def RegisterPage(page: ft.Page):
         opacity=1.0,
     )
 
-    # Container principal do formulário com animação
     form_column = ft.Container(
         content=ft.Column(
             controls=[
@@ -396,8 +391,8 @@ def RegisterPage(page: ft.Page):
                 ft.Column(
                     [terms_checkbox, terms_link],
                     alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,  # Centralizar horizontalmente
-                    spacing=8,  # Espaçamento entre checkbox e link
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=8,
                 ),
                 register_button,
                 login_row,
@@ -411,7 +406,6 @@ def RegisterPage(page: ft.Page):
         opacity=1.0,
     )
 
-    # Layout responsivo principal
     layout_register = ft.ResponsiveRow(
         controls=[
             # ft.Column(
@@ -432,14 +426,12 @@ def RegisterPage(page: ft.Page):
         columns=12,
     )
 
-    # Usar AnimationHelpers para animação de entrada da página
     def animate_page_entry():
         """Animação de entrada suave da página usando AnimationHelpers"""
         AnimationHelpers.animate_container_entry(
             layout_register, page, delay=0.1, duration=AnimationPresets.SLOW
         )
 
-    # Executar animação de entrada
     animate_page_entry()
 
     return layout_register

@@ -22,7 +22,7 @@ class CommunityController:
     def load_victories(self, category: str = "Todas") -> List[Victory]:
         """Carrega as vitórias filtradas por categoria"""
         self.selected_category = category
-        return self.service.load_victories(category)
+        return self.service.load_victories(category, self.user_id)
 
     def create_victory(self, content: str, category: str) -> bool:
         """Cria uma nova vitória com validações"""
@@ -60,17 +60,21 @@ class CommunityController:
 
         return success
 
+
     def toggle_like(self, victory_id: str, currently_liked: bool) -> bool:
         """Alterna o like de uma vitória"""
+        logger.info(
+            f"[TOGGLE] Iniciando toggle_like para {victory_id}, currently_liked: {currently_liked}"
+        )
+
         if self.user_id == "supafit_user":
-            SnackBarHelper.show_error(
-                self.page, "Você precisa estar logado para curtir!"
-            )
+            SnackBarHelper.show_error(self.page, "Você precisa estar logado para curtir!")
             return False
 
         success = self.service.toggle_like(victory_id, self.user_id, currently_liked)
 
         if not success:
+            logger.error(f"[TOGGLE_FAIL] Erro ao curtir/descurtir {victory_id}")
             SnackBarHelper.show_error(self.page, "Erro ao curtir/descurtir!")
 
         return success

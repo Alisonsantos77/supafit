@@ -40,9 +40,16 @@ def CommunityTab(page: ft.Page, supabase_service):
             ))
             page.update()
 
+
     def handle_like_click(victory_id: str, currently_liked: bool):
+        logger.info(
+            f"[LIKE_CLICK] Vitória: {victory_id}, Liked atualmente: {currently_liked}"
+        )
         if controller.toggle_like(victory_id, currently_liked):
+            logger.info(f"[LIKE_SUCCESS] Toggle executado com sucesso para {victory_id}")
             update_victories(controller.get_selected_category())
+        else:
+            logger.error(f"[LIKE_FAIL] Falha ao alternar like para {victory_id}")
 
     def handle_delete_victory(victory_id: str):
         success, message = controller.delete_victory(
@@ -61,7 +68,7 @@ def CommunityTab(page: ft.Page, supabase_service):
                 bgcolor=ft.Colors.RED_600,
             ))
             page.update()
-            
+
     def handle_show_details(victory):
         dialog = VictoryDetailsDialog(victory, page)
         dialog.show()

@@ -13,7 +13,8 @@ class CommunityService:
     def __init__(self, supabase_service):
         self.supabase = supabase_service
 
-    def load_victories(self, category: str = "Todas") -> List[Victory]:
+
+    def load_victories(self, category: str = "Todas", user_id: str = None) -> List[Victory]:
         """Carrega as vitórias filtradas por categoria"""
         try:
             query = self.supabase.client.table("victories").select("*")
@@ -22,20 +23,24 @@ class CommunityService:
 
             resp_victories = query.order("created_at", desc=True).execute()
             victories_data = resp_victories.data or []
-            logger.info(f"Vitórias carregadas do Supabase: {len(victories_data)} itens para categoria {category}")
+            logger.info(
+                f"Vitórias carregadas do Supabase: {len(victories_data)} itens para categoria {category}"
+            )
             if not victories_data:
                 logger.info("Nenhuma vitória encontrada.")
                 return []
 
             # Enriquecer os dados das vitórias
-            victories = self._enrich_victories_data(victories_data)
+            victories = self._enrich_victories_data(victories_data, user_id)
             return [Victory.from_dict(v) for v in victories]
 
         except Exception as e:
             logger.error(f"Erro ao carregar vitórias: {str(e)}")
             return []
 
-    def _enrich_victories_data(self, victories_data: List[Dict]) -> List[Dict]:
+    def _enrich_victories_data(
+        self, victories_data: List[Dict], user_id: str = None
+    ) -> List[Dict]:
         """Enriquece os dados das vitórias com nomes e likes"""
         user_ids = [v["user_id"] for v in victories_data]
         victory_ids = [v["id"] for v in victories_data]
@@ -45,16 +50,14 @@ class CommunityService:
 
         # Buscar dados de likes
         likes_map = self._get_likes_count(victory_ids)
-        user_liked_ids = self._get_user_liked_victories(victory_ids)
+        user_liked_ids = self._get_user_liked_victories(victory_ids, user_id)
 
         # Aplicar os dados enriquecidos
         for victory in victories_data:
             uid = victory["user_id"]
             vid = victory["id"]
 
-            victory["author_name"] = name_map.get(
-                uid, self._generate_fallback_name(uid)
-            )
+            victory["author_name"] = name_map.get(uid, self._generate_fallback_name(uid))
             victory["likes"] = likes_map.get(vid, 0)
             victory["liked"] = vid in user_liked_ids
 
