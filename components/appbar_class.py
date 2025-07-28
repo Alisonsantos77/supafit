@@ -94,6 +94,7 @@ class MobileAppBar:
             elevation=0,
             bgcolor=ft.Colors.SURFACE,
             automatically_imply_leading=show_back_button,
+            color=ft.Colors.PRIMARY,
             actions=[
                 ft.Container(
                     content=ft.PopupMenuButton(

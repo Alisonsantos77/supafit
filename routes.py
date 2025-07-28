@@ -190,7 +190,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         return ft.View(
             route="/home",
             appbar=mobile_appbar.create_appbar(
-                "SupaFit"
+                "Frequência de Treino"
             ),
             controls=[Homepage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,

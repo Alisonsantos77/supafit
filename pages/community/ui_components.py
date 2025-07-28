@@ -3,24 +3,30 @@ from datetime import datetime
 from .models import Victory
 from components.components import AvatarComponent
 from utils.alerts import CustomSnackBar
+from pages.auth.utils.animations import (
+    AnimationPresets,
+    AnimationHelpers,
+    SnackbarAnimations,
+    DialogAnimations,
+)
 
 category_Colors = {
-    "Força": ft.Colors.RED_100,
-    "Resistência": ft.Colors.BLUE_100,
-    "Disciplina": ft.Colors.PURPLE_100,
-    "Nutrição": ft.Colors.GREEN_100,
+    "Força": ft.Colors.RED_500,
+    "Resistência": ft.Colors.BLUE_500,
+    "Disciplina": ft.Colors.PURPLE_500,
+    "Nutrição": ft.Colors.GREEN_500,
 }
 
 category_text_Colors = {
-    "Força": ft.Colors.RED_800,
-    "Resistência": ft.Colors.BLUE_800,
-    "Disciplina": ft.Colors.PURPLE_800,
-    "Nutrição": ft.Colors.GREEN_800,
+    "Força": ft.Colors.RED_700,
+    "Resistência": ft.Colors.BLUE_700,
+    "Disciplina": ft.Colors.PURPLE_700,
+    "Nutrição": ft.Colors.GREEN_700,
 }
 
 
 class VictoryCard:
-    """Card de vitória com visual profissional tipo Twitter/X."""
+    """Card de vitória com animações profissionais e design minimalista."""
 
     def __init__(
         self,
@@ -38,17 +44,30 @@ class VictoryCard:
         self.on_details_click = on_details_click
         self.page = page
         self.ref = ft.Ref[ft.Dismissible]()
-        self.opacity = 1
-        self.scale = 1
 
     def build(self) -> ft.Dismissible:
+        like_icon = ft.IconButton(
+            icon=ft.Icons.FAVORITE_BORDER,
+            selected_icon=ft.Icons.FAVORITE,
+            selected=self.victory.liked,
+            style=ft.ButtonStyle(
+                color={
+                    "selected": ft.Colors.RED_500,
+                    "": ft.Colors.GREY_500,
+                },
+            ),
+            icon_size=18,
+            animate_scale=AnimationPresets.elastic_in(),
+            on_click=lambda e: self._handle_like_with_animation(e),
+        )
+
         content = ft.Container(
             content=ft.Column(
                 [
                     ft.ListTile(
                         leading=AvatarComponent(
                             user_id=self.victory.user_id,
-                            radius=20,
+                            radius=18,
                             is_trainer=False,
                             user_name=self.victory.author_name,
                         ),
@@ -59,21 +78,29 @@ class VictoryCard:
                         ),
                         subtitle=ft.Text(
                             self.victory.get_formatted_date(),
-                            size=12,
+                            size=11,
+                            color=ft.Colors.GREY_600,
                         ),
-                        trailing=ft.Chip(
-                            label=ft.Text(
+                        trailing=ft.Container(
+                            content=ft.Text(
                                 self.victory.category,
-                                size=12,
+                                size=11,
+                                weight=ft.FontWeight.W_500,
                                 color=category_text_Colors.get(
-                                    self.victory.category, ft.Colors.PRIMARY
+                                    self.victory.category, ft.Colors.GREY_700
                                 ),
                             ),
-                            padding=ft.padding.symmetric(horizontal=8),
-                            bgcolor=category_Colors.get(
-                                self.victory.category, ft.Colors.GREY_200
+                            border=ft.border.all(
+                                1,
+                                category_Colors.get(
+                                    self.victory.category, ft.Colors.GREY_400
+                                ),
                             ),
+                            border_radius=12,
+                            padding=ft.padding.symmetric(horizontal=8, vertical=4),
+                            animate_scale=AnimationPresets.button_hover(),
                         ),
+                        content_padding=ft.padding.symmetric(horizontal=16, vertical=8),
                     ),
                     ft.Container(
                         content=ft.Text(
@@ -82,95 +109,45 @@ class VictoryCard:
                             max_lines=3,
                             overflow=ft.TextOverflow.ELLIPSIS,
                         ),
-                        padding=ft.padding.only(left=16, right=16, bottom=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=8),
                     ),
                     ft.Container(
                         content=ft.Row(
                             [
-                                ft.IconButton(
-                                    icon=ft.Icons.FAVORITE_BORDER,
-                                    selected_icon=ft.Icons.FAVORITE,
-                                    selected=self.victory.liked,
-                                    style=ft.ButtonStyle(
-                                        color={
-                                            "selected": ft.Colors.RED_500,
-                                            "": ft.Colors.GREY_500,
-                                        },
-                                        animation_duration=200,
-                                    ),
-                                    icon_size=20,
-                                    on_click=lambda e: self.on_like_click(
-                                        self.victory.id, e.control.selected
-                                    ),
-                                ),
+                                like_icon,
                                 ft.Text(
                                     str(self.victory.likes),
                                     size=12,
+                                    color=ft.Colors.GREY_600,
                                 ),
                                 ft.Container(width=16),
                                 ft.IconButton(
-                                    icon=ft.Icons.COMMENT,
-                                    icon_size=20,
+                                    icon=ft.Icons.VISIBILITY,
+                                    icon_size=18,
+                                    tooltip="Ver detalhes",
+                                    animate_scale=AnimationPresets.button_hover(),
                                     on_click=lambda e: self.on_details_click(
                                         self.victory
                                     ),
                                 ),
-                                ft.Text("Ver mais", size=12),
+                                ft.Text(
+                                    "Ver mais",
+                                    size=12,
+                                    color=ft.Colors.GREY_600,
+                                ),
                             ],
                             alignment=ft.MainAxisAlignment.START,
                         ),
-                        padding=ft.padding.only(left=16, right=16, bottom=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=8),
                     ),
                 ],
                 spacing=0,
             ),
-            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT),
-            animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
-            on_click=lambda e: self.on_details_click(self.victory),
-            on_hover=lambda e: setattr(
-                content,
-                "shadow",
-                (
-                    ft.BoxShadow(4, color=ft.Colors.GREY_300)
-                    if e.data == "true"
-                    else ft.BoxShadow(0)
-                ),
-            ),
-        )
-
-        def handle_close_modal(e):
-            self.on_delete_click(self.victory.id)
-            self.page.close(dialog)
-
-        def show_unauthorized_dialog():
-            unauthorized_dialog = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Ação Não Permitida"),
-                content=ft.Text("Você só pode excluir suas próprias vitórias."),
-                icon=ft.Icon(name=ft.Icons.WARNING, color=ft.Colors.RED, size=40),
-                icon_padding=ft.padding.all(10),
-                content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
-                actions=[
-                    ft.TextButton(
-                        "OK", on_click=lambda e: self.page.close(unauthorized_dialog)
-                    ),
-                ],
-                actions_alignment=ft.MainAxisAlignment.CENTER,
-            )
-            self.page.open(unauthorized_dialog)
-
-        dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text("Confirmar Exclusão"),
-            content=ft.Text("Deseja realmente excluir esta vitória?"),
-            icon=ft.Icon(name=ft.Icons.WARNING, color=ft.Colors.RED, size=40),
-            icon_padding=ft.padding.all(10),
-            content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
-            actions=[
-                ft.TextButton("Sim", on_click=handle_close_modal),
-                ft.TextButton("Não", on_click=lambda e: self.page.close(dialog)),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+            border_radius=8,
+            animate_scale=AnimationPresets.slide_in(),
+            animate_opacity=AnimationPresets.fade_in(),
+            on_hover=self._handle_hover,
         )
 
         def handle_confirm_dismiss(e: ft.DismissibleDismissEvent):
@@ -178,10 +155,10 @@ class VictoryCard:
                 e.direction == ft.DismissDirection.END_TO_START
                 and self.victory.user_id == self.user_id
             ):
-                self.page.open(dialog)
+                self._show_delete_dialog()
                 return False
             else:
-                show_unauthorized_dialog()
+                self._show_unauthorized_dialog()
                 return False
 
         return ft.Dismissible(
@@ -193,52 +170,156 @@ class VictoryCard:
                 else None
             ),
             background=ft.Container(
-                bgcolor=ft.Colors.RED_100,
                 content=ft.Row(
                     [
-                        ft.Icon(ft.Icons.DELETE, color=ft.Colors.RED_800),
-                        ft.Text("Excluir", color=ft.Colors.RED_800),
+                        ft.Icon(ft.Icons.DELETE_OUTLINE, color=ft.Colors.RED_600),
+                        ft.Text(
+                            "Excluir",
+                            color=ft.Colors.RED_600,
+                            weight=ft.FontWeight.W_500,
+                        ),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=8,
                 ),
                 padding=ft.padding.all(16),
+                animate_opacity=AnimationPresets.fade_in(AnimationPresets.FAST),
             ),
             on_confirm_dismiss=handle_confirm_dismiss,
             dismiss_thresholds={ft.DismissDirection.END_TO_START: 0.2},
         )
 
+    def _handle_like_with_animation(self, e):
+        """Manipula o clique do like com animação de feedback"""
+        AnimationHelpers.animate_button_click(e.control, self.page)
+        self.on_like_click(self.victory.id, e.control.selected)
+
+    def _handle_hover(self, e):
+        """Aplica efeito hover com animação suave"""
+        e.control.scale = 1.02 if e.data == "true" else 1.0
+        e.control.update()
+
+    def _show_delete_dialog(self):
+        """Exibe diálogo de confirmação de exclusão com animação"""
+        dialog = ft.AlertDialog(
+            title=ft.Text("Confirmar Exclusão"),
+            content=ft.Text("Deseja realmente excluir esta vitória?"),
+            actions=[
+                ft.TextButton(
+                    "Cancelar",
+                    on_click=lambda e: self.page.close(dialog),
+                    animate_scale=AnimationPresets.button_hover(),
+                ),
+                ft.FilledButton(
+                    "Excluir",
+                    on_click=lambda e: self._handle_delete_confirm(dialog),
+                    animate_scale=AnimationPresets.button_hover(),
+                ),
+            ],
+        )
+        DialogAnimations.show_dialog_with_animation(self.page, dialog)
+
+    def _show_unauthorized_dialog(self):
+        """Exibe diálogo de ação não permitida com animação"""
+        dialog = ft.AlertDialog(
+            title=ft.Text("Ação Não Permitida"),
+            content=ft.Text("Você só pode excluir suas próprias vitórias."),
+            actions=[
+                ft.TextButton(
+                    "OK",
+                    on_click=lambda e: self.page.close(dialog),
+                    animate_scale=AnimationPresets.button_hover(),
+                ),
+            ],
+        )
+        DialogAnimations.show_dialog_with_animation(self.page, dialog)
+
+    def _handle_delete_confirm(self, dialog):
+        """Confirma a exclusão da vitória com feedback visual"""
+        AnimationHelpers.animate_success_feedback(dialog.content, self.page)
+        self.on_delete_click(self.victory.id)
+        self.page.close(dialog)
+
 
 class VictoryDetailsDialog:
-    """Diálogo com estilo baseado no exemplo com ícone, usando avatar do autor."""
+    """Diálogo de detalhes da vitória com design limpo e animações."""
 
     def __init__(self, victory: Victory, page: ft.Page):
         self.victory = victory
         self.page = page
 
     def show(self):
+        """Exibe o diálogo com animação de entrada"""
         dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(self.victory.author_name),
-            icon=AvatarComponent(self.victory.user_id, radius=20, is_trainer=False),
-            icon_padding=ft.padding.all(10),
-            content=ft.Text(
-                self.victory.content,
-                size=14,
-                selectable=True,
+            title=ft.Row(
+                [
+                    AvatarComponent(
+                        self.victory.user_id,
+                        radius=16,
+                        is_trainer=False,
+                        user_name=self.victory.author_name,
+                    ),
+                    ft.Column(
+                        [
+                            ft.Text(
+                                self.victory.author_name,
+                                weight=ft.FontWeight.W_500,
+                            ),
+                            ft.Text(
+                                self.victory.get_formatted_date(),
+                                size=12,
+                                color=ft.Colors.GREY_600,
+                            ),
+                        ],
+                        spacing=2,
+                    ),
+                ],
+                spacing=12,
             ),
-            content_padding=ft.padding.symmetric(horizontal=30, vertical=20),
+            content=ft.Column(
+                [
+                    ft.Container(
+                        content=ft.Text(
+                            self.victory.category,
+                            size=11,
+                            weight=ft.FontWeight.W_500,
+                            color=category_text_Colors.get(
+                                self.victory.category, ft.Colors.GREY_700
+                            ),
+                        ),
+                        border=ft.border.all(
+                            1,
+                            category_Colors.get(
+                                self.victory.category, ft.Colors.GREY_400
+                            ),
+                        ),
+                        border_radius=12,
+                        padding=ft.padding.symmetric(horizontal=8, vertical=4),
+                        alignment=ft.alignment.center,
+                        animate_scale=AnimationPresets.bounce_in(),
+                    ),
+                    ft.Text(
+                        self.victory.content,
+                        size=14,
+                        selectable=True,
+                    ),
+                ],
+                spacing=16,
+                tight=True,
+            ),
             actions=[
-                ft.TextButton("Fechar", on_click=lambda e: self.page.close(dialog)),
+                ft.TextButton(
+                    "Fechar",
+                    on_click=lambda e: self.page.close(dialog),
+                    animate_scale=AnimationPresets.button_hover(),
+                ),
             ],
-            actions_alignment=ft.MainAxisAlignment.CENTER,
         )
-
-        self.page.open(dialog)
+        DialogAnimations.show_dialog_with_animation(self.page, dialog)
 
 
 class CategoryFilter:
-    """Filtros de categoria com chips profissionais."""
+    """Filtros de categoria com design minimalista e animações."""
 
     def __init__(self, categories: list, selected_category: str, on_category_select):
         self.categories = categories
@@ -246,29 +327,41 @@ class CategoryFilter:
         self.on_category_select = on_category_select
 
     def build(self) -> ft.Container:
-        chips = [
-            ft.Chip(
-                label=ft.Text(
+        """Constrói os chips de filtro com animações"""
+        chips = []
+        for category in self.categories:
+            is_selected = category == self.selected_category
+            chip = ft.Container(
+                content=ft.Text(
                     category,
                     size=12,
+                    weight=ft.FontWeight.W_500,
                     color=(
                         ft.Colors.WHITE
-                        if category == self.selected_category
-                        else category_text_Colors.get(category, ft.Colors.GREY_800)
+                        if is_selected
+                        else category_text_Colors.get(category, ft.Colors.GREY_700)
                     ),
                 ),
-                selected=category == self.selected_category,
-                on_select=self.on_category_select,
                 bgcolor=(
-                    ft.Colors.GREY_900
-                    if category == self.selected_category
-                    else category_Colors.get(category, ft.Colors.GREY_200)
+                    category_Colors.get(category, ft.Colors.GREY_400)
+                    if is_selected
+                    else ft.Colors.GREY_50
                 ),
-                padding=ft.padding.symmetric(horizontal=12),
-                animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+                border=(
+                    None
+                    if is_selected
+                    else ft.border.all(
+                        1, category_Colors.get(category, ft.Colors.GREY_400)
+                    )
+                ),
+                border_radius=16,
+                padding=ft.padding.symmetric(horizontal=16, vertical=8),
+                animate_scale=AnimationPresets.bounce_in(AnimationPresets.FAST),
+                ink=True,
+                on_click=lambda e, cat=category: self._handle_select(cat),
             )
-            for category in self.categories
-        ]
+            chips.append(chip)
+
         return ft.Container(
             content=ft.Row(
                 controls=chips,
@@ -276,12 +369,31 @@ class CategoryFilter:
                 spacing=8,
                 run_spacing=8,
                 alignment=ft.MainAxisAlignment.CENTER,
-            )
+            ),
+            alignment=ft.alignment.center,
+            animate_opacity=AnimationPresets.fade_in(),
         )
+
+    def _handle_select(self, category):
+        """Manipula a seleção de categoria com feedback visual"""
+
+        class MockEvent:
+            def __init__(self, category):
+                self.control = MockControl(category)
+
+        class MockControl:
+            def __init__(self, category):
+                self.label = MockLabel(category)
+
+        class MockLabel:
+            def __init__(self, category):
+                self.value = category
+
+        self.on_category_select(MockEvent(category))
 
 
 class VictoryForm:
-    """Formulário profissional para postar vitórias."""
+    """Formulário moderno para postar vitórias com animações."""
 
     def __init__(self, categories: list, on_post_victory, page: ft.Page):
         self.categories = categories[:-1]
@@ -290,138 +402,205 @@ class VictoryForm:
         self.victory_input = ft.Ref[ft.TextField]()
         self.category_dropdown = ft.Ref[ft.Dropdown]()
         self.post_button = ft.Ref[ft.ElevatedButton]()
+        self.char_counter = ft.Ref[ft.Text]()
 
     def build_form_layout(self) -> list:
-        def update_button_state(e=None):
-            """Atualiza o estado do botão com base no conteúdo e autenticação."""
-            if not self.post_button.current:  # Verifica se o botão foi adicionado
-                return
-            is_authenticated = self.page.client_storage.get("supafit.user_id")
-            has_content = (
-                self.victory_input.current.value.strip()
-                if self.victory_input.current
-                else False
-            )
-            self.post_button.current.disabled = not (is_authenticated and has_content)
-            self.victory_input.current.disabled = not is_authenticated
-            self.category_dropdown.current.disabled = not is_authenticated
-            self.post_button.current.update()
-            self.victory_input.current.update()
-            self.category_dropdown.current.update()
+        """Constrói o layout do formulário com animações"""
 
-        form = ft.Container(
+        def update_character_count(e=None):
+            if self.victory_input.current and self.char_counter.current:
+                current_length = len(self.victory_input.current.value or "")
+                self.char_counter.current.value = f"{current_length}/50"
+                self.char_counter.current.color = (
+                    ft.Colors.RED_500 if current_length > 40 else ft.Colors.GREY_600
+                )
+                if current_length > 40:
+                    AnimationHelpers.animate_form_error(
+                        self.victory_input.current, self.page
+                    )
+                self.char_counter.current.update()
+            self._update_button_state()
+
+        def update_button_state(e=None):
+            self._update_button_state()
+
+        form_container = ft.Container(
             content=ft.Column(
-                controls=[
+                [
                     ft.Text(
                         "Compartilhe sua vitória",
-                        size=16,
-                        weight=ft.FontWeight.W_500,
+                        size=18,
+                        weight=ft.FontWeight.W_600,
                     ),
-                    ft.ResponsiveRow(
+                    ft.Column(
                         [
                             ft.TextField(
                                 ref=self.victory_input,
-                                label="Conte sobre sua conquista... (máx. 50 caracteres)",
+                                label="Conte sobre sua conquista...",
                                 multiline=True,
                                 max_lines=3,
                                 max_length=50,
                                 border_radius=8,
                                 filled=True,
+                                on_change=update_character_count,
+                                disabled=not self._is_authenticated(),
+                                expand=True,
+                                animate_opacity=AnimationPresets.fade_in(),
+                            ),
+                            ft.Row(
+                                [
+                                    ft.Text(
+                                        ref=self.char_counter,
+                                        value="0/50",
+                                        size=11,
+                                        color=ft.Colors.GREY_600,
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.END,
+                            ),
+                        ],
+                        spacing=4,
+                    ),
+                    ft.Row(
+                        [
+                            ft.Dropdown(
+                                ref=self.category_dropdown,
+                                label="Categoria",
+                                options=[
+                                    ft.dropdown.Option(
+                                        text=cat,
+                                        key=cat,
+                                    )
+                                    for cat in self.categories
+                                ],
+                                border_radius=8,
+                                filled=True,
+                                width=150,
+                                disabled=not self._is_authenticated(),
                                 on_change=update_button_state,
-                                animate_opacity=ft.Animation(
-                                    300, ft.AnimationCurve.EASE_IN_OUT
+                                animate_opacity=AnimationPresets.fade_in(
+                                    AnimationPresets.SLOW
                                 ),
-                                disabled=not self.page.client_storage.get(
-                                    "supafit.user_id"
-                                ),
-                                col={"sm": 12, "md": 8, "lg": 6},
                             ),
-                            ft.Container(
-                                content=ft.Row(
-                                    [
-                                        ft.Dropdown(
-                                            ref=self.category_dropdown,
-                                            label="Categoria",
-                                            options=[
-                                                ft.dropdown.Option(cat)
-                                                for cat in self.categories
-                                            ],
-                                            border_radius=8,
-                                            filled=True,
-                                            width=150,
-                                            disabled=not self.page.client_storage.get(
-                                                "supafit.user_id"
-                                            ),
-                                        ),
-                                        ft.ElevatedButton(
-                                            ref=self.post_button,
-                                            text="Publicar",
-                                            icon=ft.Icons.SEND,
-                                            style=ft.ButtonStyle(
-                                                elevation=2,
-                                                shape=ft.RoundedRectangleBorder(
-                                                    radius=5
-                                                ),
-                                            ),
-                                            on_click=self.on_post_victory,
-                                            animate_scale=ft.Animation(
-                                                200, ft.AnimationCurve.EASE_OUT
-                                            ),
-                                            disabled=not self.page.client_storage.get(
-                                                "supafit.user_id"
-                                            ),
-                                        ),
-                                    ],
-                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            ft.ElevatedButton(
+                                ref=self.post_button,
+                                text="Publicar",
+                                icon=ft.Icons.SEND,
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8),
                                 ),
-                                padding=ft.padding.only(top=8),
-                                col={"sm": 12, "md": 4, "lg": 6},
+                                on_click=self._handle_post_with_animation,
+                                disabled=not self._is_authenticated(),
+                                animate_scale=AnimationPresets.elastic_in(
+                                    AnimationPresets.FAST
+                                ),
                             ),
-                        ]
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.Text(
                         "Faça login para compartilhar suas vitórias.",
                         size=12,
-                        visible=not self.page.client_storage.get("supafit.user_id"),
+                        color=ft.Colors.GREY_600,
+                        visible=not self._is_authenticated(),
                     ),
                 ],
-                spacing=8,
+                spacing=16,
             ),
-            col=12,
-            padding=ft.padding.all(16),
+            border=ft.border.all(1, ft.Colors.GREY_200),
+            border_radius=12,
+            padding=ft.padding.all(20),
+            animate_opacity=AnimationPresets.slide_in(),
         )
 
-        return [form]
+        AnimationHelpers.animate_container_entry(form_container, self.page, 0.2)
+        return [form_container]
+
+    def _handle_post_with_animation(self, e):
+        """Manipula o envio do post com animações de feedback"""
+        AnimationHelpers.animate_button_click(self.post_button.current, self.page)
+        self.on_post_victory(e)
+
+    def _update_button_state(self):
+        """Atualiza o estado do botão com animações suaves"""
+        if not all(
+            [
+                self.post_button.current,
+                self.victory_input.current,
+                self.category_dropdown.current,
+            ]
+        ):
+            return
+
+        is_authenticated = self._is_authenticated()
+        has_content = bool(
+            self.victory_input.current.value
+            and self.victory_input.current.value.strip()
+        )
+        has_category = bool(self.category_dropdown.current.value)
+
+        self.post_button.current.disabled = not (
+            is_authenticated and has_content and has_category
+        )
+        self.victory_input.current.disabled = not is_authenticated
+        self.category_dropdown.current.disabled = not is_authenticated
+
+        self.post_button.current.update()
+        self.victory_input.current.update()
+        self.category_dropdown.current.update()
+
+    def _is_authenticated(self) -> bool:
+        """Verifica se o usuário está autenticado"""
+        return bool(self.page.client_storage.get("supafit.user_id"))
 
     def get_form_data(self) -> tuple[str, str]:
+        """Retorna os dados do formulário"""
         return (
-            self.victory_input.current.value.strip(),
-            self.category_dropdown.current.value,
+            (
+                self.victory_input.current.value.strip()
+                if self.victory_input.current.value
+                else ""
+            ),
+            self.category_dropdown.current.value or "",
         )
 
     def clear_form(self):
-        self.victory_input.current.value = ""
-        self.category_dropdown.current.value = None
-        self.victory_input.current.update()
+        """Limpa o formulário com feedback visual"""
+        if self.victory_input.current:
+            self.victory_input.current.value = ""
+            AnimationHelpers.animate_success_feedback(
+                self.victory_input.current, self.page
+            )
+            self.victory_input.current.update()
+        if self.category_dropdown.current:
+            self.category_dropdown.current.value = None
+            self.category_dropdown.current.update()
+        if self.char_counter.current:
+            self.char_counter.current.value = "0/50"
+            self.char_counter.current.color = ft.Colors.GREY_600
+            self.char_counter.current.update()
 
 
 class SnackBarHelper:
-    """Helper para notificações."""
+    """Helper para notificações com animações do SupaFit."""
 
     @staticmethod
     def show_success(page: ft.Page, message: str):
-        CustomSnackBar(
-            message, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE
-        ).show(page)
+        """Exibe notificação de sucesso com animação"""
+        SnackbarAnimations.show_animated_snackbar(
+            page, message, "green", icon=ft.Icons.CHECK_CIRCLE
+        )
 
     @staticmethod
     def show_error(page: ft.Page, message: str):
-        CustomSnackBar(message, bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE).show(
-            page
+        """Exibe notificação de erro com animação"""
+        SnackbarAnimations.show_animated_snackbar(
+            page, message, "red", icon=ft.Icons.ERROR
         )
 
     @staticmethod
     def show_warning(page: ft.Page, message: str):
-        CustomSnackBar(message, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE).show(
-            page
+        """Exibe notificação de aviso com animação"""
+        SnackbarAnimations.show_animated_snackbar(
+            page, message, "orange", icon=ft.Icons.WARNING
         )

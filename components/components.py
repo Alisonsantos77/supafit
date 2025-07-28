@@ -192,7 +192,7 @@ class WorkoutTile(ft.ExpansionTile):
                 text="Ver Treino",
                 on_click=self.on_view_click,
                 style=ft.ButtonStyle(
-                    bgcolor=ft.Colors.BLUE,
+                    bgcolor=ft.Colors.PRIMARY,
                     color=ft.Colors.WHITE,
                     shape=ft.RoundedRectangleBorder(radius=5),
                 ),

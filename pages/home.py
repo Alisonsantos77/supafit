@@ -136,7 +136,6 @@ def Homepage(page: ft.Page, supabase_service):
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text("Frequência de Treino", size=24, weight=ft.FontWeight.BOLD),
                 workout_grid,
             ],
             alignment=ft.MainAxisAlignment.CENTER,
