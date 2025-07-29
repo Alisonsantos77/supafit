@@ -9,6 +9,7 @@ from pages.auth.register import RegisterPage
 from pages.community.community_tab import CommunityTab
 from pages.trainer_chat.trainer_main import TrainerTab
 from pages.terms_page import TermsPage
+from pages.support.support import SupportPageView
 from pages.profile_user.create_profile import CreateProfilePage
 from utils.alerts import CustomSnackBar
 
@@ -21,6 +22,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         "/login",
         "/register",
         "/terms",
+        "/support",
     ]
     PROFILE_REQUIRED_ROUTES = [
         "/home",
@@ -75,6 +77,8 @@ def setup_routes(page: ft.Page, supabase, openai):
                 page.views.append(build_register_view())
             elif route == "/terms":
                 page.views.append(build_terms_view())
+            elif route == "/support":
+                page.views.append(build_support_view())
 
         # Rota de criação de perfil (requer autenticação)
         elif route == "/create_profile":
@@ -161,9 +165,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view de termos de uso."""
         return ft.View(
             route="/terms",
-            appbar=mobile_appbar.create_appbar(
-                "Termos de Uso"
-            ),
+            appbar=mobile_appbar.create_appbar("Termos de Uso"),
             controls=[TermsPage(page, supabase, openai)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -171,13 +173,22 @@ def setup_routes(page: ft.Page, supabase, openai):
             padding=20,
         )
 
+    def build_support_view():
+        """Constrói a view de apoio/suporte."""
+        return ft.View(
+            route="/support",
+            appbar=mobile_appbar.create_appbar("💪 Apoie o SupaFit"),
+            controls=[SupportPageView(page, supabase, openai)],
+            vertical_alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
+        )
+
     def build_create_profile_view():
         """Constrói a view de criação de perfil."""
         return ft.View(
             route="/create_profile",
-            appbar=mobile_appbar.create_appbar(
-                "Criar Perfil"
-            ),
+            appbar=mobile_appbar.create_appbar("Criar Perfil"),
             controls=[CreateProfilePage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -189,9 +200,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view da página inicial."""
         return ft.View(
             route="/home",
-            appbar=mobile_appbar.create_appbar(
-                "Frequência de Treino"
-            ),
+            appbar=mobile_appbar.create_appbar("Frequência de Treino"),
             controls=[Homepage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -203,9 +212,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view da comunidade."""
         return ft.View(
             route="/community",
-            appbar=mobile_appbar.create_appbar(
-                "Comunidade"
-            ),
+            appbar=mobile_appbar.create_appbar("Comunidade"),
             controls=[CommunityTab(page, supabase)],
             scroll=ft.ScrollMode.AUTO,
             padding=20,
@@ -215,23 +222,19 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view do treinador."""
         return ft.View(
             route="/trainer",
-            appbar=mobile_appbar.create_appbar(
-                "Treinador"
-            ),
+            appbar=mobile_appbar.create_appbar("Treinador"),
             controls=[TrainerTab(page, supabase, openai)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO,
             padding=20,
         )
-        
+
     def build_profile_settings_view():
         """Constrói a view de configurações do perfil."""
         return ft.View(
             route="/profile_settings",
-            appbar=mobile_appbar.create_appbar(
-                "Perfil"
-            ),
+            appbar=mobile_appbar.create_appbar("Perfil"),
             controls=[ProfileSettingsPage(page)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -243,9 +246,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view do histórico."""
         return ft.View(
             route="/history",
-            appbar=mobile_appbar.create_appbar(
-                "Histórico"
-            ),
+            appbar=mobile_appbar.create_appbar("Histórico"),
             controls=[HistoryPage(page, supabase)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -257,9 +258,7 @@ def setup_routes(page: ft.Page, supabase, openai):
         """Constrói a view de treino para um dia específico."""
         return ft.View(
             route=f"/treino/{day}",
-            appbar=mobile_appbar.create_appbar(
-                f"Treino - {day.capitalize()}"
-            ),
+            appbar=mobile_appbar.create_appbar(f"Treino - {day.capitalize()}"),
             controls=[Treinopage(page, supabase, day, user_id)],
             vertical_alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,

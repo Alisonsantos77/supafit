@@ -27,6 +27,7 @@ class MobileAppBar:
             "Histórico": "/history",
             "Pergunte ao Treinador": "/trainer",
             "Galeria de Vitórias": "/community",
+            "💪 Apoie o SupaFit": "/support",
         }
 
         option = e.control.content.controls[1].value
@@ -187,6 +188,24 @@ class MobileAppBar:
                                         ),
                                         ft.Text(
                                             "Galeria de Vitórias",
+                                            size=14,
+                                            weight=ft.FontWeight.W_500,
+                                        ),
+                                    ],
+                                    spacing=12,
+                                ),
+                                on_click=self.handle_menu_item,
+                            ),
+                            ft.PopupMenuItem(
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(
+                                            ft.Icons.FAVORITE,
+                                            color=ft.Colors.PINK_600,
+                                            size=20,
+                                        ),
+                                        ft.Text(
+                                            "💪 Apoie o SupaFit",
                                             size=14,
                                             weight=ft.FontWeight.W_500,
                                         ),
