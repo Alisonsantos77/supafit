@@ -595,7 +595,7 @@ class SnackBarHelper:
     def show_error(page: ft.Page, message: str):
         """Exibe notificação de erro com animação"""
         SnackbarAnimations.show_animated_snackbar(
-            page, message, "red", icon=ft.Icons.ERROR
+            page, message, "red", icon=ft.Icons.ERROR,
         )
 
     @staticmethod

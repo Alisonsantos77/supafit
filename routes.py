@@ -1,6 +1,6 @@
 import flet as ft
 from pages.home import Homepage
-from pages.treino import Treinopage
+from pages.training.treino import Treinopage
 from pages.profile_settings.profile_settings import ProfileSettingsPage
 from pages.history import HistoryPage
 from components.appbar_class import MobileAppBar

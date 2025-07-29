@@ -62,9 +62,9 @@ class ProfileFieldComponents:
         """Cria um switch com design moderno."""
         return ft.Switch(
             value=value,
-            active_color=ft.Colors.BLUE_400,
+            active_color=ft.Colors.PRIMARY,
             inactive_thumb_color=ft.Colors.ON_SURFACE_VARIANT,
-            active_track_color=ft.Colors.with_opacity(0.3, ft.Colors.BLUE_400),
+            active_track_color=ft.Colors.with_opacity(0.3, ft.Colors.PRIMARY),
             inactive_track_color=ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE),
         )
 
@@ -141,8 +141,10 @@ class ProfileSections:
         fields = ProfileFieldComponents()
         goal_options = [
             ft.dropdown.Option("Perder peso"),
-            ft.dropdown.Option("Ganhar massa"),
-            ft.dropdown.Option("Manter forma"),
+            ft.dropdown.Option("Hipertrofia"),
+            ft.dropdown.Option("Manter forma física"),
+            ft.dropdown.Option("Melhorar resistência"),
+            ft.dropdown.Option("Melhorar mobilidade"),
         ]
         level_options = [
             ft.dropdown.Option("iniciante"),

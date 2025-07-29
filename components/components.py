@@ -177,7 +177,10 @@ class WorkoutTile(ft.ExpansionTile):
             border_radius=ft.border_radius.all(10),
             error_content=ft.Icon(ft.Icons.ERROR_ROUNDED),
         )
-        self.trailing = ft.Checkbox(value=is_current_day, disabled=True)
+        self.trailing = ft.Checkbox(
+            value=is_current_day,
+            disabled=True,
+        )
         self.controls = [
             ft.ListTile(
                 title=ft.Text(
