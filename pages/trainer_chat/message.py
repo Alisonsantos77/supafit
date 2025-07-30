@@ -113,9 +113,6 @@ class ChatMessage(ft.Container):
         
         avatar_url = f"https://api.dicebear.com/8.x/thumbs/png?seed={seed}"
 
-        print(f"DEBUG: Avatar URL gerada: {avatar_url}")
-        print(f"DEBUG: Seed: {seed}, user_id: {message.user_id}, user_name: {message.user_name}")
-
         avatar = ft.CircleAvatar(
             foreground_image_src=avatar_url,
             content=ft.Text(

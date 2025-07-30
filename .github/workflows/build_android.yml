@@ -31,7 +31,7 @@ jobs:
     - name: 📦 Instalar dependências do projeto
       run: |
         pip install --upgrade pip
-        pip install flet==0.28.3 httpx python-dotenv requests supabase==2.16.0 flet-lottie flet-video openai groq
+        pip install flet==0.28.3 httpx python-dotenv requests supabase==2.16.0 flet-lottie flet-video openai groq tzdata
 
     - name: ✅ Setup Flutter
       uses: subosito/flutter-action@v2

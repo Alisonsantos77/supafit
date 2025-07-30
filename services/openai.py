@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from services.supabase import SupabaseService
 from services.trainer_functions import FUNCTION_MAP, get_user_plan
-
+from utils.datetime_br import get_datetime_br
 
 
 class OpenAIService:
@@ -347,9 +347,9 @@ class OpenAIService:
             print(f"WARNING- OpenAI: Erro ao converter número: {numbers[0]}")
             return ""
 
-
     @staticmethod
     def get_system_prompt(user_data: dict, user_id: str) -> str:
+        br_time = get_datetime_br()
         return (
             f"# 🏋️ COACHITO — Personal Trainer SupaFit\n\n"
             f"Você é Coachito, um treinador experiente, direto e empático na plataforma SupaFit.\n"
@@ -362,8 +362,8 @@ class OpenAIService:
             f"- Objetivo: {user_data.get('goal', 'N/A')}\n"
             f"- Nível: {user_data.get('level', 'N/A')}\n"
             f"- Restrições: {user_data.get('restrictions', 'Nenhuma')}\n"
-            f"- Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-            f"🔧 TOOLS DISPONÍVEIS\n"
+            f"- Data: {br_time['formato_extenso']}\n\n"
+            f"🔧 REGRA CRÍTICA: SEMPRE use get_user_plan() antes de responder sobre treinos, mesmo que você 'ache' que sabe a resposta. NUNCA responda sobre exercícios sem consultar as tools."            f"🔧 TOOLS DISPONÍVEIS\n"
             f"- get_user_profile(user_id)\n"
             f"- get_user_plan(user_id)\n"
             f"- get_exercise_details(exercise_id, exercise_name)\n"
@@ -374,7 +374,6 @@ class OpenAIService:
             f"- Seja breve, natural e acolhedor. Use apenas **1 emoji** por resposta.\n"
             f"- Evite frases genéricas. Foque em orientar e agir.\n"
             f"- Use ferramentas quando necessário, sem pedir permissão ao usuário.\n"
-            f"- Ao listar exercícios, **não use números**. Apenas nomes claros.\n"
             f"- Exemplo de lista:\n"
             f"  • Exercicio\n"
             f"- Ao sugerir substituições, oriente: “Me diga o nome do que prefere que eu troco no seu plano 😉”\n"

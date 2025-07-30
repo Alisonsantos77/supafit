@@ -17,6 +17,7 @@ dependencies = [
   "flet-video",
   "openai",
   "groq",
+  "tzdata"
 ]
 
 [tool.flet]

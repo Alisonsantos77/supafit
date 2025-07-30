@@ -52,9 +52,6 @@ def Treinopage(page: ft.Page, supabase: any, day: str, user_id: str):
                 .execute()
             )
             data = response.data or []
-            print(
-                f"DEBUG - treino: Dados brutos de user_plans para '{raw_day}':\n{data}"
-            )
             exercises = []
             if data and data[0].get("plan_exercises"):
                 plan_id = data[0].get("plan_id")

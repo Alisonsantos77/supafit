@@ -4,7 +4,6 @@ import uuid
 from supabase import Client
 from typing import List, Dict, Any
 from utils.logger import get_logger
-
 logger = get_logger("supafit.trainer_functions")
 
 # -------------------------------------------------------------------
@@ -142,6 +141,8 @@ TOOLS = [
 # -------------------------------------------------------------------
 # FUNCTION IMPLEMENTATIONS
 # -------------------------------------------------------------------
+
+
 def is_valid_uuid(value: str) -> bool:
     """Valida se o valor é um UUID válido."""
     try:
@@ -229,44 +230,67 @@ def find_substitutes(
         if not is_valid_uuid(exercise_id):
             print(f"ERROR: ID de exercício inválido: {exercise_id}")
             return {"error": f"ID de exercício inválido: {exercise_id}"}
+
         response = (
             supabase.table("exercicios")
             .select("id, nome, grupo_muscular")
             .eq("id", exercise_id)
             .execute()
         )
+
         if not response.data:
             print(f"ERROR: Exercício não encontrado para id: {exercise_id}")
             return {"error": f"Exercício não encontrado para id: {exercise_id}"}
+
         original_exercise = response.data[0]
         grupo_muscular = original_exercise["grupo_muscular"]
+
         query = (
             supabase.table("exercicios")
-            .select("id, nome")
+            .select("id, nome, grupo_muscular")
             .eq("grupo_muscular", grupo_muscular)
             .neq("id", exercise_id)
             .limit(3)
         )
+
         substitutes = query.execute()
+
         if not substitutes.data:
             print(
                 f"WARNING: Nenhum substituto encontrado para grupo muscular: {grupo_muscular}"
             )
             return {
-                "message": f"Não encontrei substitutos para '{original_exercise['nome']}'."
+                "message": f"Não encontrei substitutos para '{original_exercise['nome']}'.",
+                "original_exercise": {
+                    "id": original_exercise["id"],
+                    "nome": original_exercise["nome"],
+                    "grupo_muscular": grupo_muscular,
+                },
             }
+
         print(
             f"INFO: {len(substitutes.data)} substitutos encontrados para grupo muscular: {grupo_muscular}"
         )
+
         return {
+            "success": True,
             "original_exercise": {
                 "id": original_exercise["id"],
                 "nome": original_exercise["nome"],
-                "plan_exercise_id": "",
+                "grupo_muscular": grupo_muscular,
             },
-            "substitutes": substitutes.data,
+            "substitutes": [
+                {
+                    "id": sub["id"],
+                    "nome": sub["nome"],
+                    "grupo_muscular": sub["grupo_muscular"],
+                }
+                for sub in substitutes.data
+            ],
             "total_found": len(substitutes.data),
+            "instructions": "Escolha um dos exercícios listados para substituir no seu plano.",
         }
+
     except Exception as e:
         print(
             f"ERROR: Erro ao buscar substitutos para exercise_id: {exercise_id} - {e}"
@@ -338,13 +362,15 @@ def update_plan_exercise(
         )
 
         if not response.data:
-            print(f"ERROR: Falha ao atualizar plano de exercício: {plan_exercise_id}")
+            logger.error(
+                f"ERROR: Falha ao atualizar plano de exercício: {plan_exercise_id}"
+            )
             return {
                 "error": f"Falha ao atualizar plano de exercício: {plan_exercise_id}"
             }
 
-        print(
-            f"INFO: Plano de exercício atualizado: {plan_exercise_id} para exercise_id: {new_exercise_id}"
+        logger.info(
+            f"INFO: Plano de exercício atualizado com sucesso: {plan_exercise_id} -> {new_exercise_id} ({found_exercise_name})"
         )
         return {
             "success": True,

@@ -604,6 +604,7 @@ def HistoryPage(page: ft.Page, supabase):
                                             ),
                                         ],
                                         alignment=ft.MainAxisAlignment.CENTER,
+                                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                     ),
                                     alignment=ft.alignment.center,
                                     padding=20,

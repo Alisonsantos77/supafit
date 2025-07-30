@@ -67,7 +67,7 @@ def create_clear_button(
 
     return ft.TextButton(
         content=ft.Text(
-            "Limpar", size=14, color=ft.Colors.BLUE_400, weight=ft.FontWeight.W_500
+            "Limpar", size=14, color=ft.Colors.PRIMARY, weight=ft.FontWeight.W_500
         ),
         style=ft.ButtonStyle(
             padding=ft.padding.symmetric(horizontal=16, vertical=10),

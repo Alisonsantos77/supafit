@@ -26,7 +26,7 @@ class BuddyAvatar(ft.Container):
     def __init__(self):
         super().__init__()
         self.content = ft.Image(
-            src="mascote_supafit/apoiador1.png",
+            src="mascote_supafit/apoiador.png",
             width=100,
             height=100,
             fit=ft.ImageFit.CONTAIN,
