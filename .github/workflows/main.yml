@@ -1,0 +1,96 @@
+name: 📱 Build Android IOS - SupaFit
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: 1
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LOTTIE_LOGIN: ${{ secrets.LOTTIE_LOGIN }}
+      LOTTIE_REGISTER: ${{ secrets.LOTTIE_REGISTER }}
+
+    steps:
+    - name: 🧾 Checkout do código
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.3'
+
+    - name: 📦 Instalar dependências do projeto
+      run: |
+        pip install --upgrade pip
+        pip install flet==0.28.3 httpx python-dotenv requests supabase==2.16.0 flet-lottie flet-video openai groq tzdata
+
+    - name: ✅ Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.2'
+        channel: stable
+
+    - name: 🔎 Verificação do Flutter
+      run: flutter doctor -v
+
+    - name: 🔐 Criar arquivo .env para o build
+      run: |
+        echo "SUPABASE_URL=$SUPABASE_URL" > .env
+        echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+        echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
+        echo "LOTTIE_LOGIN=$LOTTIE_LOGIN" >> .env
+        echo "LOTTIE_REGISTER=$LOTTIE_REGISTER" >> .env
+
+    - name: 🔐 Garantir variáveis no ambiente de build
+      run: |
+        echo "🔸 SUPABASE_URL definida: $([ -n "$SUPABASE_URL" ] && echo "✅" || echo "❌")"
+        echo "🔸 OPENAI_API_KEY definida: $([ -n "$OPENAI_API_KEY" ] && echo "✅" || echo "❌")"
+        echo "🔸 GROQ_API_KEY definida: $([ -n "$GROQ_API_KEY" ] && echo "✅" || echo "❌")"
+
+    - name: 📁 Verificar estrutura de arquivos
+      run: |
+        echo "🔍 Verificando estrutura do projeto:"
+        ls -la
+        echo "🔍 Verificando pyproject.toml:"
+        cat pyproject.toml
+        echo "🔍 Verificando pasta assets:"
+        ls -la assets/ || echo "Pasta assets não encontrada"
+
+    - name: 🚀 Build APK com Flet (usando pyproject.toml)
+      run: |
+        flet build ios \
+          --split-per-abi \
+          --compile-app \
+          --splash-color "#0A1A2F" \
+          --splash-dark-color "#0A1A2F" \
+          -vv
+
+    - name: 📁 Mostrar arquivos gerados
+      run: |
+        echo "📦 Estrutura do build:"
+        ls -R build/ || echo "Pasta build não encontrada"
+        
+        echo "📱 APKs gerados:"
+        find . -name "*.apk" -exec ls -lh {} \; || echo "Nenhum APK encontrado"
+
+    - name: 📤 Upload do APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: apk-supafit-${{ github.sha }}
+        path: |
+          build/apk/**/*.apk
+          dist/*.apk
+        retention-days: 30
+
+    - name: ✅ Finalizado!
+      run: echo "✨ APK IOS gerado com sucesso! Verifique na aba Actions → Artifacts"
